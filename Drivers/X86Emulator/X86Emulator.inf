@@ -1,0 +1,75 @@
+## @file
+#
+#  Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
+#  Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+#
+#  This library is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 2 of the License, or (at your option) any later version.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010019
+  BASE_NAME                      = X86EmulatorDxe
+  FILE_GUID                      = E6727A5E-CBCD-44C8-B37F-78BC3A0C16C8
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = X86EmulatorDxeEntryPoint
+
+#
+#  VALID_ARCHITECTURES           = AARCH64 RISCV64
+#
+
+[Sources]
+  X86Emulator.c
+  Thunk.c
+  Cpu.c
+  TestProtocol.c
+
+[Sources.RISCV64]
+  RISCV64/X86Emulator.c
+  RISCV64/X86EmulatorThunk.S
+
+[Sources.AARCH64]
+  AARCH64/X86Emulator.c
+  AARCH64/X86EmulatorThunk.S
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  UCX86EmulatorPkg/UCX86EmulatorPkg.dec
+  unicorn/efi/UnicornPkg.dec
+
+[Packages.AARCH64]
+  ArmPkg/ArmPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  PeCoffLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UnicornX86Lib
+  UnicornStubLib
+  UnicornEngineLib
+
+[LibraryClasses.AARCH64]
+  DefaultExceptionHandlerLib
+
+[LibraryClasses.RISCV64]
+  CpuExceptionHandlerLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid             ## CONSUMES
+  gEfiCpuArchProtocolGuid                 ## CONSUMES
+  gEfiCpuIo2ProtocolGuid                  ## CONSUMES
+  gEdkiiPeCoffImageEmulatorProtocolGuid   ## PRODUCES
+
+[Depex]
+  gEfiCpuArchProtocolGuid AND gEfiCpuIo2ProtocolGuid
+
+[BuildOptions]

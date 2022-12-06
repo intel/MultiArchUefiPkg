@@ -1,32 +1,113 @@
-# X86EmulatorPkg
+# UCX86EmulatorPkg
 
-This code implements a DXE driver for EDK2/Tianocore that allows UEFI
-drivers built for x86_64 aka X64 aka amd64 to be executed on 64-bit
-ARM systems (aka AArch64)
+This code implements a DXE driver for EDK2/Tianocore that allows
+64-bit x86 UEFI drivers (aka x86_64, X64, AMD64) to be executed
+on other 64-bit UEFI environments. Today, AArch64 and RISC-V
+are supported.
 
-All prerequisites in the core code have been merged into the upstream
-Tianocore EDK2 repository as of commit 26d60374b87d.
+It's derived from https://github.com/ardbiesheuvel/X86EmulatorPkg, yet
+is otherwise a reimplementation using https://www.unicorn-engine.org/.
+Same performance, half the binary size (on AArch64) and portable.
+You can have all three.
 
-A prebuilt RELEASE binary of this driver is included in the edk2-non-osi
-repository at commit 596043ffb61d5f74.
+## How does it work?
+
+UEFI code uses a pretty narrowly-defined ABI, which makes it
+easy to thunk x64 code making EFIAPI calls to native code -
+no FP/SIMD, no returning large values, etc.
+
+The emulator presents an x64 UEFI Boot Services environment,
+appropriate for running Boot Servces drivers (e.g. OpRom drivers
+such as SNP, GOP) and EFI applications (that aren't OS loaders).
+Certain Boot, Runtime and DXE services are filtered or disabled.
 
 ## Quick Start
 
-To quickly compile an OVMF version that contains the emulator, run
+To quickly compile for AArch64:
 
-	$ git clone https://github.com/tianocore/edk2.git
-	$ cd edk2
-	$ git submodule add https://github.com/ardbiesheuvel/X86EmulatorPkg.git
-	$ git submodule update --init
-	$ echo "  X86EmulatorPkg/X86Emulator.inf" >> ArmVirtPkg/ArmVirtQemu.dsc
-	$ echo "  INF X86EmulatorPkg/X86Emulator.inf" >> ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
-	$ make -C BaseTools
-	$ . edksetup.sh
-	$ export GCC5_AARCH64_PREFIX=... (if you are on a non-aarch64 system)
-	$ build -a AARCH64 -t GCC5 -p ArmVirtPkg/ArmVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
+        $ git clone https://github.com/tianocore/edk2.git
+        $ cd edk2
+        $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule update --init
+        $ export GCC5_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
+        $ build -a AARCH64 -t GCC5 -p UCX86EmulatorPkg/X86Emulator.dsc -b RELEASE
+
+This will produce Build/UCX86Emulator/RELEASE_GCC5/AARCH64/X86EmulatorDxe.efi
+
+To quickly compile for RISCV:
+
+        $ git clone https://github.com/tianocore/edk2-staging.git
+        $ cd edk2-staging
+        $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule update --init
+
+        Apply the patches under UCX86EmulatorPkg/edk2-staging-patches. These
+        patches will also need to be applied to the UEFI firmware used for
+        testing.
+
+        $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
+        $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/X86Emulator.dsc -b RELEASE
+
+This will produce Build/UCX86Emulator/RELEASE_GCC5/RISCV64/X86EmulatorDxe.efi
+
+To quickly compile an ArmVirtPkg version that contains the emulator, run
+
+        $ git clone https://github.com/tianocore/edk2.git
+        $ cd edk2
+        $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule update --init
+        $ echo "UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf {
+                    <LibraryClasses>
+                      UnicornEngineLib|unicorn/efi/UnicornEngineLib.inf
+                      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
+                      UnicornX86Lib|unicorn/efi/UnicornX86Lib.inf
+                }"
+        $ echo "INF UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf" >> ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+
+        Be sure to comment out "INF OvmfPkg/VirtioNetDxe/VirtioNet.inf" in ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+
+        $ make -C BaseTools
+        $ . edksetup.sh
+        $ export GCC5_AARCH64_PREFIX=... (if you are on a non-aarch64 system)
+        $ build -a AARCH64 -t GCC5 -p ArmVirtPkg/ArmVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
 
 You can then use QEMU to execute it:
 
-	$ qemu-system-aarch64 -M virt -cpu cortex-a57 -m 2G -nographic -bios ./Build/ArmVirtQemu-AARCH64/RELEASE_GCC5/FV/QEMU_EFI.fd
+        $ qemu-system-aarch64 -M virt -cpu cortex-a57 -m 2G -nographic -bios ./Build/ArmVirtQemu-AARCH64/RELEASE_GCC5/FV/QEMU_EFI.fd
 
 If you see dots on your screen, that is the x86_64 virtio iPXE rom in action!
+
+## Testing
+
+There's a small test application:
+
+        $ export GCC5_X64_PREFIX=... (if you are on a non-X64 system)
+        $ build -a X64 -t GCC5 -p UCX86EmulatorPkg/X86EmulatorTest.dsc
+
+When run against a DEBUG build of X86EmulatorDxe, will run further sanity tests.
+
+## Special builds
+
+UCX86EmulatorPkg uses a port of Project Unicorn to UEFI which is not
+yet upstreamed. Beyond UEFI support, the unicorn-for-efi repo also
+contains critical fixes to the operation of emulator. Beyond fixes, there
+are additional improvements that rely on additional new Unicorn APIs being
+made available.
+
+If you build with UPSTREAM_UC=YES, you will get a version of UCX86EmulatorPkg
+that does not rely on the existence of these additional APIs. Such a build
+could be interesting as part of upstreaming efforts for the UEFI port of
+Project Unicorn. Building with UPSTREAM_UC=YES does *not* exclude changes
+without an API impact.
+
+If you build with ON_PRIVATE_STACK, X86EmulatorDxe will use a dedicated
+native stack for handling x64 emulation. This has some runtime overhead and
+is unneccesary for normal operation.
+
+Finally, you can choose to build with BaseDebugLibNull. By default
+UefiDebugLibConOut is used to get some reasonable debugging output, but
+the extra code generated for DEBUG((...)) macros used for logging does
+have some performance impact on the microbenchmarks.

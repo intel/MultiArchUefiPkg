@@ -1,0 +1,36 @@
+From 660a91b70fa00a30da97ac9da499c9320a4a1335 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Tue, 20 Dec 2022 23:01:47 -0600
+Subject: [PATCH 4/4] BaseLib: don't log in InternalSwitchStack
+
+InternalSwitchStack may be called with a high enough TPL.
+
+Other arch implementations don't log either.
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ MdePkg/Library/BaseLib/RiscV64/InternalSwitchStack.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/MdePkg/Library/BaseLib/RiscV64/InternalSwitchStack.c b/MdePkg/Library/BaseLib/RiscV64/InternalSwitchStack.c
+index cf646e498a..b78424c163 100644
+--- a/MdePkg/Library/BaseLib/RiscV64/InternalSwitchStack.c
++++ b/MdePkg/Library/BaseLib/RiscV64/InternalSwitchStack.c
+@@ -44,14 +44,6 @@ InternalSwitchStack (
+ {
+   BASE_LIBRARY_JUMP_BUFFER  JumpBuffer;
+ 
+-  DEBUG ((
+-    DEBUG_INFO,
+-    "RISC-V InternalSwitchStack Entry:%x Context1:%x Context2:%x NewStack%x\n", \
+-    EntryPoint,
+-    Context1,
+-    Context2,
+-    NewStack
+-    ));
+   JumpBuffer.RA = (UINTN)EntryPoint;
+   JumpBuffer.SP = (UINTN)NewStack - sizeof (VOID *);
+   JumpBuffer.S0 = (UINT64)(UINTN)Context1;
+-- 
+2.25.1
+

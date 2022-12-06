@@ -1,0 +1,290 @@
+From 9a395bf1aa7a3e83978642b404feb3a7db2c1505 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Wed, 14 Dec 2022 11:52:55 -0600
+Subject: [PATCH 2/4] CpuDxe: refactor to share more code with RISC-V
+
+Make InternalPrintMessage common. More things will be moved soon.
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ UefiCpuPkg/CpuDxe/Ia32X64/CpuPageTable.c      |  1 -
+ .../CpuExceptionHandlerLib/CpuExceptionLib.c  | 48 +++++++++++++++++++
+ .../CpuExceptionHandlerLib/CpuExceptionLib.h  | 29 +++++++++++
+ .../DxeCpuExceptionHandlerLib.inf             |  3 ++
+ .../Ia32X64/CpuExceptionCommon.c              | 36 --------------
+ .../Ia32X64/CpuExceptionCommon.h              | 17 +------
+ .../PeiCpuExceptionHandlerLib.inf             |  3 ++
+ .../SecPeiCpuExceptionHandlerLib.inf          |  3 ++
+ .../SmmCpuExceptionHandlerLib.inf             |  3 ++
+ .../Xcode5SecPeiCpuExceptionHandlerLib.inf    |  3 ++
+ 10 files changed, 93 insertions(+), 53 deletions(-)
+ create mode 100644 UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.c
+ create mode 100644 UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.h
+
+diff --git a/UefiCpuPkg/CpuDxe/Ia32X64/CpuPageTable.c b/UefiCpuPkg/CpuDxe/Ia32X64/CpuPageTable.c
+index 5b1dec2d67..d55cc1215f 100644
+--- a/UefiCpuPkg/CpuDxe/Ia32X64/CpuPageTable.c
++++ b/UefiCpuPkg/CpuDxe/Ia32X64/CpuPageTable.c
+@@ -59,7 +59,6 @@
+ #define PAGING_1G_ADDRESS_MASK_64  0x000FFFFFC0000000ull
+ 
+ #define MAX_PF_ENTRY_COUNT        10
+-#define MAX_DEBUG_MESSAGE_LENGTH  0x100
+ #define IA32_PF_EC_ID             BIT4
+ 
+ typedef enum {
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.c b/UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.c
+new file mode 100644
+index 0000000000..47c10d25c9
+--- /dev/null
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.c
+@@ -0,0 +1,48 @@
++/** @file
++  CPU Exception Handler Library common functions.
++
++  Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
++  SPDX-License-Identifier: BSD-2-Clause-Patent
++
++**/
++
++#include "CpuExceptionLib.h"
++#include <Library/SerialPortLib.h>
++#include <Library/PrintLib.h>
++#include <Library/BaseLib.h>
++
++//
++// Define the maximum message length
++//
++#define MAX_DEBUG_MESSAGE_LENGTH  0x100
++
++/**
++  Prints a message to the serial port.
++
++  @param  Format      Format string for the message to print.
++  @param  ...         Variable argument list whose contents are accessed
++                      based on the format string specified by Format.
++
++**/
++VOID
++EFIAPI
++InternalPrintMessage (
++  IN  CONST CHAR8  *Format,
++  ...
++  )
++{
++  CHAR8    Buffer[MAX_DEBUG_MESSAGE_LENGTH];
++  VA_LIST  Marker;
++
++  //
++  // Convert the message to an ASCII String
++  //
++  VA_START (Marker, Format);
++  AsciiVSPrint (Buffer, sizeof (Buffer), Format, Marker);
++  VA_END (Marker);
++
++  //
++  // Send the print string to a Serial Port
++  //
++  SerialPortWrite ((UINT8 *)Buffer, AsciiStrLen (Buffer));
++}
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.h b/UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.h
+new file mode 100644
+index 0000000000..61000eaf6c
+--- /dev/null
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/CpuExceptionLib.h
+@@ -0,0 +1,29 @@
++/** @file
++  CPU Exception Handler Library common functions.
++
++  Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
++  SPDX-License-Identifier: BSD-2-Clause-Patent
++
++**/
++
++#ifndef __CPU_EXCEPTION_LIB_H__
++#define __CPU_EXCEPTION_LIB_H__
++
++#include <Uefi.h>
++
++/**
++  Prints a message to the serial port.
++
++  @param  Format      Format string for the message to print.
++  @param  ...         Variable argument list whose contents are accessed
++                      based on the format string specified by Format.
++
++**/
++VOID
++EFIAPI
++InternalPrintMessage (
++  IN  CONST CHAR8  *Format,
++  ...
++  );
++
++#endif /* __CPU_EXCEPTION_LIB_H__ */
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf b/UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+index b24140d1f2..6ada3fa8f1 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+@@ -21,6 +21,9 @@
+ #  VALID_ARCHITECTURES           = IA32 X64 RISCV64
+ #
+ 
++[Sources]
++  CpuExceptionLib.c
++
+ [Sources.Ia32]
+   Ia32/ExceptionHandlerAsm.nasm
+   Ia32/ExceptionTssEntryAsm.nasm
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.c b/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.c
+index 903fac927e..df6dd68862 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.c
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.c
+@@ -16,11 +16,6 @@
+ //
+ CONST UINT32  mErrorCodeFlag = 0x20227d00;
+ 
+-//
+-// Define the maximum message length
+-//
+-#define MAX_DEBUG_MESSAGE_LENGTH  0x100
+-
+ CONST CHAR8  mExceptionReservedStr[] = "Reserved";
+ CONST CHAR8  *mExceptionNameStr[]    = {
+   "#DE - Divide Error",
+@@ -76,37 +71,6 @@ GetExceptionNameStr (
+   }
+ }
+ 
+-/**
+-  Prints a message to the serial port.
+-
+-  @param  Format      Format string for the message to print.
+-  @param  ...         Variable argument list whose contents are accessed
+-                      based on the format string specified by Format.
+-
+-**/
+-VOID
+-EFIAPI
+-InternalPrintMessage (
+-  IN  CONST CHAR8  *Format,
+-  ...
+-  )
+-{
+-  CHAR8    Buffer[MAX_DEBUG_MESSAGE_LENGTH];
+-  VA_LIST  Marker;
+-
+-  //
+-  // Convert the message to an ASCII String
+-  //
+-  VA_START (Marker, Format);
+-  AsciiVSPrint (Buffer, sizeof (Buffer), Format, Marker);
+-  VA_END (Marker);
+-
+-  //
+-  // Send the print string to a Serial Port
+-  //
+-  SerialPortWrite ((UINT8 *)Buffer, AsciiStrLen (Buffer));
+-}
+-
+ /**
+   Find and display image base address and return image base and its entry point.
+ 
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.h b/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.h
+index 4593c204a6..337302c7e7 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.h
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/Ia32X64/CpuExceptionCommon.h
+@@ -9,11 +9,11 @@
+ #ifndef _CPU_EXCEPTION_COMMON_H_
+ #define _CPU_EXCEPTION_COMMON_H_
+ 
++#include "CpuExceptionLib.h"
+ #include <Ppi/VectorHandoffInfo.h>
+ #include <Protocol/Cpu.h>
+ #include <Library/BaseLib.h>
+ #include <Library/SerialPortLib.h>
+-#include <Library/PrintLib.h>
+ #include <Library/LocalApicLib.h>
+ #include <Library/PeCoffGetEntryPointLib.h>
+ #include <Library/BaseMemoryLib.h>
+@@ -105,21 +105,6 @@ ArchGetIdtHandler (
+   IN IA32_IDT_GATE_DESCRIPTOR  *IdtEntry
+   );
+ 
+-/**
+-  Prints a message to the serial port.
+-
+-  @param  Format      Format string for the message to print.
+-  @param  ...         Variable argument list whose contents are accessed
+-                      based on the format string specified by Format.
+-
+-**/
+-VOID
+-EFIAPI
+-InternalPrintMessage (
+-  IN  CONST CHAR8  *Format,
+-  ...
+-  );
+-
+ /**
+   Find and display image base address and return image base and its entry point.
+ 
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/PeiCpuExceptionHandlerLib.inf b/UefiCpuPkg/Library/CpuExceptionHandlerLib/PeiCpuExceptionHandlerLib.inf
+index af4899e688..dbc1b009a3 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/PeiCpuExceptionHandlerLib.inf
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/PeiCpuExceptionHandlerLib.inf
+@@ -21,6 +21,9 @@
+ #  VALID_ARCHITECTURES           = IA32 X64
+ #
+ 
++[Sources]
++  CpuExceptionLib.c
++
+ [Sources.Ia32]
+   Ia32/ExceptionHandlerAsm.nasm
+   Ia32/ExceptionTssEntryAsm.nasm
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/SecPeiCpuExceptionHandlerLib.inf b/UefiCpuPkg/Library/CpuExceptionHandlerLib/SecPeiCpuExceptionHandlerLib.inf
+index 60c92ecf65..39c5a8ade0 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/SecPeiCpuExceptionHandlerLib.inf
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/SecPeiCpuExceptionHandlerLib.inf
+@@ -21,6 +21,9 @@
+ #  VALID_ARCHITECTURES           = IA32 X64 RISCV64
+ #
+ 
++[Sources]
++  CpuExceptionLib.c
++
+ [Sources.Ia32]
+   Ia32/ExceptionHandlerAsm.nasm
+   Ia32/ExceptionTssEntryAsm.nasm
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/SmmCpuExceptionHandlerLib.inf b/UefiCpuPkg/Library/CpuExceptionHandlerLib/SmmCpuExceptionHandlerLib.inf
+index 249446588b..abc72fa152 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/SmmCpuExceptionHandlerLib.inf
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/SmmCpuExceptionHandlerLib.inf
+@@ -21,6 +21,9 @@
+ #  VALID_ARCHITECTURES           = IA32 X64
+ #
+ 
++[Sources]
++  CpuExceptionLib.c
++
+ [Sources.Ia32]
+   Ia32/ExceptionHandlerAsm.nasm
+   Ia32/ExceptionTssEntryAsm.nasm
+diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/Xcode5SecPeiCpuExceptionHandlerLib.inf b/UefiCpuPkg/Library/CpuExceptionHandlerLib/Xcode5SecPeiCpuExceptionHandlerLib.inf
+index 23200437eb..4e1438da7e 100644
+--- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/Xcode5SecPeiCpuExceptionHandlerLib.inf
++++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/Xcode5SecPeiCpuExceptionHandlerLib.inf
+@@ -26,6 +26,9 @@
+ #  VALID_ARCHITECTURES           = IA32 X64
+ #
+ 
++[Sources]
++  CpuExceptionLib.c
++
+ [Sources.Ia32]
+   Ia32/ExceptionHandlerAsm.nasm
+   Ia32/ExceptionTssEntryAsm.nasm
+-- 
+2.25.1
+
