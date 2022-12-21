@@ -124,62 +124,43 @@ X86InterpreterSyncExceptionCallback (
   DumpCpuContext (ExceptionType, SystemContext);
 }
 
-STATIC BOOLEAN mSapfHandler;
-STATIC BOOLEAN mLapfHandler;
-STATIC BOOLEAN mIapfHandler;
-STATIC BOOLEAN mIllHandler;
+STATIC UINTN mExceptions[] = {
+  EXCEPT_RISCV_STORE_ACCESS_PAGE_FAULT,
+  EXCEPT_RISCV_LOAD_ACCESS_PAGE_FAULT,
+  EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT,
+  /*
+   * If CpuDxe doesn't configure MMU, then the illegal instruction
+   * trap may work, but good luck!
+   */
+  EXCEPT_RISCV_ILLEGAL_INST
+};
 
 EFI_STATUS
 ArchInit (
   VOID
   )
 {
+  INTN Index;
   EFI_STATUS Status;
+  EFI_STATUS Status2;
 
-  Status = gCpu->RegisterInterruptHandler (gCpu,
-                                           EXCEPT_RISCV_STORE_ACCESS_PAGE_FAULT,
-                                           &X86InterpreterSyncExceptionCallback);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler for store page fault failed: %r\n", Status));
-    goto out;
+  for (Index = 0; Index < ARRAY_SIZE (mExceptions); Index++) {
+    Status = gCpu->RegisterInterruptHandler (gCpu,
+                                             mExceptions[Index],
+                                             &X86InterpreterSyncExceptionCallback);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler 0x%x: %r\n", mExceptions[Index], Status));
+      break;
+    }
   }
-  mSapfHandler = TRUE;
 
-  Status = gCpu->RegisterInterruptHandler (gCpu,
-                                           EXCEPT_RISCV_LOAD_ACCESS_PAGE_FAULT,
-                                           &X86InterpreterSyncExceptionCallback);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler for load page fault failed: %r\n", Status));
-    goto out;
+    while (--Index >= 0) {
+      Status2 = gCpu->RegisterInterruptHandler (gCpu, mExceptions[Index], NULL);
+      ASSERT (!EFI_ERROR (Status2));
+    }
   }
-  mLapfHandler = TRUE;
 
-  Status = gCpu->RegisterInterruptHandler (gCpu,
-                                           EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT,
-                                           &X86InterpreterSyncExceptionCallback);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler for fetch page fault failed: %r\n", Status));
-    goto out;
-  }
-  mIapfHandler = TRUE;
-
-  /*
-   * If CpuDxe doesn't configure MMU, then the illegal instruction
-   * trap may work, but good luck!
-   */
-  Status = gCpu->RegisterInterruptHandler (gCpu,
-                                           EXCEPT_RISCV_ILLEGAL_INST,
-                                           &X86InterpreterSyncExceptionCallback);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler for illegal inst fault failed: %r\n", Status));
-    goto out;
-  }
-  mIllHandler = TRUE;
-
-out:
-  if (EFI_ERROR (Status)) {
-    ArchCleanup ();
-  }
   return Status;
 }
 
@@ -188,33 +169,11 @@ ArchCleanup (
   VOID
   )
 {
+  INTN Index;
   EFI_STATUS Status;
 
-  if (mSapfHandler) {
-    Status = gCpu->RegisterInterruptHandler (gCpu,
-                                             EXCEPT_RISCV_STORE_ACCESS_PAGE_FAULT,
-                                             NULL);
-    ASSERT (!EFI_ERROR (Status));
-  }
-
-  if (mLapfHandler) {
-    Status = gCpu->RegisterInterruptHandler (gCpu,
-                                             EXCEPT_RISCV_LOAD_ACCESS_PAGE_FAULT,
-                                             NULL);
-    ASSERT (!EFI_ERROR (Status));
-  }
-
-  if (mIapfHandler) {
-    Status = gCpu->RegisterInterruptHandler (gCpu,
-                                             EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT,
-                                             NULL);
-    ASSERT (!EFI_ERROR (Status));
-  }
-
-  if (mIllHandler) {
-    Status = gCpu->RegisterInterruptHandler (gCpu,
-                                             EXCEPT_RISCV_ILLEGAL_INST,
-                                             NULL);
+  for (Index = 0; Index < ARRAY_SIZE (mExceptions); Index++) {
+    Status = gCpu->RegisterInterruptHandler (gCpu, mExceptions[Index], NULL);
     ASSERT (!EFI_ERROR (Status));
   }
 }
