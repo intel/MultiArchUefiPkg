@@ -26,8 +26,8 @@ RecoverPcFromCall (
   UINT64 Ra = RiscV64Context->X1;
 
   Insn = *(UINT16 *)(Ra - 2);
-  if ((Insn & 0x3) == 2 &&         // op
-      (Insn & 0xf000) == 0x9000 && // funct4
+  if ((Insn & 0x3) == 2 &&         // op == C2
+      (Insn & 0xf000) == 0x9000 && // funct4 == c.jalr
       (Insn & 0xf80) != 0 &&       // rs1
       (Insn & 0x7c) == 0) {        // rs2
     UINTN Rs = (Insn >> 7) & 0x1F;
@@ -51,6 +51,23 @@ RecoverPcFromCall (
   }
 
   Insn = *(UINT32 *)(Ra - 4);
+  if ((Insn & 0x7f) == 0x67  && // opcode == jalr
+      (Insn & 0xf80) == 0x80 && // rd == x1
+      (Insn & 0x3000) == 0) {   // func3
+    struct { signed int x:12; } imm12;
+    UINTN Rs = (Insn >> 15) & 0x1F;
+
+    imm12.x = Insn >> 20;
+    *Pc = (&RiscV64Context->X0)[Rs] + imm12.x;
+
+    if ((*Pc & RiscV64Context->SEPC) != RiscV64Context->SEPC) {
+      DEBUG ((DEBUG_ERROR, "Unknown x64 RIP: PC 0x%lx but SEPC 0x%lx\n",
+              *Pc,  RiscV64Context->SEPC));
+      return EFI_NOT_FOUND;
+    }
+
+    return EFI_SUCCESS;
+  }
   DEBUG ((DEBUG_ERROR, "Unknown x64 RIP: bad instruction 0x%x\n", Insn));
 
   return EFI_NOT_FOUND;
