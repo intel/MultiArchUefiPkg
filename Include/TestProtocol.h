@@ -19,26 +19,8 @@
 #define FIELD_VAL(x) ((1UL << 63) | (x##UL << 56) | (x##UL))
 
 typedef struct {
-  UINT64 Field1;
-  UINT64 Field2;
-  UINT64 Field3;
-  /*
-   * Doesn't matter how many fields this has, so long as it
-   * all adds up to being larger than RET16.
-   */
-  UINT64 Field4;
-} RET_LARGE;
-
-typedef struct {
-  UINT64 Field1;
-  UINT64 Field2;
-} RET16;
-
-typedef struct {
   UINT16            HostMachineType;
   UINT64     EFIAPI (*TestRet)(VOID);
-  RET16      EFIAPI (*TestRet16)(UINT64);
-  RET_LARGE  EFIAPI (*TestLargeRet)(UINT64);
   EFI_STATUS EFIAPI (*TestArgs)(UINT64, UINT64, UINT64, UINT64,
                                 UINT64, UINT64, UINT64, UINT64,
                                 UINT64, UINT64, UINT64, UINT64,
@@ -48,11 +30,3 @@ typedef struct {
                                                       UINT64, UINT64, UINT64, UINT64,
                                                       UINT64, UINT64, UINT64, UINT64));
 } X86_EMU_TEST_PROTOCOL;
-
-RET16 TestRet16 (
-  IN  UINT64 Arg1
-  );
-
-RET_LARGE TestLargeRet (
-  IN  UINT64 Arg1
-  );

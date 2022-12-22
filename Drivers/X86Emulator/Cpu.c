@@ -283,7 +283,7 @@ CpuInit (
   REG_WRITE (RSP, mEmuStackTop);
 
 #ifndef UPSTREAM_UC
-  UcErr = uc_set_native_thunks (gUE, CpuIsNative, ThunkToNative);
+  UcErr = uc_set_native_thunks (gUE, CpuIsNative, NativeThunk);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_set_native_thunks failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -478,7 +478,7 @@ CpuRunFuncInternal (
 
 #ifdef UPSTREAM_UC
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      ThunkToNative (gUE, Rip);
+      NativeThunk (gUE, Rip);
       Rip = CpuStackPop64 ();
     } else
 #endif /* UPSTREAM_UC */

@@ -24,7 +24,7 @@
 
 [Sources]
   X86Emulator.c
-  Thunk.c
+  Native.c
   Cpu.c
   TestProtocol.c
 

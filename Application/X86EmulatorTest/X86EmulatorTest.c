@@ -85,8 +85,6 @@ DoTestProtocolTests (
   )
 {
   UINT64 Ret;
-  RET16 Ret16;
-  RET_LARGE LargeRet;
   char *hostType = "unknown";
 
   if (Test->HostMachineType == EFI_IMAGE_MACHINE_AARCH64) {
@@ -99,24 +97,6 @@ DoTestProtocolTests (
 
   Ret = Test->TestRet ();
   LogResult ("Value return", Ret == RET_VAL);
-
-  Ret16.Field1 = 0xAA;
-  Ret16.Field2 = 0xBB;
-  Ret16 = Test->TestRet16 (ARG_VAL(1));
-  LogResult ("16-byte value return",
-             Ret16.Field1 == FIELD_VAL(1) &&
-             Ret16.Field2 == FIELD_VAL(2));
-
-  LargeRet.Field1 = 0xAA;
-  LargeRet.Field2 = 0xBB;
-  LargeRet.Field3 = 0xCC;
-  LargeRet.Field4 = 0xDD;
-  LargeRet = Test->TestLargeRet (ARG_VAL(1));
-  LogResult ("Large value return",
-             LargeRet.Field1 == FIELD_VAL(1) &&
-             LargeRet.Field2 == FIELD_VAL(2) &&
-             LargeRet.Field3 == FIELD_VAL(3) &&
-             LargeRet.Field4 == FIELD_VAL(4));
 
   Ret = Test->TestArgs (ARG_VAL(1), ARG_VAL(2), ARG_VAL(3), ARG_VAL(4),
                         ARG_VAL(5), ARG_VAL(6), ARG_VAL(7), ARG_VAL(8),

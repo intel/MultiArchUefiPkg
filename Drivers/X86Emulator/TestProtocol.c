@@ -32,40 +32,6 @@ TestRet (
   return RET_VAL;
 }
 
-RET16
-EFIAPI
-TestRet16 (
-  IN  UINT64 Arg1
-  )
-{
-  RET16 r = { 0 };
-
-  if (Arg1 == ARG_VAL(1)) {
-    r.Field1 = FIELD_VAL(1);
-    r.Field2 = FIELD_VAL(2);
-  }
-
-  return r;
-}
-
-RET_LARGE
-EFIAPI
-TestLargeRet (
-  IN  UINT64 Arg1
-  )
-{
-  RET_LARGE r = { 0 };
-
-  if (Arg1 == ARG_VAL(1)) {
-    r.Field1 = FIELD_VAL(1);
-    r.Field2 = FIELD_VAL(2);
-    r.Field3 = FIELD_VAL(3);
-    r.Field4 = FIELD_VAL(4);
-  }
-
-  return r;
-}
-
 STATIC
 EFI_STATUS
 EFIAPI
@@ -129,8 +95,6 @@ TestCbArgs (
 STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
   HOST_MACHINE_TYPE,
   TestRet,
-  TestRet16,
-  TestLargeRet,
   TestArgs,
   TestCbArgs,
 };

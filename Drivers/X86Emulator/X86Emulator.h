@@ -123,7 +123,7 @@ CpuRegisterCodeRange (
   );
 
 VOID
-ThunkToNative (
+NativeThunk (
   IN  uc_engine *UE,
   IN  UINT64    Rip
   );
