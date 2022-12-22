@@ -43,8 +43,10 @@ typedef struct {
                                 UINT64, UINT64, UINT64, UINT64,
                                 UINT64, UINT64, UINT64, UINT64,
                                 UINT64, UINT64, UINT64, UINT64);
-  UINT64     EFIAPI (*TestCb)(UINT64, UINT64,
-                              UINT64 EFIAPI (*Cb)(UINT64, UINT64));
+  UINT64     EFIAPI (*TestCbArgs)(UINT64 EFIAPI (*Cb)(UINT64, UINT64, UINT64, UINT64,
+                                                      UINT64, UINT64, UINT64, UINT64,
+                                                      UINT64, UINT64, UINT64, UINT64,
+                                                      UINT64, UINT64, UINT64, UINT64));
 } X86_EMU_TEST_PROTOCOL;
 
 RET16 TestRet16 (

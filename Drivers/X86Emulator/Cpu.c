@@ -418,8 +418,8 @@ CpuRunFuncInternal (
   CpuExitReason ExitReason;
   UINT64        Rip = ProgramCounter;
 
-  DEBUG ((DEBUG_INFO, "XXX x86_64 fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-          Rip, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5], Args[6], Args[7]));
+  DEBUG ((DEBUG_INFO, "XXX x64 fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+          Rip, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5], Args[6], Args[7], Args[8]));
 
   REG_WRITE (RCX, Args[0]);
   REG_WRITE (RDX, Args[1]);

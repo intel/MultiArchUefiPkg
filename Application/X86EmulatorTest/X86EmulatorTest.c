@@ -37,12 +37,45 @@ LogResult (
 STATIC
 UINT64
 EFIAPI
-TestCb (
+TestCbArgs (
   IN  UINT64 Arg1,
-  IN  UINT64 Arg2
+  IN  UINT64 Arg2,
+  IN  UINT64 Arg3,
+  IN  UINT64 Arg4,
+  IN  UINT64 Arg5,
+  IN  UINT64 Arg6,
+  IN  UINT64 Arg7,
+  IN  UINT64 Arg8,
+  IN  UINT64 Arg9,
+  IN  UINT64 Arg10,
+  IN  UINT64 Arg11,
+  IN  UINT64 Arg12,
+  IN  UINT64 Arg13,
+  IN  UINT64 Arg14,
+  IN  UINT64 Arg15,
+  IN  UINT64 Arg16
   )
 {
-  return Arg1 + Arg2;
+  if (Arg1 == ARG_VAL(1) &&
+      Arg2 == ARG_VAL(2) &&
+      Arg3 == ARG_VAL(3) &&
+      Arg4 == ARG_VAL(4) &&
+      Arg5 == ARG_VAL(5) &&
+      Arg6 == ARG_VAL(6) &&
+      Arg7 == ARG_VAL(7) &&
+      Arg8 == ARG_VAL(8) &&
+      Arg9 == ARG_VAL(9) &&
+      Arg10 == ARG_VAL(10) &&
+      Arg11 == ARG_VAL(11) &&
+      Arg12 == ARG_VAL(12) &&
+      Arg13 == ARG_VAL(13) &&
+      Arg14 == ARG_VAL(14) &&
+      Arg15 == ARG_VAL(15) &&
+      Arg16 == ARG_VAL(16)) {
+    return EFI_SUCCESS;
+  }
+
+  return EFI_INVALID_PARAMETER;
 }
 
 STATIC
@@ -91,8 +124,8 @@ DoTestProtocolTests (
                         ARG_VAL(13), ARG_VAL(14), ARG_VAL(15), ARG_VAL(16));
   LogResult ("Argument passing", Ret == EFI_SUCCESS);
 
-  Ret = Test->TestCb(ARG_VAL(1), ARG_VAL(2), TestCb);
-  LogResult ("Native->emulated thunk", Ret == ARG_VAL(1) + ARG_VAL(2));
+  Ret = Test->TestCbArgs(TestCbArgs);
+  LogResult ("Native->emulated args passing", Ret == EFI_SUCCESS);
 }
 
 STATIC

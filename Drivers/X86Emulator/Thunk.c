@@ -140,8 +140,9 @@ ThunkToNative (
    *   return pointer
    * ----------------
    */
-  DEBUG ((DEBUG_VERBOSE, "XXX native fn 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx) flags 0x%lx\n",
-          Rip, Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7], StackArgs[8], Flags));
+  DEBUG ((DEBUG_VERBOSE, "XXX native fn 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx) flags 0x%lx\n",
+          Rip, Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7], StackArgs[8],
+          StackArgs[9], Flags));
 
   if ((Flags & THUNK_RET_LARGE) != 0) {
     RetLargeFn Func = (VOID *) Rip;

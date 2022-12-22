@@ -14,7 +14,17 @@ You can have all three.
 
 UEFI code uses a pretty narrowly-defined ABI, which makes it
 easy to thunk x64 code making EFIAPI calls to native code -
-no FP/SIMD, no returning large values, etc.
+no FP/SIMD, no returning large values, etc. E.g. calls like:
+
+UINT64
+EFIAPI
+Fn(UINT64, UINT64, UINT64, UINT64,
+   UINT64, UINT64, UINT64, UINT64,
+   UINT64, UINT64, UINT64, UINT64,
+   UINT64, UINT64, UINT64, UINT64);
+
+...with up to 16 arguments are supported both x64 -> native
+and native -> x64, which covers all UEFI needs.
 
 The emulator presents an x64 UEFI Boot Services environment,
 appropriate for running Boot Servces drivers (e.g. OpRom drivers

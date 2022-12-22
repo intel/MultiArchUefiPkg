@@ -113,13 +113,17 @@ TestArgs (
 STATIC
 UINT64
 EFIAPI
-TestCb (
-  IN  UINT64        Arg1,
-  IN  UINT64        Arg2,
-  IN  UINT64 EFIAPI (*Cb)(UINT64, UINT64)
+TestCbArgs (
+  IN  UINT64 EFIAPI (*Cb)(UINT64, UINT64, UINT64, UINT64,
+                          UINT64, UINT64, UINT64, UINT64,
+                          UINT64, UINT64, UINT64, UINT64,
+                          UINT64, UINT64, UINT64, UINT64)
   )
 {
-  return Cb(Arg1, Arg2);
+  return Cb(ARG_VAL(1), ARG_VAL(2), ARG_VAL(3), ARG_VAL(4),
+            ARG_VAL(5), ARG_VAL(6), ARG_VAL(7), ARG_VAL(8),
+            ARG_VAL(9), ARG_VAL(10), ARG_VAL(11), ARG_VAL(12),
+            ARG_VAL(13), ARG_VAL(14), ARG_VAL(15), ARG_VAL(16));
 }
 
 STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
@@ -128,7 +132,7 @@ STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
   TestRet16,
   TestLargeRet,
   TestArgs,
-  TestCb,
+  TestCbArgs,
 };
 
 STATIC EFI_GUID mX86EmuTestProtocolGuid = X86_EMU_TEST_PROTOCOL_GUID;

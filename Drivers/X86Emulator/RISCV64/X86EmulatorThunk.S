@@ -18,11 +18,12 @@ X86EmulatorThunk:
 
         sd              a0, 16(sp)
         sd              a1, 24(sp)
-        sd              a3, 32(sp)
-        sd              a4, 40(sp)
-        sd              a5, 48(sp)
-        sd              a6, 62(sp)
-        sd              a7, 64(sp)
+        sd              a2, 32(sp)
+        sd              a3, 40(sp)
+        sd              a4, 48(sp)
+        sd              a5, 56(sp)
+        sd              a6, 64(sp)
+        sd              a7, 72(sp)
 
         mv              a0, t0
         addi            a1, sp, 16
