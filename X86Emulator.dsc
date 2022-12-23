@@ -24,6 +24,20 @@
   #
   ON_PRIVATE_STACK               = NO
   #
+  # Use an emulated entry point, instead of relying on
+  # exception-driven thunking of native to emulated code.
+  #
+!if $(ARCH) == RISCV64
+  #
+  # Illegal-instruction based traps not reliable enough for
+  # hand-crafted (asm, not C) x64 apps.
+  #
+  EMULATED_ENTRY_POINT           = YES
+!else
+  EMULATED_ENTRY_POINT           = NO
+!endif
+  #
+  #
   # UPSTREAM_UC refers to the official Unicorn API. For best
   # operation/performance, build with UPSTREAM_UC=NO, but this
   # requires using additional private API calls.
@@ -112,12 +126,15 @@
 
 [BuildOptions]
   GCC:RELEASE_*_*_CC_FLAGS             = -DNDEBUG
-  *_*_*_CC_FLAGS                       = -D DISABLE_NEW_DEPRECATED_INTERFACES -DUNICORN_FOR_EFI_MAX_TB_SIZE=104857600
+  *_*_*_CC_FLAGS                       = -DDISABLE_NEW_DEPRECATED_INTERFACES -DUNICORN_FOR_EFI_MAX_TB_SIZE=104857600
 !if $(UPSTREAM_UC) == YES
   *_*_*_CC_FLAGS                       = -DUPSTREAM_UC
 !endif
 !if $(ON_PRIVATE_STACK) == YES
   *_*_*_CC_FLAGS                       = -DON_PRIVATE_STACK
+!endif
+!if $(EMULATED_ENTRY_POINT) == YES
+  *_*_*_CC_FLAGS                       = -DEMULATED_ENTRY_POINT
 !endif
 
 [Components]

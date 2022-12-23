@@ -113,9 +113,15 @@ could be interesting as part of upstreaming efforts for the UEFI port of
 Project Unicorn. Building with UPSTREAM_UC=YES does *not* exclude changes
 without an API impact.
 
-If you build with ON_PRIVATE_STACK, X86EmulatorDxe will use a dedicated
+If you build with ON_PRIVATE_STACK=YES, X86EmulatorDxe will use a dedicated
 native stack for handling x64 emulation. This has some runtime overhead and
 is unneccesary for normal operation.
+
+If you build with EMULATED_ENTRY_POINT=YES, X86EmulatorDxe will use a
+lighter-weight mechanism for invoking emulated applications, for debugging
+situations where the X86InterpreterSyncExceptionCallback machinery
+(exception-driven detection of emulated code execution) doesn't work
+(e.g. adding a new host CPU port, running certain x64 apps on RISC-V, ...).
 
 Finally, you can choose to build with BaseDebugLibNull. By default
 UefiDebugLibConOut is used to get some reasonable debugging output, but

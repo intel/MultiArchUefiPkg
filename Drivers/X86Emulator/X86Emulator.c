@@ -75,7 +75,7 @@ IsX86ImageSupported (
   return TRUE;
 }
 
-#ifdef MDE_CPU_RISCV64
+#ifdef EMULATED_ENTRY_POINT
 STATIC
 EFI_STATUS
 EFIAPI
@@ -103,7 +103,7 @@ EmulatedEntryPoint (
 
   return CpuRunFunc (Record->ImageEntry, Args);
 }
-#endif /* MDE_CPU_RISCV64 */
+#endif /* EMULATED_ENTRY_POINT */
 
 STATIC
 EFI_STATUS
@@ -153,24 +153,29 @@ RegisterX86Image (
   InsertTailList (&mX86ImageList, &Record->Link);
 
   /*
-   * X86Emulator relies on no-execute protection of the "foreign" binary for
-   * seamless thunking to emulated code. Any attempt by native code to call
-   * into the emulated code will be patched up by the installed exception handler
-   * (X86InterpreterSyncExceptionCallback) to invoke X86EmulatorVmEntry instead.
+   * On AArch64, X86Emulator relies on no-execute protection of the "foreign"
+   * binary for seamless thunking to emulated code. Any attempt by native code
+   * to call into the emulated code will be patched up by the installed
+   * exception handler (X86InterpreterSyncExceptionCallback) to invoke
+   * X86EmulatorVmEntry instead.
    *
-   * This is the key feature that enables emulated drivers to work, as their
-   * protocols can be used by native code.
+   * RISC-V systems should operate similarly, but as of 12/2022 SetMemoryAttributes
+   * is a no-op due to the early stage of RISC-V ports (no MMU enabled yet in
+   * UEFI). Fortunately, an illegal instruction exception works reasonably well
+   * to detect native calls into x64 code (unless you're dealing with hand-crafted
+   * assembly, so for now we compile with EMULATED_ENTRY_POINT for max compat).
+   *
+   * Exception-driven detection of emulated code execution is the key
+   * feature enabling emulated drivers to work, as their protocols can thus
+   * be used from native code.
    */
-#ifdef MDE_CPU_RISCV64
+#ifdef EMULATED_ENTRY_POINT
   /*
-   * RISCV today has a dummy SetMemoryAttributes implementation that does
-   * nothing, because CpuDxe does not set up MMU.
-   *
-   * Thus, thunking of native to emulated code cannot work in principle
-   * (yet), but at least we can run some basic apps.
+   * Allows basic emulated apps to be executed without relying on the
+   * X86InterpreterSyncExceptionCallback machinery.
    */
   *EntryPoint = EmulatedEntryPoint;
-#endif /* MDE_CPU_RISCV64 */
+#endif /* EMULATED_ENTRY_POINT */
 
   return gCpu->SetMemoryAttributes (gCpu, ImageBase, ImageSize, EFI_MEMORY_XP);
 }
