@@ -104,6 +104,11 @@ CpuNullReadCb (
 {
   DEBUG ((DEBUG_ERROR, "UINT%u NULL-ptr read to 0x%lx\n",
           Size * 8, Offset));
+  DEBUG_CODE_BEGIN ();
+  {
+    CpuDump ();
+  }
+  DEBUG_CODE_END ();
   return 0xAFAFAFAFAFAFAFAFUL;
 }
 
@@ -118,6 +123,11 @@ CpuNullWriteCb (
 {
   DEBUG ((DEBUG_ERROR, "UINT%u NULL-ptr write to 0x%lx\n",
           Size * 8, Offset));
+  DEBUG_CODE_BEGIN ();
+  {
+    CpuDump ();
+  }
+  DEBUG_CODE_END ();
 }
 
 #ifndef UPSTREAM_UC

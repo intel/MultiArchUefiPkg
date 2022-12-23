@@ -118,9 +118,9 @@ X86InterpreterSyncExceptionCallback (
      * diagnostics regarding the X86 code this maps onto.
      */
     DEBUG ((DEBUG_ERROR, "Exception occurred during emulation:\n"));
-    CpuDump ();
   }
 
+  CpuDump ();
   DumpCpuContext (ExceptionType, SystemContext);
 }
 
