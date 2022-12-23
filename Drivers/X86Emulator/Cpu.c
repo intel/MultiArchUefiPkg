@@ -26,6 +26,7 @@ EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
 STATIC UINTN mInCritical;
+STATIC uc_context *mOrigContext;
 
 #ifdef ON_PRIVATE_STACK
 BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
@@ -308,6 +309,15 @@ CpuInit (
   UnicornCodeGenBufEnd = UnicornCodeGenBuf + UnicornCodeGenSize;
 #endif /* UPSTREAM_UC */
 
+  UcErr = uc_context_alloc (gUE, &mOrigContext);
+  if (UcErr != UC_ERR_OK) {
+    DEBUG ((DEBUG_ERROR, "could not allocate orig context: %a\n", uc_strerror (UcErr)));
+    return EFI_UNSUPPORTED;
+  }
+
+  UcErr = uc_context_save (gUE, mOrigContext);
+  ASSERT (UcErr == UC_ERR_OK);
+
   return EFI_SUCCESS;
 }
 
@@ -419,8 +429,7 @@ STATIC
 UINT64
 CpuRunFuncInternal (
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
-  IN  UINT64              *Args,
-  IN  uc_context          *PrevContext
+  IN  UINT64              *Args
   )
 {
   unsigned      Index;
@@ -591,10 +600,12 @@ CpuRunFuncOnPrivateStack (
      * can be suspect. Better be safe than sorry!
      */
     CpuStackPushRedZone ();
+  } else {
+    UcErr = uc_context_restore (gUE, mOrigContext);
+    ASSERT (UcErr == UC_ERR_OK);
   }
 
-  Context->Ret = CpuRunFuncInternal (Context->ProgramCounter, Context->Args,
-                                     Context->PrevContext);
+  Context->Ret = CpuRunFuncInternal (Context->ProgramCounter, Context->Args);
 
   if (Context->PrevContext != NULL) {
     UcErr = uc_context_restore (gUE, Context->PrevContext);
