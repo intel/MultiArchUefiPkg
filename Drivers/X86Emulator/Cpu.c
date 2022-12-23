@@ -560,6 +560,15 @@ CpuUnregisterCodeRange (
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
+
+  /*
+   * Because images can be loaded into a previously used range,
+   * stale TBs can lead to "strange" crashes.
+   *
+   * A full flush is dangerous - we could be doing this in a native call
+   * thunked from a TB (e.g. uc_set_native_thunks).
+   */
+  uc_ctl_remove_cache(gUE, ImageBase, ImageBase + ImageSize);
 }
 
 VOID
