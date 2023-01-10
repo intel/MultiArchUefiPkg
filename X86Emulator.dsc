@@ -1,7 +1,7 @@
 ## @file
 #
 #  Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
-#  Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 #
 #  This library is free software; you can redistribute it and/or
 #  modify it under the terms of the GNU Lesser General Public
@@ -122,7 +122,7 @@
 
 [LibraryClasses.RISCV64]
   SynchronizationLib|MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf
-  CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+  CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
 
 [BuildOptions]
   GCC:RELEASE_*_*_CC_FLAGS             = -DNDEBUG
