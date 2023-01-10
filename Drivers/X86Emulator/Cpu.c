@@ -1,7 +1,7 @@
 /** @file
 
     Copyright (c) 2017 Alexander Graf <agraf@suse.de>
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -413,10 +413,15 @@ CpuDump (
   REG(R14);                                     \
   REG(R15);
 
-#define REG(x) do {                                   \
-    Val = REG_READ(x);                                \
-    DEBUG ((DEBUG_ERROR, "%8a = 0x%016lx%c", #x, Val, \
-            (++Printed % 2) ? L'\t' : L'\n'));        \
+#define REG(x) do {                                     \
+    Printed++;                                          \
+    Val = REG_READ(x);                                  \
+    DEBUG ((DEBUG_ERROR, "%6a = 0x%016lx", #x, Val));   \
+    if ((Printed & 1) == 0) {                           \
+      DEBUG ((DEBUG_ERROR, "\n"));                      \
+    } else {                                            \
+      DEBUG ((DEBUG_ERROR, " "));                       \
+    }                                                   \
   } while (0);
 
   REGS ();
