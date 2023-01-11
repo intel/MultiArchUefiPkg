@@ -45,7 +45,7 @@ To quickly compile for AArch64:
 
 This will produce Build/UCX86Emulator/RELEASE_GCC5/AARCH64/X86EmulatorDxe.efi
 
-To quickly compile for RISCV:
+To quickly compile for RISCV64:
 
         $ git clone https://github.com/tianocore/edk2-staging.git
         $ cd edk2-staging
@@ -53,31 +53,29 @@ To quickly compile for RISCV:
         $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
         $ git submodule update --init
 
-        Apply the patches under UCX86EmulatorPkg/edk2-staging-patches. These
-        patches will also need to be applied to the UEFI firmware used for
-        testing.
+        Apply the patches under UCX86EmulatorPkg/edk2-staging-patches, except for
+        0006-ArmVirtPkg-bundle-UCX86EmulatorPkg-driver.patch. These patches will also
+        need to be applied to the UEFI firmware used for testing.
 
         $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
         $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/X86Emulator.dsc -b RELEASE
 
 This will produce Build/UCX86Emulator/RELEASE_GCC5/RISCV64/X86EmulatorDxe.efi
 
-To quickly compile an ArmVirtPkg version that contains the emulator, run
+## ArmVirtPkg firmware with the bundled emulator
+
+To quickly compile an ArmVirtPkg version that contains the emulator, run:
 
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
         $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
         $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
         $ git submodule update --init
-        $ echo "UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf {
-                    <LibraryClasses>
-                      UnicornEngineLib|unicorn/efi/UnicornEngineLib.inf
-                      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
-                      UnicornX86Lib|unicorn/efi/UnicornX86Lib.inf
-                }"
-        $ echo "INF UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf" >> ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+
+        Apply edk2-staging-patches/0006-ArmVirtPkg-bundle-UCX86EmulatorPkg-driver.patch
 
         Be sure to comment out "INF OvmfPkg/VirtioNetDxe/VirtioNet.inf" in ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+        if you want to test with the x86_64 virtio iPXE OpRom.
 
         $ make -C BaseTools
         $ . edksetup.sh
@@ -88,9 +86,35 @@ You can then use QEMU to execute it:
 
         $ qemu-system-aarch64 -M virt -cpu cortex-a57 -m 2G -nographic -bios ./Build/ArmVirtQemu-AARCH64/RELEASE_GCC5/FV/QEMU_EFI.fd
 
-If you see dots on your screen, that is the x86_64 virtio iPXE rom in action!
+If you see dots on your screen, that is the x86_64 virtio iPXE OpRom in action!
 
-## Testing
+## OvmfPkg RiscVVirt firmware with the bundled emulator
+
+To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
+
+        $ git clone https://github.com/tianocore/edk2.git
+        $ cd edk2
+        $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule update --init
+
+        Apply the patches under UCX86EmulatorPkg/edk2-staging-patches, except for
+        0006-ArmVirtPkg-bundle-UCX86EmulatorPkg-driver.patch.
+
+        $ make -C BaseTools
+        $ . edksetup.sh
+        $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
+        $ build -a RISCV64 -t GCC5 -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
+        $ dd if=/dev/zero of=flash1.img bs=1M count=32
+        $ dd if=Build/RiscVVirtQemu/RELEASE_GCC5/FV/RISCV_VIRT.fd of=flash1.img conv=notrunc
+
+You can then use QEMU to execute it:
+
+        $ qemu-system-riscv64 -drive file=flash1.img,if=pflash,format=raw,unit=1 -machine virt,aia=aplic,acpi=on -m 1G -smp 2 -nographic
+
+This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
+
+## Further testing
 
 There's a small test application:
 

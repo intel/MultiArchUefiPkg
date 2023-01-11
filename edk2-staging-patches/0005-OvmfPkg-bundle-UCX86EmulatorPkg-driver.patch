@@ -1,0 +1,50 @@
+From 2d8d5d039c3d93b2a1596243f126f7040ff98af8 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Tue, 10 Jan 2023 23:39:44 -0600
+Subject: [PATCH 5/6] OvmfPkg: bundle UCX86EmulatorPkg driver
+
+Tested with Radeon GOP (passed through device).
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc | 10 ++++++++++
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf |  5 +++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
+index 270bfdc9eb..c3dffdf728 100644
+--- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
++++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
+@@ -508,3 +508,13 @@
+     <LibraryClasses>
+       NULL|OvmfPkg/Fdt/FdtPciPcdProducerLib/FdtPciPcdProducerLib.inf
+   }
++
++  #
++  # X64 emulator for OpRoms, etc.
++  #
++  UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf {
++    <LibraryClasses>
++      UnicornEngineLib|unicorn/efi/UnicornEngineLib.inf
++      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
++      UnicornX86Lib|unicorn/efi/UnicornX86Lib.inf
++  }
+diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
+index e8be6f88d8..9b0930d2e6 100644
+--- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
++++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
+@@ -195,6 +195,11 @@ INF  MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+ 
+ #INF  MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+ 
++#
++# X64 emulator for OpRoms, etc.
++#
++INF  UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf
++
+ ################################################################################
+ 
+ [FV.FVMAIN_COMPACT]
+-- 
+2.25.1
+

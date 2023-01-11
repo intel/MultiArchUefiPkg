@@ -1,7 +1,7 @@
-From 5abeaeeaa8d81a8d7eb4dee602e4c726d4b3261f Mon Sep 17 00:00:00 2001
+From 6a2aafcee1f599d6ecc5cb29fdf9e92ba57b80e7 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Thu, 8 Dec 2022 15:38:53 -0600
-Subject: [PATCH 3/4] RISCV: clean up exception handling
+Subject: [PATCH 3/6] RISCV: clean up exception handling
 
 RegisterCpuInterruptHandler did not allow setting
 exception handlers for anything beyond the timer IRQ.

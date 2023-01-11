@@ -1,7 +1,7 @@
-From 1e4e3a9650162782d8c9f365dc5ea43c8d552842 Mon Sep 17 00:00:00 2001
+From 7ac39384239ab254df9e3ded190fa1700be18394 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Wed, 14 Dec 2022 11:52:55 -0600
-Subject: [PATCH 2/4] CpuDxe: refactor to share more code with RISC-V
+Subject: [PATCH 2/6] CpuDxe: refactor to share more code with RISC-V
 
 Make InternalPrintMessage common. More things will be moved soon.
 

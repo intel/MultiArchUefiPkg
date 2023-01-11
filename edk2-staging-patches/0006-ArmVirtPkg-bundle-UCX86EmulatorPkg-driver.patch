@@ -1,0 +1,47 @@
+From e97f500e0c08b14d6afd835771c78ed78e6d3633 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Tue, 10 Jan 2023 23:49:11 -0600
+Subject: [PATCH 6/6] ArmVirtPkg: bundle UCX86EmulatorPkg driver
+
+Similar to RiscVVirt patch.
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ ArmVirtPkg/ArmVirtQemu.dsc           | 10 ++++++++++
+ ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc |  5 +++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index 0390b660c0..23e14b4eb9 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -576,3 +576,13 @@
+     <LibraryClasses>
+       NULL|OvmfPkg/Fdt/FdtPciPcdProducerLib/FdtPciPcdProducerLib.inf
+   }
++
++  #
++  # X64 emulator for OpRoms, etc.
++  #
++  UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf {
++    <LibraryClasses>
++      UnicornX86Lib|unicorn/efi/UnicornX86Lib.inf
++      UnicornEngineLib|unicorn/efi/UnicornEngineLib.inf
++      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
++  }
+diff --git a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+index 8a063bac04..9012802bc4 100644
+--- a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
++++ b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+@@ -194,3 +194,8 @@ READ_LOCK_STATUS   = TRUE
+   # Ramdisk support
+   #
+   INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
++
++  #
++  # X64 emulator for OpRoms, etc.
++  #
++  INF UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf
+-- 
+2.25.1
+
