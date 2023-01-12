@@ -1,7 +1,7 @@
 /** @file
 
     Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -52,9 +52,10 @@ X86InterpreterSyncExceptionCallback (
      * We can't handle this exception. Try to produce some meaningful
      * diagnostics regarding the X86 code this maps onto.
      */
-    DEBUG ((DEBUG_ERROR, "Exception occurred during emulation:\n"));
+    DEBUG ((DEBUG_ERROR, "Exception occurred in TBs\n"));
   }
 
+  DumpImageRecords ();
   CpuDump ();
   DefaultExceptionHandler (ExceptionType, SystemContext);
 }

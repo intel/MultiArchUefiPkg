@@ -1,7 +1,7 @@
 /** @file
 
     Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -82,6 +82,11 @@ typedef struct {
 X86_IMAGE_RECORD *
 FindImageRecord (
   IN  EFI_PHYSICAL_ADDRESS Address
+  );
+
+VOID
+DumpImageRecords (
+  VOID
   );
 
 VOID

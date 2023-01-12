@@ -1,7 +1,7 @@
 /** @file
 
     Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -15,6 +15,27 @@
 EFI_CPU_ARCH_PROTOCOL *gCpu;
 EFI_CPU_IO2_PROTOCOL  *gCpuIo2;
 STATIC LIST_ENTRY     mX86ImageList;
+
+VOID
+DumpImageRecords (
+  VOID
+  )
+{
+  LIST_ENTRY       *Entry;
+  X86_IMAGE_RECORD *Record;
+
+  DEBUG ((DEBUG_ERROR, "Known x64 image ranges:\n"));
+  for (Entry = GetFirstNode (&mX86ImageList);
+       !IsNull (&mX86ImageList, Entry);
+       Entry = GetNextNode (&mX86ImageList, Entry)) {
+
+    Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
+
+    DEBUG ((DEBUG_ERROR, "Image 0x%lx-0x%lx (Entry 0x%lx)\n",
+            Record->ImageBase, Record->ImageBase +
+            Record->ImageSize - 1, Record->ImageEntry));
+  }
+}
 
 X86_IMAGE_RECORD *
 FindImageRecord (
