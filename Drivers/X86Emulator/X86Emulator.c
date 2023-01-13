@@ -12,9 +12,10 @@
 
 #include "X86Emulator.h"
 
-EFI_CPU_ARCH_PROTOCOL *gCpu;
-EFI_CPU_IO2_PROTOCOL  *gCpuIo2;
-STATIC LIST_ENTRY     mX86ImageList;
+EFI_CPU_ARCH_PROTOCOL     *gCpu;
+EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
+EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
+STATIC LIST_ENTRY         mX86ImageList;
 
 VOID
 DumpImageRecords (
@@ -258,6 +259,14 @@ X86EmulatorDxeEntryPoint (
   )
 {
   EFI_STATUS Status;
+
+  Status = gBS->HandleProtocol (ImageHandle,
+                                &gEfiLoadedImageProtocolGuid,
+                                (VOID **)&gDriverImage);
+  if (EFI_ERROR (Status)) {
+    DEBUG((DEBUG_ERROR, "Can't get driver LoadedImage: %r\n", Status));
+    return Status;
+  }
 
   InitializeListHead (&mX86ImageList);
 

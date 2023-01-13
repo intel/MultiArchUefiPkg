@@ -43,16 +43,28 @@ X86InterpreterSyncExceptionCallback (
     }
   }
 
+  /*
+   * We can't handle these exception. Try to produce some meaningful
+   * diagnostics regarding the X86 code this maps onto.
+   */
+
   if (UnicornCodeGenBuf != UnicornCodeGenBufEnd &&
       AArch64Context->ELR >= UnicornCodeGenBuf &&
       AArch64Context->ELR < UnicornCodeGenBufEnd) {
     /*
-     * It looks like we crashed in the JITed code. Check whether we are
+     * It looks like we crashed in the JITed code.
      *
-     * We can't handle this exception. Try to produce some meaningful
-     * diagnostics regarding the X86 code this maps onto.
+     * TBD: can we lookup/decode the TB info?
      */
     DEBUG ((DEBUG_ERROR, "Exception occurred in TBs\n"));
+  }
+
+  if (AArch64Context->ELR >= (UINT64) gDriverImage->ImageBase &&
+      AArch64Context->ELR <= ((UINT64) gDriverImage->ImageBase +
+                              gDriverImage->ImageSize - 1)) {
+    DEBUG ((DEBUG_ERROR, "Exception occured at driver PC +0x%lx, LR +0x%lx\n",
+            AArch64Context->ELR - (UINT64) gDriverImage->ImageBase,
+            AArch64Context->LR - (UINT64) gDriverImage->ImageBase));
   }
 
   DumpImageRecords ();

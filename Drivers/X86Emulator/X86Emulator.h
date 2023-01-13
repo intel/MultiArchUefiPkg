@@ -56,8 +56,9 @@
 typedef struct uc_struct uc_engine;
 typedef struct uc_context uc_context;
 
-extern EFI_CPU_ARCH_PROTOCOL *gCpu;
-extern EFI_CPU_IO2_PROTOCOL  *gCpuIo2;
+extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
+extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
+extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
 
 extern uc_engine *gUE;
 extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
