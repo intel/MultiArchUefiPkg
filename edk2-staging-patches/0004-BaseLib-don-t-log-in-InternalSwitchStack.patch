@@ -1,4 +1,4 @@
-From fc7e14e59aaac30479a27340b414402bb29e1419 Mon Sep 17 00:00:00 2001
+From 525e61b83a4a6878cc57f8de1411af5dae91c5b1 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Tue, 20 Dec 2022 23:01:47 -0600
 Subject: [PATCH 4/6] BaseLib: don't log in InternalSwitchStack

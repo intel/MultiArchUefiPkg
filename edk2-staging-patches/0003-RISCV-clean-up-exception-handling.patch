@@ -1,4 +1,4 @@
-From 6a2aafcee1f599d6ecc5cb29fdf9e92ba57b80e7 Mon Sep 17 00:00:00 2001
+From a1916ffcff01511f10c02055bd4617f0c2d220b5 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Thu, 8 Dec 2022 15:38:53 -0600
 Subject: [PATCH 3/6] RISCV: clean up exception handling
@@ -20,25 +20,25 @@ For EFI_SYSTEM_CONTEXT_RISCV64, extend this with the trapped
 PC address (SEPC), just like on AArch64 (ELR). This is
 necessary for X86EmulatorPkg to work as it allows a trap
 handler to return execution to a different place. Add
-SSTATUS as well, at least for debugging purposes. There
+SSTATUS/STVAL as well, at least for debugging purposes. There
 is no value in hiding this.
 
 Fix nested exception handling. Handler code should not
 be saving SIE (the value is saved in SSTATUS.SPIE) or
 directly restored (that's done by SRET). Save and
-restore the entire SSTATUS, too.
+restore the entire SSTATUS and STVAL, too.
 
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
- MdePkg/Include/Protocol/DebugSupport.h        |  22 ++-
+ MdePkg/Include/Protocol/DebugSupport.h        |  23 ++-
  UefiCpuPkg/CpuTimerDxe/RiscV64/Timer.c        |   3 +-
  .../RiscV64/CpuExceptionHandlerLib.c          | 178 +++++++++++++++---
- .../RiscV64/CpuExceptionHandlerLib.h          |   9 +-
- .../RiscV64/SupervisorTrapHandler.S           |  13 +-
- 5 files changed, 181 insertions(+), 44 deletions(-)
+ .../RiscV64/CpuExceptionHandlerLib.h          |  11 +-
+ .../RiscV64/SupervisorTrapHandler.S           |  17 +-
+ 5 files changed, 188 insertions(+), 44 deletions(-)
 
 diff --git a/MdePkg/Include/Protocol/DebugSupport.h b/MdePkg/Include/Protocol/DebugSupport.h
-index 2b0ae2d157..e6cc8185ec 100644
+index 2b0ae2d157..0d94c40944 100644
 --- a/MdePkg/Include/Protocol/DebugSupport.h
 +++ b/MdePkg/Include/Protocol/DebugSupport.h
 @@ -613,11 +613,25 @@ typedef struct {
@@ -70,12 +70,13 @@ index 2b0ae2d157..e6cc8185ec 100644
  
  typedef struct {
    UINT64    X0;
-@@ -652,6 +666,8 @@ typedef struct {
+@@ -652,6 +666,9 @@ typedef struct {
    UINT64    X29;
    UINT64    X30;
    UINT64    X31;
 +  UINT64    SEPC;
 +  UINT32    SSTATUS;
++  UINT32    STVAL;
  } EFI_SYSTEM_CONTEXT_RISCV64;
  
  //
@@ -94,7 +95,7 @@ index db153f715e..0ecefddf1f 100644
  
    //
 diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c
-index f1ee7d236a..74e8162629 100644
+index f1ee7d236a..cff73f4564 100644
 --- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c
 +++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c
 @@ -12,10 +12,113 @@
@@ -195,7 +196,7 @@ index f1ee7d236a..74e8162629 100644
 +  REG (a0); REG (a1); REG (a2); REG (a3); REG (a4); REG (a5); REG (a6); \
 +  REG (a7);                                                             \
 +  REG (zero); REG (ra); REG (sp); REG (gp); REG (tp);                   \
-+  REG (sepc); REG (sstatus);
++  REG (sepc); REG (sstatus); REG (stval);
 +
 +#define REG(x) do {                                         \
 +    InternalPrintMessage ("%7a = 0x%017lx%c", #x, Regs->x,  \
@@ -321,18 +322,19 @@ index f1ee7d236a..74e8162629 100644
 +  while (1);
  }
 diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h
-index 30f47e8755..c9acee76f6 100644
+index 30f47e8755..9b7e1304dd 100644
 --- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h
 +++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h
-@@ -59,7 +59,6 @@ SupervisorModeTrap (
+@@ -59,7 +59,7 @@ SupervisorModeTrap (
  #define SMODE_TRAP_REGS_t6       31
  #define SMODE_TRAP_REGS_sepc     32
  #define SMODE_TRAP_REGS_sstatus  33
 -#define SMODE_TRAP_REGS_sie      34
++#define SMODE_TRAP_REGS_stval    34
  #define SMODE_TRAP_REGS_last     35
  
  #define SMODE_TRAP_REGS_OFFSET(x)  ((SMODE_TRAP_REGS_##x) * __SIZEOF_POINTER__)
-@@ -68,7 +67,7 @@ SupervisorModeTrap (
+@@ -68,7 +68,7 @@ SupervisorModeTrap (
  #pragma pack(1)
  typedef struct {
    //
@@ -341,7 +343,7 @@ index 30f47e8755..c9acee76f6 100644
    //
    UINT64    zero;
    UINT64    ra;
-@@ -102,14 +101,8 @@ typedef struct {
+@@ -102,14 +102,9 @@ typedef struct {
    UINT64    t4;
    UINT64    t5;
    UINT64    t6;
@@ -353,14 +355,15 @@ index 30f47e8755..c9acee76f6 100644
    UINT64    sepc;
    UINT64    sstatus;
 -  UINT64    sie;
++  UINT64    stval;
  } SMODE_TRAP_REGISTERS;
  #pragma pack()
  
 diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S
-index 649c4c5bec..e294954f6d 100644
+index 649c4c5bec..45070b5cda 100644
 --- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S
 +++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S
-@@ -20,14 +20,12 @@ SupervisorModeTrap:
+@@ -20,14 +20,14 @@ SupervisorModeTrap:
    sd    t0, SMODE_TRAP_REGS_OFFSET(t0)(sp)
  
    csrr  t0, CSR_SSTATUS
@@ -370,13 +373,15 @@ index 649c4c5bec..e294954f6d 100644
    sd    t0, SMODE_TRAP_REGS_OFFSET(sepc)(sp)
 -  csrr  t0, CSR_SIE
 -  sd    t0, SMODE_TRAP_REGS_OFFSET(sie)(sp)
++  csrr  t0, CSR_STVAL
++  sd    t0, SMODE_TRAP_REGS_OFFSET(stval)(sp)
    ld    t0, SMODE_TRAP_REGS_OFFSET(t0)(sp)
  
 +  sd    zero, SMODE_TRAP_REGS_OFFSET(zero)(sp)
    sd    ra, SMODE_TRAP_REGS_OFFSET(ra)(sp)
    sd    gp, SMODE_TRAP_REGS_OFFSET(gp)(sp)
    sd    tp, SMODE_TRAP_REGS_OFFSET(tp)(sp)
-@@ -59,6 +57,7 @@ SupervisorModeTrap:
+@@ -59,6 +59,7 @@ SupervisorModeTrap:
    sd    t6, SMODE_TRAP_REGS_OFFSET(t6)(sp)
  
    /* Call to Supervisor mode trap handler in CpuExceptionHandlerLib.c */
@@ -384,7 +389,7 @@ index 649c4c5bec..e294954f6d 100644
    call  RiscVSupervisorModeTrapHandler
  
    /* Restore all general regisers except SP */
-@@ -66,6 +65,7 @@ SupervisorModeTrap:
+@@ -66,6 +67,7 @@ SupervisorModeTrap:
    ld    gp, SMODE_TRAP_REGS_OFFSET(gp)(sp)
    ld    tp, SMODE_TRAP_REGS_OFFSET(tp)(sp)
    ld    t2, SMODE_TRAP_REGS_OFFSET(t2)(sp)
@@ -392,7 +397,7 @@ index 649c4c5bec..e294954f6d 100644
    ld    s0, SMODE_TRAP_REGS_OFFSET(s0)(sp)
    ld    s1, SMODE_TRAP_REGS_OFFSET(s1)(sp)
    ld    a0, SMODE_TRAP_REGS_OFFSET(a0)(sp)
-@@ -93,13 +93,8 @@ SupervisorModeTrap:
+@@ -93,13 +95,10 @@ SupervisorModeTrap:
  
    ld    t0, SMODE_TRAP_REGS_OFFSET(sepc)(sp)
    csrw  CSR_SEPC, t0
@@ -404,6 +409,8 @@ index 649c4c5bec..e294954f6d 100644
 +  ld    t0, SMODE_TRAP_REGS_OFFSET(sstatus)(sp)
    csrw  CSR_SSTATUS, t0
 -  ld    t1, SMODE_TRAP_REGS_OFFSET(t1)(sp)
++  ld    t0, SMODE_TRAP_REGS_OFFSET(stval)(sp)
++  csrw  CSR_STVAL, t0
    ld    t0, SMODE_TRAP_REGS_OFFSET(t0)(sp)
    addi  sp, sp, SMODE_TRAP_REGS_SIZE
    sret

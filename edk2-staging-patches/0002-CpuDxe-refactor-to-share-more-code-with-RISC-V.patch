@@ -1,4 +1,4 @@
-From 7ac39384239ab254df9e3ded190fa1700be18394 Mon Sep 17 00:00:00 2001
+From 60650cddbbc12954604db1d32dfdcadd01724553 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Wed, 14 Dec 2022 11:52:55 -0600
 Subject: [PATCH 2/6] CpuDxe: refactor to share more code with RISC-V
