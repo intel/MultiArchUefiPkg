@@ -54,7 +54,7 @@ CpuIoReadCb (
   IN  UINT32    Size,
   IN  VOID      *UserData)
 {
-  UINT32 Result;
+  UINT32 Result = 0;
 
   switch (Size) {
   case 1:
@@ -69,6 +69,8 @@ CpuIoReadCb (
     break;
   }
 
+  DEBUG ((DEBUG_VERBOSE, "PCI I/O read%u from 0x%x = 0x%x\n", Size,
+          Port, Result));
   return Result;
 }
 
@@ -81,6 +83,9 @@ CpuIoWriteCb (
   IN  UINT32    Value,
   IN  VOID      *UserData)
 {
+  DEBUG ((DEBUG_VERBOSE, "PCI I/O write%u to 0x%x = 0x%x\n", Size,
+          Port, Value));
+
   switch (Size) {
   case 1:
     gCpuIo2->Io.Write(gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Value);
