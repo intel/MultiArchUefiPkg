@@ -164,8 +164,7 @@ X86InterpreterSyncExceptionCallback (
             RiscV64Context->X1 - (UINT64) gDriverImage->ImageBase));
   }
 
-  DumpImageRecords ();
-  CpuDump ();
+  X86EmulatorDump ();
   DumpCpuContext (ExceptionType, SystemContext);
 
   CpuBreakpoint ();

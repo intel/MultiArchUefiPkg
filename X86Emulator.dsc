@@ -27,7 +27,7 @@
   # Use an emulated entry point, instead of relying on
   # exception-driven thunking of native to emulated code.
   #
-  EMULATED_ENTRY_POINT           = NO
+  WRAPPED_ENTRY_POINTS           = NO
   #
   #
   # UPSTREAM_UC refers to the official Unicorn API. For best
@@ -124,8 +124,8 @@
 !if $(ON_PRIVATE_STACK) == YES
   *_*_*_CC_FLAGS                       = -DON_PRIVATE_STACK
 !endif
-!if $(EMULATED_ENTRY_POINT) == YES
-  *_*_*_CC_FLAGS                       = -DEMULATED_ENTRY_POINT
+!if $(WRAPPED_ENTRY_POINTS) == YES
+  *_*_*_CC_FLAGS                       = -DWRAPPED_ENTRY_POINTS
 !endif
 
 [Components]

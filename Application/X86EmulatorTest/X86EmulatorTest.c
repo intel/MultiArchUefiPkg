@@ -321,11 +321,12 @@ TestPerf (
 
   DEBUG ((DEBUG_INFO, "Doing perf tests...\n"));
 
-  Status = gBS->CreateEvent (
+  Status = gBS->CreateEventEx (
     EVT_TIMER | EVT_NOTIFY_SIGNAL, // Type
     TPL_CALLBACK,                  // NotifyTpl
     TestTimerHandler,              // NotifyFunction
     (VOID *)&IsDone,               // NotifyContext
+    NULL,                          // No group
     &OneShotTimer                  // Event
     );
   ASSERT_EFI_ERROR (Status);

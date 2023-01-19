@@ -27,6 +27,7 @@
   Native.c
   Cpu.c
   TestProtocol.c
+  EfiWrappers.c
 
 [Sources.RISCV64]
   RISCV64/X86Emulator.c
@@ -80,4 +81,4 @@
   # Illegal-instruction based traps not reliable enough for
   # hand-crafted (asm, not C) x64 apps.
   #
-  *_*_*_CC_FLAGS       = -DEMULATED_ENTRY_POINT
+  *_*_*_CC_FLAGS       = -DWRAPPED_ENTRY_POINTS

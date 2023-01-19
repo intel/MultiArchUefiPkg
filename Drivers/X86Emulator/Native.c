@@ -1,7 +1,7 @@
 /** @file
 
     Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -14,49 +14,46 @@
 #include "X86Emulator.h"
 #include "TestProtocol.h"
 
-typedef UINT64 (*Fn)(UINT64, UINT64, UINT64, UINT64,
+typedef union {
+  UINT64 (*NativeFn)(UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64);
+  UINT64 (*WrapperFn)(UINT64 OriginalRip, UINT64 ReturnAddress,
+                      UINT64 *Args);
+  UINT64 Rip;
+} Fn;
 
-STATIC
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
-  VOID
+  IN  UINT64 OriginalRip,
+  IN  UINT64 ReturnAddress,
+  IN  UINT64 *Args
   )
 {
-  CpuDump ();
+  DEBUG ((DEBUG_ERROR, "Unsupported native call 0x%lx from x64 RIP 0x%lx\n",
+          OriginalRip, ReturnAddress));
+  X86EmulatorDump ();
   return EFI_UNSUPPORTED;
 }
 
 STATIC
 UINT64
 NativeValidateSupportedCall (
-  IN  UINT64 Rip
+  IN  UINT64  Rip
   )
 {
   /*
    * Prevent things that won't work in principle or that
    * could kill the emulator.
-   *
-   * TODO: catch/filter SetMemoryAttributes to ignore any
-   * attempts to change attributes for the emulated image itself?
    */
   if (Rip < EFI_PAGE_SIZE) {
     DEBUG ((DEBUG_ERROR, "NULL-pointer native call to 0x%lx\n", Rip));
     return (UINT64) &NativeUnsupported;
-  } else if (Rip == (UINTN) gBS->ExitBootServices) {
-    DEBUG ((DEBUG_ERROR,
-            "Unsupported emulated ExitBootServices\n"));
-    return (UINT64) &NativeUnsupported;
-  } else if (Rip == (UINTN) gCpu->RegisterInterruptHandler) {
-    DEBUG ((DEBUG_ERROR,
-            "Unsupported emulated RegisterInterruptHandler\n"));
-    return (UINT64) &NativeUnsupported;
   }
 
-  return Rip;
+  return EfiWrappersOverride (Rip);
 }
 
 VOID
@@ -66,15 +63,17 @@ NativeThunk (
   )
 {
   UINT64 *StackArgs;
-  UINT64 Rax;
-  UINT64 Rsp;
-  UINT64 Rcx;
-  UINT64 Rdx;
-  UINT64 R8;
-  UINT64 R9;
-  Fn Func;
+  BOOLEAN WrapperCall;
+  UINT64  Rax;
+  UINT64  Rsp;
+  UINT64  Rcx;
+  UINT64  Rdx;
+  UINT64  R8;
+  UINT64  R9;
+  Fn      Func;
 
-  Rip = NativeValidateSupportedCall (Rip);
+  Func.Rip = NativeValidateSupportedCall (Rip);
+  WrapperCall = Func.Rip != Rip;
 
   Rsp = REG_READ (RSP);
   Rcx = REG_READ (RCX);
@@ -83,7 +82,6 @@ NativeThunk (
   R9 = REG_READ (R9);
 
   StackArgs = (UINT64 *) Rsp;
-  Func = (VOID *) Rip;
 
   /*
    * EFIAPI (MS) x86_64 Stack Layout (in UINT64's):
@@ -103,14 +101,23 @@ NativeThunk (
    *   return pointer
    * ----------------
    */
-  DEBUG ((DEBUG_VERBOSE, "XXX native fn 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-          Rip, Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6],
-          StackArgs[7], StackArgs[8], StackArgs[9]));
 
-  Rax = Func (Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7],
-              StackArgs[8], StackArgs[9], StackArgs[10], StackArgs[11],
-              StackArgs[12], StackArgs[13], StackArgs[14], StackArgs[15],
-              StackArgs[16]);
+  DEBUG ((DEBUG_VERBOSE, "x64 0x%lx -> %a 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+          StackArgs[0], WrapperCall ? "wrapper" : "native", Func.Rip, Rcx, Rdx, R8, R9,
+          StackArgs[5], StackArgs[6], StackArgs[7], StackArgs[8], StackArgs[9]));
+
+  if (WrapperCall) {
+    StackArgs[1] = Rcx;
+    StackArgs[2] = Rdx;
+    StackArgs[3] = R8;
+    StackArgs[4] = R9;
+    Rax = Func.WrapperFn (Rip, StackArgs[0], StackArgs + 1);
+  } else {
+    Rax = Func.NativeFn (Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7],
+                         StackArgs[8], StackArgs[9], StackArgs[10], StackArgs[11],
+                         StackArgs[12], StackArgs[13], StackArgs[14], StackArgs[15],
+                         StackArgs[16]);
+  }
 
   REG_WRITE (RAX, Rax);
 }

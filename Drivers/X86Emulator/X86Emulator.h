@@ -80,6 +80,11 @@ typedef struct {
   uc_context          *PrevContext;
 } CpuRunFuncContext;
 
+VOID
+X86EmulatorDump (
+  VOID
+  );
+
 X86_IMAGE_RECORD *
 FindImageRecord (
   IN  EFI_PHYSICAL_ADDRESS Address
@@ -135,6 +140,14 @@ NativeThunk (
   );
 
 EFI_STATUS
+EFIAPI
+NativeUnsupported (
+  IN  UINT64 OriginalRip,
+  IN  UINT64 ReturnAddress,
+  IN  UINT64 *Args
+  );
+
+EFI_STATUS
 TestProtocolInit (
   IN  EFI_HANDLE ImageHandle
   );
@@ -146,5 +159,20 @@ ArchInit (
 
 VOID
 ArchCleanup (
+  VOID
+  );
+
+VOID
+EfiWrappersInit (
+  VOID
+  );
+
+UINT64
+EfiWrappersOverride (
+  IN  UINT64 Rip
+  );
+
+VOID
+EfiWrappersDump (
   VOID
   );

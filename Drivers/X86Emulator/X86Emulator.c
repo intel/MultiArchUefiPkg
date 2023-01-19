@@ -25,14 +25,14 @@ DumpImageRecords (
   LIST_ENTRY       *Entry;
   X86_IMAGE_RECORD *Record;
 
-  DEBUG ((DEBUG_ERROR, "Known x64 image ranges:\n"));
+  DEBUG ((DEBUG_ERROR, "x64 images:\n"));
   for (Entry = GetFirstNode (&mX86ImageList);
        !IsNull (&mX86ImageList, Entry);
        Entry = GetNextNode (&mX86ImageList, Entry)) {
 
     Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
 
-    DEBUG ((DEBUG_ERROR, "Image 0x%lx-0x%lx (Entry 0x%lx)\n",
+    DEBUG ((DEBUG_ERROR, "\tImage 0x%lx-0x%lx (Entry 0x%lx)\n",
             Record->ImageBase, Record->ImageBase +
             Record->ImageSize - 1, Record->ImageEntry));
   }
@@ -97,7 +97,7 @@ IsX86ImageSupported (
   return TRUE;
 }
 
-#ifdef EMULATED_ENTRY_POINT
+#ifdef WRAPPED_ENTRY_POINTS
 STATIC
 EFI_STATUS
 EFIAPI
@@ -125,7 +125,7 @@ EmulatedEntryPoint (
 
   return CpuRunFunc (Record->ImageEntry, Args);
 }
-#endif /* EMULATED_ENTRY_POINT */
+#endif /* WRAPPED_ENTRY_POINTS */
 
 STATIC
 EFI_STATUS
@@ -185,19 +185,19 @@ RegisterX86Image (
    * is a no-op due to the early stage of RISC-V ports (no MMU enabled yet in
    * UEFI). Fortunately, an illegal instruction exception works reasonably well
    * to detect native calls into x64 code (unless you're dealing with hand-crafted
-   * assembly, so for now we compile with EMULATED_ENTRY_POINT for max compat).
+   * assembly, so for now we compile with WRAPPED_ENTRY_POINTS for max compat).
    *
    * Exception-driven detection of emulated code execution is the key
    * feature enabling emulated drivers to work, as their protocols can thus
    * be used from native code.
    */
-#ifdef EMULATED_ENTRY_POINT
+#ifdef WRAPPED_ENTRY_POINTS
   /*
    * Allows basic emulated apps to be executed without relying on the
    * X86InterpreterSyncExceptionCallback machinery.
    */
   *EntryPoint = EmulatedEntryPoint;
-#endif /* EMULATED_ENTRY_POINT */
+#endif /* WRAPPED_ENTRY_POINTS */
 
   return gCpu->SetMemoryAttributes (gCpu, ImageBase, ImageSize, EFI_MEMORY_XP);
 }
@@ -251,6 +251,16 @@ X86EmulatorVmEntry (
   return CpuRunFunc(Pc, (UINT64 *) Args);
 }
 
+VOID
+X86EmulatorDump (
+  VOID
+  )
+{
+  DumpImageRecords ();
+  EfiWrappersDump ();
+  CpuDump ();
+}
+
 EFI_STATUS
 EFIAPI
 X86EmulatorDxeEntryPoint (
@@ -269,6 +279,8 @@ X86EmulatorDxeEntryPoint (
   }
 
   InitializeListHead (&mX86ImageList);
+
+  EfiWrappersInit ();
 
   Status = gBS->LocateProtocol (&gEfiCpuArchProtocolGuid, NULL, (VOID **)&gCpu);
   if (Status != EFI_SUCCESS) {

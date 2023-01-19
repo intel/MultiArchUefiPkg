@@ -112,7 +112,7 @@ CpuNullReadCb (
           Size * 8, Offset));
   DEBUG_CODE_BEGIN ();
   {
-    CpuDump ();
+    X86EmulatorDump ();
   }
   DEBUG_CODE_END ();
   return 0xAFAFAFAFAFAFAFAFUL;
@@ -131,7 +131,7 @@ CpuNullWriteCb (
           Size * 8, Offset));
   DEBUG_CODE_BEGIN ();
   {
-    CpuDump ();
+    X86EmulatorDump ();
   }
   DEBUG_CODE_END ();
 }
@@ -429,6 +429,7 @@ CpuDump (
     }                                                   \
   } while (0);
 
+  DEBUG ((DEBUG_ERROR, "Emulated state:\n"));
   REGS ();
 
 #undef REG
@@ -515,7 +516,7 @@ CpuRunFuncInternal (
         break;
       } else if (ExitReason == CPU_REASON_FAILED_EMU) {
         DEBUG ((DEBUG_ERROR, "Emulation failed: %a\n", uc_strerror (UcErr)));
-        CpuDump ();
+        X86EmulatorDump ();
         break;
       }
   }

@@ -67,8 +67,7 @@ X86InterpreterSyncExceptionCallback (
             AArch64Context->LR - (UINT64) gDriverImage->ImageBase));
   }
 
-  DumpImageRecords ();
-  CpuDump ();
+  X86EmulatorDump ();
   DefaultExceptionHandler (ExceptionType, SystemContext);
 }
 
