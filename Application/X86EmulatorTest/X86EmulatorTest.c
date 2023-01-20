@@ -14,6 +14,7 @@
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiApplicationEntryPoint.h>
 #include "TestProtocol.h"
 
 #define NO_INLINE __attribute__((noinline))
@@ -32,6 +33,17 @@ LogResult (
 
   DEBUG ((Result ? DEBUG_INFO : DEBUG_ERROR, "Test %03u:\t%a: %a\n",
           Index++, Result ? "PASS" : "FAIL", String));
+}
+
+UINT64
+EFIAPI
+TestExit (
+ VOID
+ )
+{
+  DEBUG ((DEBUG_INFO, "Exiting via gBS->Exit\n"));
+  ProcessLibraryDestructorList (gImageHandle, gST);
+  return gBS->Exit(gImageHandle, EFI_SUCCESS, 0, NULL);
 }
 
 STATIC
@@ -418,11 +430,10 @@ X86EmulatorTestEntryPoint (
   IN  EFI_SYSTEM_TABLE *SystemTable
   )
 {
-  EFI_STATUS Status;
-  X86_EMU_TEST_PROTOCOL *Test;
+  X86_EMU_TEST_PROTOCOL *Test = NULL;
 
-  Status = gBS->LocateProtocol (&mX86EmuTestProtocolGuid, NULL, (VOID **) &Test);
-  if (Status != EFI_SUCCESS) {
+  gBS->LocateProtocol (&mX86EmuTestProtocolGuid, NULL, (VOID **) &Test);
+  if (Test == NULL) {
     DEBUG ((DEBUG_ERROR, "X86_EMU_TEST_PROTOCOL is missing\n"));
   } else {
     DoTestProtocolTests (Test);
@@ -438,6 +449,11 @@ X86EmulatorTestEntryPoint (
 
   TestPerf ();
   DEBUG ((DEBUG_INFO, "Tests completed!\n"));
+
+  if (Test != NULL) {
+    Test->TestCbArgs((VOID *) TestExit);
+    return EFI_ABORTED;
+  }
 
   return EFI_SUCCESS;
 }

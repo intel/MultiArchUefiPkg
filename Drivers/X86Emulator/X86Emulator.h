@@ -65,20 +65,33 @@ extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
 extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
 
 typedef struct {
-  LIST_ENTRY           Link;
-  EFI_PHYSICAL_ADDRESS ImageBase;
-  EFI_PHYSICAL_ADDRESS ImageEntry;
-  UINT64               ImageSize;
+  LIST_ENTRY               Link;
+  EFI_PHYSICAL_ADDRESS     ImageBase;
+  EFI_PHYSICAL_ADDRESS     ImageEntry;
+  UINT64                   ImageSize;
+  EFI_HANDLE               ImageHandle;
+  /*
+   * To support the Exit() boot service.
+   */
+  BASE_LIBRARY_JUMP_BUFFER ImageExitJumpBuffer;
+  EFI_STATUS               ImageExitStatus;
+  UINTN                    ImageExitDataSize;
+  CHAR16                   *ImageExitData;
 } X86_IMAGE_RECORD;
 
-typedef struct {
-  EFI_VIRTUAL_ADDRESS ProgramCounter;
-  UINT64              *Args;
-  UINTN               Nesting;
-  UINT64              Ret;
-  EFI_TPL             Tpl;
-  uc_context          *PrevContext;
-} CpuRunFuncContext;
+typedef struct CpuRunContext {
+  EFI_VIRTUAL_ADDRESS  ProgramCounter;
+  UINT64               *Args;
+  int                  NestedLevel;
+  UINT64               Ret;
+  EFI_TPL              Tpl;
+  uc_context           *PrevUcContext;
+  struct CpuRunContext *PrevContext;
+  /*
+   * Only set when we're invoking the entry point of an image.
+   */
+  X86_IMAGE_RECORD     *ImageRecord;
+} CpuRunContext;
 
 VOID
 X86EmulatorDump (
@@ -86,8 +99,13 @@ X86EmulatorDump (
   );
 
 X86_IMAGE_RECORD *
-FindImageRecord (
+FindImageRecordByAddress (
   IN  EFI_PHYSICAL_ADDRESS Address
+  );
+
+X86_IMAGE_RECORD *
+FindImageRecordByHandle (
+  IN  EFI_HANDLE Handle
   );
 
 VOID
@@ -113,6 +131,19 @@ CpuInit (
 BOOLEAN
 IsNativeCall (
   IN  UINT64 Pc
+  );
+
+EFI_STATUS
+CpuRunImage (
+  IN  EFI_HANDLE       ImageHandle,
+  IN  EFI_SYSTEM_TABLE *SystemTable
+  );
+
+EFI_STATUS
+CpuExitImage (
+  IN  UINT64 OriginalRip,
+  IN  UINT64 ReturnAddress,
+  IN  UINT64 *Args
   );
 
 UINT64

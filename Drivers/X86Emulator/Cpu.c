@@ -19,13 +19,15 @@
 #define NATIVE_STACK_SIZE      (1024 * 1024)
 #define RETURN_TO_NATIVE_MAGIC ((UINTN) &CpuReturnToNative)
 #define SYSV_X64_ABI_REDZONE   128
+#define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
 
 uc_engine *gUE;
 EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
 EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
-STATIC UINTN mInCritical;
+STATIC CpuRunContext *mTopContext;
+STATIC uc_shared *mUcShared;
 STATIC uc_context *mOrigContext;
 
 #ifdef ON_PRIVATE_STACK
@@ -243,6 +245,12 @@ CpuInit (
     return EFI_UNSUPPORTED;
   }
 
+  UcErr = uc_get_shared (gUE, &mUcShared);
+  if (UcErr != UC_ERR_OK) {
+    DEBUG ((DEBUG_ERROR, "uc_get_shared failed: %a\n", uc_strerror (UcErr)));
+    return EFI_UNSUPPORTED;
+  }
+
   /*
    * Port I/O hooks.
    */
@@ -330,6 +338,7 @@ CpuInit (
   UcErr = uc_context_save (gUE, mOrigContext);
   ASSERT (UcErr == UC_ERR_OK);
 
+  mTopContext = NULL;
   return EFI_SUCCESS;
 }
 
@@ -378,23 +387,29 @@ CpuStackPush64 (
 }
 
 STATIC
-UINTN
+VOID
 CpuEnterCritical (
-  EFI_TPL *OutTpl
+  IN  CpuRunContext *Context
   )
 {
-  *OutTpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  return mInCritical++;
+  Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context->PrevContext = mTopContext;
+  Context->NestedLevel = mUcShared->nested_level;
+
+  mTopContext = Context;
 }
 
 STATIC
-UINTN
+VOID
 CpuLeaveCritical (
-  EFI_TPL *OutTpl
+  IN  CpuRunContext *Context
   )
 {
-  *OutTpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  return mInCritical--;
+  Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  ASSERT (mTopContext == Context);
+
+  ASSERT (mTopContext->NestedLevel == mUcShared->nested_level);
+  mTopContext = mTopContext->PrevContext;
 }
 
 VOID
@@ -458,7 +473,7 @@ CpuDump (
 
 STATIC
 UINT64
-CpuRunFuncInternal (
+CpuRunCtxInternal (
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
   IN  UINT64              *Args
   )
@@ -616,23 +631,58 @@ CpuRegisterCodeRange (
   }
 }
 
+STATIC
+CpuRunContext *
+CpuAllocContext (
+  VOID
+  )
+{
+  EFI_STATUS Status;
+  CpuRunContext *Context;
+
+  Status = gBS->AllocatePool (EfiBootServicesData,
+    sizeof (*Context), (VOID **) &Context);
+  if (EFI_ERROR (Status)) {
+    return NULL;
+  }
+
+  gBS->SetMem (Context, sizeof (*Context), 0);
+  return Context;
+}
+
+STATIC
 VOID
-CpuRunFuncOnPrivateStack (
-  IN  CpuRunFuncContext *Context
+CpuFreeContext (
+  IN  CpuRunContext *Context
+  )
+{
+  if (Context->PrevUcContext != NULL) {
+    uc_err UcErr;
+    UcErr = uc_context_free (Context->PrevUcContext);
+    ASSERT (UcErr == UC_ERR_OK);
+  }
+
+  gBS->FreePool (Context);
+}
+
+VOID
+CpuRunCtxOnPrivateStack (
+  IN  CpuRunContext *Context
   )
 {
   uc_err UcErr;
+
   gBS->RestoreTPL (Context->Tpl);
 
-  if (Context->Nesting > 0) {
-    UcErr = uc_context_alloc (gUE, &Context->PrevContext);
+  if (Context->PrevContext != NULL) {
+    UcErr = uc_context_alloc (gUE, &Context->PrevUcContext);
     if (UcErr != UC_ERR_OK) {
-      DEBUG ((DEBUG_ERROR, "could not allocate context: %a\n", uc_strerror (UcErr)));
+      DEBUG ((DEBUG_ERROR, "could not allocate UC context: %a\n", uc_strerror (UcErr)));
       Context->Ret = EFI_OUT_OF_RESOURCES;
       goto out;
     }
 
-    UcErr = uc_context_save (gUE, Context->PrevContext);
+    UcErr = uc_context_save (gUE, Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
 
     /*
@@ -645,10 +695,10 @@ CpuRunFuncOnPrivateStack (
     ASSERT (UcErr == UC_ERR_OK);
   }
 
-  Context->Ret = CpuRunFuncInternal (Context->ProgramCounter, Context->Args);
+  Context->Ret = CpuRunCtxInternal (Context->ProgramCounter, Context->Args);
 
-  if (Context->PrevContext != NULL) {
-    UcErr = uc_context_restore (gUE, Context->PrevContext);
+  if (Context->PrevUcContext != NULL) {
+    UcErr = uc_context_restore (gUE, Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
   }
 
@@ -657,13 +707,42 @@ out:
    * Critical section ends when code no longer modifies emulated state,
    * including registers.
    */
-  CpuLeaveCritical (&Context->Tpl);
+  CpuLeaveCritical (Context);
 
 #ifdef ON_PRIVATE_STACK
-  if (Context->PrevContext == NULL) {
+  if (Context->PrevUcContext == NULL) {
     LongJump (&mOriginalStack, -1);
   }
 #endif /* ON_PRIVATE_STACK */
+}
+
+UINT64
+CpuRunCtx (
+  IN  CpuRunContext *Context
+  )
+{
+  CpuEnterCritical (Context);
+
+#ifdef ON_PRIVATE_STACK
+  if (!(CURRENT_FP () >= mNativeStackStart &&
+        CURRENT_FP () < mNativeStackTop)) {
+    if (SetJump (&mOriginalStack) == 0) {
+      SwitchStack ((VOID *) CpuRunCtxOnPrivateStack,
+                   Context, NULL, (VOID *) mNativeStackTop);
+    }
+  } else
+#endif /* ON_PRIVATE_STACK */
+  {
+    CpuRunCtxOnPrivateStack (Context);
+  }
+
+  /*
+   * Come back here from CpuRunCtxOnPrivateStack, directly
+   * (when Context.PrevUcContext != NULL) or via LongJump (when
+   * Context.PrevUcContext == NULL).
+   */
+  gBS->RestoreTPL (Context->Tpl);
+  return Context->Ret;
 }
 
 UINT64
@@ -672,33 +751,155 @@ CpuRunFunc (
   IN  UINT64              *Args
   )
 {
-  uc_err            UcErr;
-  CpuRunFuncContext Context = { ProgramCounter, Args };
+  UINT64 Ret;
+  CpuRunContext *Context;
 
-  Context.Nesting = CpuEnterCritical (&Context.Tpl);
+  Context = CpuAllocContext ();
+  if (Context == NULL) {
+    DEBUG ((DEBUG_ERROR, "Could not allocate CpuRunContext\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
 
-#ifdef ON_PRIVATE_STACK
-  if (Context.Nesting == 0) {
-    if (SetJump(&mOriginalStack) == 0) {
-      SwitchStack ((VOID *) CpuRunFuncOnPrivateStack,
-                   &Context, NULL, (VOID *) mNativeStackTop);
+  Context->ProgramCounter = ProgramCounter;
+  Context->Args = Args;
+
+  Ret = CpuRunCtx (Context);
+
+  CpuFreeContext (Context);
+  return Ret;
+}
+
+STATIC
+VOID
+CpuCleanupContextsOnImageExit (
+  IN  CpuRunContext *ImageEntryContext
+  )
+{
+  EFI_TPL Tpl;
+  CpuRunContext *Context;
+
+  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context = mTopContext;
+  mTopContext = ImageEntryContext->PrevContext;
+  ImageEntryContext->PrevContext = NULL;
+  mUcShared->nested_level = ImageEntryContext->NestedLevel;
+  gBS->RestoreTPL (Tpl);
+
+  while (Context != NULL) {
+    uc_err UcErr;
+    CpuRunContext *ThisContext = Context;
+    Context = Context->PrevContext;
+
+    if (ThisContext->PrevUcContext != NULL) {
+      UcErr = uc_context_restore (gUE, ThisContext->PrevUcContext);
+      ASSERT (UcErr == UC_ERR_OK);
     }
-  } else
-#endif /* ON_PRIVATE_STACK */
-  {
-    CpuRunFuncOnPrivateStack (&Context);
+
+    CpuFreeContext (ThisContext);
+  }
+}
+
+EFI_STATUS
+EFIAPI
+CpuRunImage (
+  IN  EFI_HANDLE       ImageHandle,
+  IN  EFI_SYSTEM_TABLE *SystemTable
+  )
+{
+  EFI_STATUS Status;
+  CpuRunContext *Context;
+  X86_IMAGE_RECORD *Record;
+  EFI_LOADED_IMAGE_PROTOCOL *LoadedImage;
+  UINT64 Args[2] = { (UINT64) ImageHandle, (UINT64) SystemTable };
+
+  Context = CpuAllocContext ();
+  if (Context == NULL) {
+    DEBUG ((DEBUG_ERROR, "Could not allocate CpuRunContext\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  Status = gBS->HandleProtocol (ImageHandle,
+                                &gEfiLoadedImageProtocolGuid,
+                                (VOID **)&LoadedImage);
+  if (EFI_ERROR (Status)) {
+    DEBUG((DEBUG_ERROR, "Can't get emulated image entry point: %r\n", Status));
+    return Status;
+  }
+
+  Record = FindImageRecordByAddress ((UINT64) LoadedImage->ImageBase);
+  ASSERT (Record != NULL);
+  Record->ImageHandle = ImageHandle;
+
+  Context->ImageRecord = Record;
+  Context->ProgramCounter = Record->ImageEntry;
+  Context->Args = Args;
+
+  if (SetJump (&Record->ImageExitJumpBuffer) == 0) {
+    Status = CpuRunCtx (Context);
+    /*
+     * Image just returned.
+     */
+    CpuFreeContext (Context);
+    return Status;
   }
 
   /*
-   * Come back here from CpuRunFuncOnPrivateStack, directly
-   * (when Context.PrevContext != NULL) or via LongJump (when
-   * Context.PrevContext == NULL).
+   * Image exited via gBS->Exit.
    */
-  gBS->RestoreTPL (Context.Tpl);
-  if (Context.PrevContext != NULL) {
-    UcErr = uc_context_free (Context.PrevContext);
-    ASSERT (UcErr == UC_ERR_OK);
+  CpuCleanupContextsOnImageExit (Context);
+  Status = gBS->Exit (Record->ImageHandle,
+                      Record->ImageExitStatus,
+                      Record->ImageExitDataSize,
+                      Record->ImageExitData);
+
+  ASSERT_EFI_ERROR (Status);
+  return Status;
+}
+
+EFI_STATUS
+CpuExitImage (
+  IN  UINT64 OriginalRip,
+  IN  UINT64 ReturnAddress,
+  IN  UINT64 *Args
+  )
+{
+  EFI_TPL          Tpl;
+  CpuRunContext    *Context;
+  X86_IMAGE_RECORD *CurrentImageRecord;
+  EFI_HANDLE       Handle =  (VOID *) Args[0];
+
+  CurrentImageRecord = FindImageRecordByHandle (Handle);
+  if (CurrentImageRecord == NULL) {
+    DEBUG((DEBUG_ERROR, "CpuExitImage: bad Handle argument 0x%lx\n", Handle));
+    return EFI_INVALID_PARAMETER;
+  }
+  ASSERT (CurrentImageRecord->ImageHandle == Handle);
+
+  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context = mTopContext;
+  while (Context != NULL && Context->ImageRecord == NULL) {
+    Context = Context->PrevContext;
   }
 
-  return Context.Ret;
+  ASSERT (Context);
+  if (Context->ImageRecord != CurrentImageRecord) {
+    /*
+     * The image with this handle is *not* the last image
+     * invoked.
+     */
+    Context = NULL;
+  }
+  gBS->RestoreTPL (Tpl);
+
+  if (Context == NULL) {
+    DEBUG((DEBUG_ERROR, "Context->ImageRecord != CurrentImageRecord\n"));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  CurrentImageRecord->ImageExitStatus = Args[1];
+  CurrentImageRecord->ImageExitDataSize = Args[2];
+  CurrentImageRecord->ImageExitData = (VOID *) Args[3];
+  LongJump (&CurrentImageRecord->ImageExitJumpBuffer, -1);
+
+  UNREACHABLE ();
 }

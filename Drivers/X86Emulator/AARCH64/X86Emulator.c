@@ -34,7 +34,7 @@ X86InterpreterSyncExceptionCallback (
    */
   Ec = AArch64Context->ESR >> 26;
   if ((Ec == 0x21 && (AArch64Context->ESR & 0x3c) == 0xc) || Ec == 0x22) {
-    Record = FindImageRecord (AArch64Context->ELR);
+    Record = FindImageRecordByAddress (AArch64Context->ELR);
     if (Record != NULL) {
       AArch64Context->X16 = AArch64Context->ELR;
       AArch64Context->X17 = (UINT64)Record;

@@ -39,7 +39,7 @@ DumpImageRecords (
 }
 
 X86_IMAGE_RECORD *
-FindImageRecord (
+FindImageRecordByAddress (
   IN  EFI_PHYSICAL_ADDRESS Address
   )
 {
@@ -60,6 +60,27 @@ FindImageRecord (
   return NULL;
 }
 
+X86_IMAGE_RECORD *
+FindImageRecordByHandle (
+  IN  EFI_HANDLE Handle
+  )
+{
+  LIST_ENTRY       *Entry;
+  X86_IMAGE_RECORD *Record;
+
+  for (Entry = GetFirstNode (&mX86ImageList);
+       !IsNull (&mX86ImageList, Entry);
+       Entry = GetNextNode (&mX86ImageList, Entry)) {
+
+    Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
+
+    if (Handle == Record->ImageHandle) {
+      return Record;
+    }
+  }
+  return NULL;
+}
+
 BOOLEAN
 IsNativeCall (
   IN  UINT64 Pc
@@ -73,7 +94,7 @@ IsNativeCall (
     return TRUE;
   }
 
-  if (FindImageRecord ((EFI_PHYSICAL_ADDRESS) Pc) != NULL) {
+  if (FindImageRecordByAddress ((EFI_PHYSICAL_ADDRESS) Pc) != NULL) {
     return FALSE;
   }
 
@@ -97,36 +118,6 @@ IsX86ImageSupported (
   return TRUE;
 }
 
-#ifdef WRAPPED_ENTRY_POINTS
-STATIC
-EFI_STATUS
-EFIAPI
-EmulatedEntryPoint (
-  IN  EFI_HANDLE       ImageHandle,
-  IN  EFI_SYSTEM_TABLE *SystemTable
-  )
-{
-  EFI_STATUS Status;
-  X86_IMAGE_RECORD *Record;
-  EFI_LOADED_IMAGE_PROTOCOL *LoadedImage;
-  UINT64 Args[2] = { (UINT64) ImageHandle, (UINT64) SystemTable };
-
-  Status = gBS->HandleProtocol (ImageHandle,
-                                &gEfiLoadedImageProtocolGuid,
-                                (VOID **)&LoadedImage
-    );
-  if (EFI_ERROR (Status)) {
-    DEBUG((DEBUG_ERROR, "Can't get emulated image entry point: %r\n", Status));
-    return Status;
-  }
-
-  Record = FindImageRecord ((UINT64) LoadedImage->ImageBase);
-  ASSERT (Record != NULL);
-
-  return CpuRunFunc (Record->ImageEntry, Args);
-}
-#endif /* WRAPPED_ENTRY_POINTS */
-
 STATIC
 EFI_STATUS
 EFIAPI
@@ -137,6 +128,7 @@ RegisterX86Image (
   IN  OUT EFI_IMAGE_ENTRY_POINT                *EntryPoint
   )
 {
+  EFI_STATUS       Status;
   X86_IMAGE_RECORD *Record;
 
   DEBUG_CODE_BEGIN ();
@@ -181,25 +173,26 @@ RegisterX86Image (
    * exception handler (X86InterpreterSyncExceptionCallback) to invoke
    * X86EmulatorVmEntry instead.
    *
-   * RISC-V systems should operate similarly, but as of 12/2022 SetMemoryAttributes
-   * is a no-op due to the early stage of RISC-V ports (no MMU enabled yet in
-   * UEFI). Fortunately, an illegal instruction exception works reasonably well
-   * to detect native calls into x64 code (unless you're dealing with hand-crafted
-   * assembly, so for now we compile with WRAPPED_ENTRY_POINTS for max compat).
-   *
    * Exception-driven detection of emulated code execution is the key
    * feature enabling emulated drivers to work, as their protocols can thus
    * be used from native code.
+   *
+   * RISC-V systems should operate similarly, but as of 12/2022 SetMemoryAttributes
+   * is a no-op due to the early stage of RISC-V ports (no MMU enabled yet in
+   * UEFI). Fortunately, a mix of using an illegal instruction exception trap with
+   * trapping EFI calls that take callbacks works reasonably well.
    */
-#ifdef WRAPPED_ENTRY_POINTS
-  /*
-   * Allows basic emulated apps to be executed without relying on the
-   * X86InterpreterSyncExceptionCallback machinery.
-   */
-  *EntryPoint = EmulatedEntryPoint;
-#endif /* WRAPPED_ENTRY_POINTS */
+  Status = gCpu->SetMemoryAttributes (gCpu, ImageBase, ImageSize, EFI_MEMORY_XP);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
 
-  return gCpu->SetMemoryAttributes (gCpu, ImageBase, ImageSize, EFI_MEMORY_XP);
+  /*
+   * Entry point is not entered via exception handler - some special handling is
+   * necesssary to support proper emulation of the Exit UEFI Boot Service.
+   */
+  *EntryPoint = CpuRunImage;
+  return EFI_SUCCESS;
 }
 
 STATIC
@@ -213,7 +206,7 @@ UnregisterX86Image (
   X86_IMAGE_RECORD *Record;
   EFI_STATUS       Status;
 
-  Record = FindImageRecord (ImageBase);
+  Record = FindImageRecordByAddress (ImageBase);
   if (Record == NULL) {
     return EFI_NOT_FOUND;
   }

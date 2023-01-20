@@ -36,7 +36,7 @@ EfiWrappersDumpEvents ()
        !IsNull (&mEventList, Entry);
        Entry = GetNextNode (&mEventList, Entry)) {
     Record = BASE_CR (Entry, WRAPPED_EVENT_RECORD, Link);
-    Image = FindImageRecord (Record->CallerRip);
+    Image = FindImageRecordByAddress (Record->CallerRip);
 
     DEBUG ((DEBUG_ERROR, "\tImageBase 0x%lx Event %p Fn %p Context %p\n",
             Image->ImageBase, Record->Event, Record->X64NotifyFunction,
@@ -197,6 +197,8 @@ EfiWrappersOverride (
     DEBUG ((DEBUG_ERROR,
             "Unsupported emulated RegisterInterruptHandler\n"));
     return (UINT64) &NativeUnsupported;
+  } else if (Rip == (UINTN) gBS->Exit) {
+    return (UINT64) &CpuExitImage;
   }
 
   return Rip;
