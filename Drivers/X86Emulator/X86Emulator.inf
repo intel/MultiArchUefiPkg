@@ -50,7 +50,6 @@
   BaseLib
   BaseMemoryLib
   DebugLib
-  MemoryAllocationLib
   PeCoffLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint

@@ -177,10 +177,10 @@ CpuPrivateStackInit (
 #ifdef ON_PRIVATE_STACK
   EFI_STATUS Status;
 
-  mNativeStackStart = (EFI_PHYSICAL_ADDRESS)
-    AllocatePages (EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE));
-  if (mNativeStackStart == 0) {
-    return EFI_OUT_OF_RESOURCES;
+  Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE), &mNativeStackStart);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "failed to allocate private stack: %r\n", Status));
+    return Status;
   }
   mNativeStackTop = mNativeStackStart + NATIVE_STACK_SIZE - EFI_PAGE_SIZE;
   Status = gCpu->SetMemoryAttributes (gCpu, mNativeStackStart, NATIVE_STACK_SIZE,
@@ -223,10 +223,19 @@ CpuInit (
     return Status;
   }
 
-  mEmuStackStart = (EFI_PHYSICAL_ADDRESS)
-    AllocatePages (EFI_SIZE_TO_PAGES (EMU_STACK_SIZE));
-  if (mEmuStackStart == 0) {
-    return EFI_OUT_OF_RESOURCES;
+  /*
+   * Prefer to put the emulated stack below 4GiB to deal
+   * with x64 code that may work incorrectly with 64-bit
+   * stack values (...by manipulating ESP in 64-bit code!).
+   */
+  mEmuStackStart = SIZE_4GB - 1;
+  Status = gBS->AllocatePages (AllocateMaxAddress, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &mEmuStackStart);
+  if (EFI_ERROR (Status)) {
+    Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &mEmuStackStart);
+  }
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "failed to allocate emulated stack: %r\n", Status));
+    return Status;
   }
   mEmuStackTop = mEmuStackStart + EMU_STACK_SIZE;
 
@@ -434,6 +443,19 @@ CpuDump (
 
 #undef REG
 #undef REGS
+
+  Val = REG_READ(RSP);
+  if (!(Val >= mEmuStackStart && Val < mEmuStackTop)) {
+    /*
+     * It's not completely invalid for a binary to move it's
+     * stack pointer elsewhere, but it is highly unusual and
+     * worth noting. I've seen some programs that corrupt the
+     * stack pointer by manipulating ESP instead of RSP
+     * (which clears the high bits of RSP).
+     */
+    DEBUG ((DEBUG_ERROR, "RSP is outside 0x%lx-0x%lx\n",
+            mEmuStackStart, mEmuStackTop));
+  }
 }
 
 STATIC
