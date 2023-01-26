@@ -38,9 +38,9 @@ typedef enum {
   CPU_REASON_INVALID,
   CPU_REASON_NONE,
   CPU_REASON_RETURN_TO_NATIVE,
-#ifdef UPSTREAM_UC
+#ifdef NO_NATIVE_THUNKS
   CPU_REASON_CALL_TO_NATIVE,
-#endif /* UPSTREAM_UC */
+#endif /* NO_NATIVE_THUNKS */
   CPU_REASON_FAILED_EMU,
 } CpuExitReason;
 
@@ -136,7 +136,7 @@ CpuNullWriteCb (
   DEBUG_CODE_END ();
 }
 
-#ifndef UPSTREAM_UC
+#ifndef NO_NATIVE_THUNKS
 STATIC
 BOOLEAN
 CpuIsNative (
@@ -154,7 +154,7 @@ CpuIsNative (
 
   return FALSE;
 }
-#endif /* UPSTREAM_UC */
+#endif /* NO_NATIVE_THUNKS */
 
 VOID
 CpuCleanup (
@@ -214,9 +214,7 @@ CpuInit (
   uc_err     UcErr;
   EFI_STATUS Status;
   uc_hook    IoReadHook, IoWriteHook;
-#ifndef UPSTREAM_UC
   size_t     UnicornCodeGenSize;
-#endif /* UPSTREAM_UC */
 
   Status = CpuPrivateStackInit ();
   if (EFI_ERROR (Status)) {
@@ -307,12 +305,13 @@ CpuInit (
 
   REG_WRITE (RSP, mEmuStackTop);
 
-#ifndef UPSTREAM_UC
+#ifndef NO_NATIVE_THUNKS
   UcErr = uc_set_native_thunks (gUE, CpuIsNative, NativeThunk);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_set_native_thunks failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
+#endif /* NO_NATIVE_THUNKS */
 
   UcErr = uc_get_code_gen_buf (gUE, (void **) &UnicornCodeGenBuf,
                                &UnicornCodeGenSize);
@@ -321,7 +320,6 @@ CpuInit (
     return EFI_UNSUPPORTED;
   }
   UnicornCodeGenBufEnd = UnicornCodeGenBuf + UnicornCodeGenSize;
-#endif /* UPSTREAM_UC */
 
   UcErr = uc_context_alloc (gUE, &mOrigContext);
   if (UcErr != UC_ERR_OK) {
@@ -502,11 +500,11 @@ CpuRunFuncInternal (
     UcErr = uc_emu_start (gUE, Rip, 0, 0, 0);
     Rip = REG_READ (RIP);
 
-#ifdef UPSTREAM_UC
+#ifdef NO_NATIVE_THUNKS
     if (UcErr == UC_ERR_FETCH_PROT) {
       ExitReason = CPU_REASON_CALL_TO_NATIVE;
     } else
-#endif /* UPSTREAM_UC */
+#endif /* NO_NATIVE_THUNKS */
       if (UcErr != UC_ERR_OK) {
         ExitReason = CPU_REASON_FAILED_EMU;
       } else {
@@ -528,12 +526,12 @@ CpuRunFuncInternal (
 
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
-#ifdef UPSTREAM_UC
+#ifdef NO_NATIVE_THUNKS
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
       NativeThunk (gUE, Rip);
       Rip = CpuStackPop64 ();
     } else
-#endif /* UPSTREAM_UC */
+#endif /* NO_NATIVE_THUNKS */
       if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
         break;
       } else if (ExitReason == CPU_REASON_FAILED_EMU) {

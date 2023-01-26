@@ -30,20 +30,14 @@
   WRAPPED_ENTRY_POINTS           = NO
   #
   #
-  # UPSTREAM_UC refers to the official Unicorn API. For best
-  # operation/performance, build with UPSTREAM_UC=NO, but this
-  # requires using additional private API calls.
+  # When NO_NATIVE_THUNKS is set to YES, a simpler but higher
+  # overhead mechanism of thunking to native code is used,
+  # relying on uc_emu_start exits on fetch protection faults.
   #
-  # Note: X86Emulator requires a version of Unicorn that
-  # supports EFI. This version has additional fixes that
-  # built regardless of UPSTREAM_UC value. A different
-  # version of Unicorn code is not guaranteed to function
-  # even when X86Emulator is compiled with UPSTREAM_UC=YES.
+  # uc_set_native_thunks may be somewhat experimental, so this
+  # option is useful to help debug any unexpected behavior seen.
   #
-  UPSTREAM_UC                    = NO
-!if $(UPSTREAM_UC) == YES
-  OUTPUT_DIRECTORY               = Build/UCX86EmulatorUpstream
-!endif
+  NO_NATIVE_THUNKS               = NO
 
 !include unicorn/efi/UnicornPkg.dsc.inc
 
@@ -118,8 +112,8 @@
 
 [BuildOptions]
   *_*_*_CC_FLAGS                       = -DDISABLE_NEW_DEPRECATED_INTERFACES
-!if $(UPSTREAM_UC) == YES
-  *_*_*_CC_FLAGS                       = -DUPSTREAM_UC
+!if $(NO_NATIVE_THUNKS) == YES
+  *_*_*_CC_FLAGS                       = -DNO_NATIVE_THUNKS
 !endif
 !if $(ON_PRIVATE_STACK) == YES
   *_*_*_CC_FLAGS                       = -DON_PRIVATE_STACK

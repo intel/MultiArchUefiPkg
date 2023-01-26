@@ -131,11 +131,11 @@ contains critical fixes to the operation of emulator. Beyond fixes, there
 are additional improvements that rely on additional new Unicorn APIs being
 made available.
 
-If you build with UPSTREAM_UC=YES, you will get a version of UCX86EmulatorPkg
-that does not rely on the existence of these additional APIs. Such a build
-could be interesting as part of upstreaming efforts for the UEFI port of
-Project Unicorn. Building with UPSTREAM_UC=YES does *not* exclude changes
-without an API impact.
+If you build with NO_NATIVE_THUNKS=YES, a simpler but higher overhead
+mechanism of thunking to native code is used, relying on uc_emu_start
+exits on fetch protection faults. uc_set_native_thunks may be somewhat
+experimental, so this option is useful to help debug any unexpected
+behavior seen.
 
 If you build with ON_PRIVATE_STACK=YES, X86EmulatorDxe will use a dedicated
 native stack for handling x64 emulation. This has some runtime overhead and
