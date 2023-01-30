@@ -84,6 +84,9 @@ typedef struct {
 
 typedef struct CpuRunContext {
   EFI_VIRTUAL_ADDRESS  ProgramCounter;
+#ifdef CHECK_ORPHAN_CONTEXTS
+  UINT64               LeakCookie;
+#endif /* CHECK_ORPHAN_CONTEXTS */
   UINT64               *Args;
   UINT64               Ret;
   EFI_TPL              Tpl;
@@ -142,11 +145,22 @@ CpuRunImage (
   IN  EFI_SYSTEM_TABLE *SystemTable
   );
 
+VOID
+CpuCompressLeakedContexts (
+  IN  CpuRunContext *CurrentContext,
+  IN  BOOLEAN       OnImageExit
+  );
+
 EFI_STATUS
 CpuExitImage (
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args
+  );
+
+CpuRunContext *
+CpuGetTopContext (
+  VOID
   );
 
 UINT64

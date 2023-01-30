@@ -702,6 +702,119 @@ CpuFreeContext (
   gBS->FreePool (Context);
 }
 
+#ifdef CHECK_ORPHAN_CONTEXTS
+/*
+ * Every time the emulator executes x64 code on behalf
+ * of the caller, a new context is allocated and inserted
+ * into the linked list pointed to by mTopContext. This is
+ * then freed. Normal control flow cannot result in contexts
+ * left behind... what about SetJump/LongJump? This is where
+ * things get messy. Imagine a scenario like this:
+ * - native code does SetJump
+ * - native code calls emulated function, passes Cb
+ * - emulated function calls native Cb
+ * - native Cb does LongJump.
+ *
+ * ...this would result in emulated function never regaining control,
+ * and thus the CpuRunContext associated with its exection
+ * would never be freed. Note: this is different from the situation
+ * covered by NativeThunk, as the original SetJump caller was not
+ * called from emulated code.
+ *
+ * This may seem rather contrived, but consider this is exactly
+ * how EFI_BOOT_SERVICES.Exit() would behave for an emulated
+ * image that was invoked from a native image, if it were not
+ * wrapped via CpuExitImage!
+ *
+ * Anyway, this is not normal, and not expected to be done
+ * by any kind of application or driver executed via this x64
+ * emulator. But CHECK_ORPHAN_CONTEXTS allows checking for such
+ * behavior.
+ */
+
+STATIC
+CpuRunContext *
+CpuDetectOrphanContexts (
+  IN  CpuRunContext *Context
+  )
+{
+  CpuRunContext *Orphan = NULL;
+
+  /*
+   * This is different from how CpuCompressLeakedContexts is used
+   * in NativeThunk. Here, we are trying to identify older contexts
+   * which represent state that is never going to be returned to.
+   * Such contexts are just freed.
+   *
+   * Context == mTopContext -> [ live context ]
+   *                        -> [ context corresponding
+   *                             to returned code ]
+   *                        -> [ context corresponding
+   *                             to returned code ]
+   *
+   * Let's call such contexts /orphaned/ contexts. Unlike leaked
+   * contexts handled by the gBS->ExitWrapper or NativeThunk,
+   * these have no useful state, they just need to be cleaned up.
+   *
+   * Note: this function must be called before dropping to Context->Tpl,
+   * due to:
+   * - LeakCookie initialization. LeakCookie cannot be initialized
+   *   earlier, because the context is allocated before switching
+   *   to a private stack.
+   * - List modifiction.
+   *
+   * This does mean we can't free here, so that's done in
+   * CpuFreeOrphanContexts.
+   */
+
+  Context->LeakCookie = CURRENT_FP ();
+  /*
+   * Stack grows downward, thus the new context leak cookie
+   * should be smaller than the previous context leak cookie.
+   */
+
+  while (Context->PrevContext != NULL &&
+         Context->LeakCookie >= Context->PrevContext->LeakCookie) {
+    if (Orphan == NULL) {
+      Orphan = Context->PrevContext;
+    }
+    Context->PrevContext = Context->PrevContext->PrevContext;
+  }
+
+  if (Orphan != NULL) {
+    CpuRunContext *Iter;
+    Iter = Orphan;
+    /*
+     * Context->PrevContext will be NULL or the first context
+     * with a LeakCookie that doesn't look like a clearly leaked
+     * context.
+     */
+    while (Iter->PrevContext != Context->PrevContext) {
+      Iter = Iter->PrevContext;
+    }
+
+    Iter->PrevContext = NULL;
+  }
+
+  return Orphan;
+}
+
+STATIC
+VOID
+CpuFreeOrphanContexts (
+  IN CpuRunContext *Context
+  )
+{
+  while (Context != NULL) {
+    CpuRunContext *ThisContext = Context;
+    Context = Context->PrevContext;
+
+    DEBUG ((DEBUG_ERROR, "\nDetected orphan context %p\n\n", ThisContext));
+    CpuFreeContext (ThisContext);
+  }
+}
+#endif /* CHECK_ORPHAN_CONTEXTS */
+
 VOID
 CpuRunCtxOnPrivateStack (
   IN  CpuRunContext *Context
@@ -709,7 +822,15 @@ CpuRunCtxOnPrivateStack (
 {
   uc_err UcErr;
 
+#ifdef CHECK_ORPHAN_CONTEXTS
+  CpuRunContext *OrphanContexts = CpuDetectOrphanContexts (Context);
+#endif /* CHECK_ORPHAN_CONTEXTS */
+
   gBS->RestoreTPL (Context->Tpl);
+
+#ifdef CHECK_ORPHAN_CONTEXTS
+  CpuFreeOrphanContexts (OrphanContexts);
+#endif /* CHECK_ORPHAN_CONTEXTS */
 
   if (Context->PrevContext != NULL) {
     UcErr = uc_context_alloc (gUE, &Context->PrevUcContext);
@@ -806,32 +927,56 @@ CpuRunFunc (
   return Ret;
 }
 
-STATIC
+CpuRunContext *
+CpuGetTopContext (
+  VOID
+  )
+{
+  return mTopContext;
+}
+
 VOID
-CpuCleanupContextsOnImageExit (
-  IN  CpuRunContext *ImageEntryContext
+CpuCompressLeakedContexts (
+  IN  CpuRunContext *CurrentContext,
+  IN  BOOLEAN        OnImageExit
   )
 {
   EFI_TPL Tpl;
   CpuRunContext *Context;
 
+  /*
+   * CpuCompressLeakedContexts deals with situations where
+   * mTopContext is not consistent with actual execution, due
+   * to native code doing long jumps, thus skipping the normal
+   * cleanup done in CpuRunFunc/CpuRunImage. In these situations,
+   * when NativeThunk gets control back from the native call, mTopContext
+   * will be newer than the NativeThunk context - mTopContext
+   * needs to be adjusted, popping off the contexts in between
+   * and applying their state (which represents that emulated non-volatile
+   * state that would have been restored by LongJump, if it were done
+   * by emulated code!).
+   *
+   * mTopContext ->    [ context corresponding to returned code ]
+   *                   [ context corresponding to returned code ]
+   * CurrentContext -> [ live context ]
+   */
+
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context = mTopContext;
-  mTopContext = ImageEntryContext->PrevContext;
-  ImageEntryContext->PrevContext = NULL;
+  mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
   gBS->RestoreTPL (Tpl);
 
-  while (Context != NULL) {
+  while (Context != mTopContext) {
     uc_err UcErr;
-    CpuRunContext *ThisContext = Context;
+    CpuRunContext *FreedContext = Context;
     Context = Context->PrevContext;
 
-    if (ThisContext->PrevUcContext != NULL) {
-      UcErr = uc_context_restore (gUE, ThisContext->PrevUcContext);
+    if (FreedContext->PrevUcContext != NULL) {
+      UcErr = uc_context_restore (gUE, FreedContext->PrevUcContext);
       ASSERT (UcErr == UC_ERR_OK);
     }
 
-    CpuFreeContext (ThisContext);
+    CpuFreeContext (FreedContext);
   }
 }
 
@@ -882,7 +1027,7 @@ CpuRunImage (
   /*
    * Image exited via gBS->Exit.
    */
-  CpuCleanupContextsOnImageExit (Context);
+  CpuCompressLeakedContexts (Context, TRUE);
   Status = gBS->Exit (Record->ImageHandle,
                       Record->ImageExitStatus,
                       Record->ImageExitDataSize,

@@ -74,6 +74,7 @@
 
 [BuildOptions]
   RELEASE_*_*_CC_FLAGS = -DNDEBUG
+  DEBUG_*_*_CC_FLAGS = -DCHECK_ORPHAN_CONTEXTS
 
 [BuildOptions.RISCV64]
   #

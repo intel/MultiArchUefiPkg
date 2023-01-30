@@ -34,4 +34,6 @@ typedef struct {
                                                       UINT64, UINT64, UINT64, UINT64,
                                                       UINT64, UINT64, UINT64, UINT64));
   EFI_STATUS EFIAPI (*TestGetDebugState)(X86_EMU_TEST_DEBUG_STATE *DebugState);
+  UINT64     EFIAPI (*TestSj)(VOID EFIAPI (*Cb)(VOID *Buffer));
+  VOID       EFIAPI (*TestLj)(VOID *Buffer);
 } X86_EMU_TEST_PROTOCOL;

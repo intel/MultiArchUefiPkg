@@ -98,6 +98,19 @@ TestCbArgs (
 
 STATIC
 VOID
+EFIAPI
+TestCbLj (
+  IN  VOID *Buffer
+  )
+{
+  DEBUG ((DEBUG_INFO, "Now calling TestLj\n"));
+  mTest->TestLj (Buffer);
+
+  UNREACHABLE ();
+}
+
+STATIC
+VOID
 DoTestProtocolTests (
   IN  X86_EMU_TEST_PROTOCOL *Test
   )
@@ -124,6 +137,9 @@ DoTestProtocolTests (
 
   Ret = Test->TestCbArgs(TestCbArgs);
   LogResult ("Native->emulated args passing", Ret == EFI_SUCCESS);
+
+  Ret = Test->TestSj (TestCbLj);
+  LogResult ("Native->TestSj/TestLj passing", Ret == EFI_SUCCESS);
 }
 
 STATIC

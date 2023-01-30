@@ -92,12 +92,45 @@ TestCbArgs (
             ARG_VAL(13), ARG_VAL(14), ARG_VAL(15), ARG_VAL(16));
 }
 
+STATIC
+UINT64
+TestSj (
+  IN  VOID EFIAPI (*Cb)(VOID *Buffer)
+  )
+{
+  BASE_LIBRARY_JUMP_BUFFER JumpBuffer;
+  if (SetJump (&JumpBuffer) == 0) {
+    Cb (&JumpBuffer);
+
+    /*
+     * Shouldn't happen.
+     */
+    return EFI_INVALID_PARAMETER;
+  }
+
+  DEBUG ((DEBUG_INFO, "Back to TestSj\n"));
+  return EFI_SUCCESS;
+}
+
+STATIC
+VOID
+TestLj (
+  IN  VOID *Buffer
+  )
+{
+  LongJump (Buffer, -1);
+
+  UNREACHABLE ();
+}
+
 STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
   HOST_MACHINE_TYPE,
   TestRet,
   TestArgs,
   TestCbArgs,
-  CpuGetDebugState
+  CpuGetDebugState,
+  TestSj,
+  TestLj
 };
 
 STATIC EFI_GUID mX86EmuTestProtocolGuid = X86_EMU_TEST_PROTOCOL_GUID;

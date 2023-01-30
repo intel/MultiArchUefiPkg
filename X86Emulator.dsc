@@ -28,6 +28,11 @@
   # exception-driven thunking of native to emulated code.
   #
   WRAPPED_ENTRY_POINTS           = NO
+  #
+  # Handle unexpected/non-linear control flow by native code,
+  # that can result in a resource leak inside the emulator.
+  #
+  CHECK_ORPHAN_CONTEXTS          = NO
 
 !include unicorn/efi/UnicornPkg.dsc.inc
 
@@ -107,6 +112,9 @@
 !endif
 !if $(WRAPPED_ENTRY_POINTS) == YES
   *_*_*_CC_FLAGS                       = -DWRAPPED_ENTRY_POINTS
+!endif
+!if $(CHECK_ORPHAN_CONTEXTS) == YES
+  *_*_*_CC_FLAGS                       = -DCHECK_ORPHAN_CONTEXTS
 !endif
 
 [Components]

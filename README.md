@@ -141,6 +141,11 @@ where the X86InterpreterSyncExceptionCallback machinery (exception-driven
 detection of emulated code execution) doesn't work (e.g. adding a new host
 CPU port, running certain x64 apps on RISC-V, ...).
 
+If you build with CHECK_ORPHAN_CONTEXTS=YES, X86EmulatorDxe will perform
+more runtime checks to handle unexpeced/non-linear control flow from
+native code, that can result in a resource leak inside the emulator.
+This is enabled by default for DEBUG builds.
+
 Finally, you can choose to build with BaseDebugLibNull. By default
 UefiDebugLibConOut is used to get some reasonable debugging output, but
 the extra code generated for DEBUG((...)) macros used for logging does

@@ -71,6 +71,7 @@ NativeThunk (
   UINT64  R8;
   UINT64  R9;
   Fn      Func;
+  CpuRunContext *CurrentTopContext = CpuGetTopContext ();
 
   Func.Rip = NativeValidateSupportedCall (Rip);
   WrapperCall = Func.Rip != Rip;
@@ -117,6 +118,24 @@ NativeThunk (
                          StackArgs[8], StackArgs[9], StackArgs[10], StackArgs[11],
                          StackArgs[12], StackArgs[13], StackArgs[14], StackArgs[15],
                          StackArgs[16]);
+  }
+
+  if (CpuGetTopContext () != CurrentTopContext) {
+    /*
+     * Consider the following sequence:
+     * - x64->native call
+     * - native does SetJump
+     * - native->x64 call
+     * - x64->native call
+     * - native does LongJump
+     *
+     * This isn't that crazy - e.g. an x64 binary starting another
+     * x64 binary, which calls gBS->Exit. While we can handle gBS->Exit
+     * cleanly ourselves, let's detect code that does something similar,
+     * which will result in UC engine state being out of sync with the
+     * expected context state.
+     */
+    CpuCompressLeakedContexts (CurrentTopContext, FALSE);
   }
 
   REG_WRITE (RAX, Rax);
