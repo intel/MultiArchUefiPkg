@@ -22,6 +22,8 @@
 
 STATIC EFI_GUID mX86EmuTestProtocolGuid = X86_EMU_TEST_PROTOCOL_GUID;
 STATIC UINT64 TestArray[EFI_PAGE_SIZE / sizeof (UINT64)];
+STATIC X86_EMU_TEST_DEBUG_STATE mBeginDebugState;
+STATIC X86_EMU_TEST_PROTOCOL *mTest = NULL;
 
 STATIC VOID
 LogResult (
@@ -41,6 +43,11 @@ TestExit (
  VOID
  )
 {
+  X86_EMU_TEST_DEBUG_STATE DebugState;
+
+  mTest->TestGetDebugState (&DebugState);
+  ASSERT (DebugState.CurrentContextCount == mBeginDebugState.CurrentContextCount + 1);
+  ASSERT (DebugState.CurrentNestedLevel == mBeginDebugState.CurrentNestedLevel + 1);
   DEBUG ((DEBUG_INFO, "Exiting via gBS->Exit\n"));
   ProcessLibraryDestructorList (gImageHandle, gST);
   return gBS->Exit(gImageHandle, EFI_SUCCESS, 0, NULL);
@@ -430,13 +437,15 @@ X86EmulatorTestEntryPoint (
   IN  EFI_SYSTEM_TABLE *SystemTable
   )
 {
-  X86_EMU_TEST_PROTOCOL *Test = NULL;
-
-  gBS->LocateProtocol (&mX86EmuTestProtocolGuid, NULL, (VOID **) &Test);
-  if (Test == NULL) {
+  gBS->LocateProtocol (&mX86EmuTestProtocolGuid, NULL, (VOID **) &mTest);
+  if (mTest == NULL) {
     DEBUG ((DEBUG_ERROR, "X86_EMU_TEST_PROTOCOL is missing\n"));
   } else {
-    DoTestProtocolTests (Test);
+    mTest->TestGetDebugState (&mBeginDebugState);
+    DEBUG ((DEBUG_INFO, "Initial %lu contexts, nested level %ld\n",
+            mBeginDebugState.CurrentContextCount,
+            mBeginDebugState.CurrentNestedLevel));
+    DoTestProtocolTests (mTest);
     /*
      * Not all of these work with the old X86Emulator implementation...
      */
@@ -450,8 +459,8 @@ X86EmulatorTestEntryPoint (
   TestPerf ();
   DEBUG ((DEBUG_INFO, "Tests completed!\n"));
 
-  if (Test != NULL) {
-    Test->TestCbArgs((VOID *) TestExit);
+  if (mTest != NULL) {
+    mTest->TestCbArgs((VOID *) TestExit);
     return EFI_ABORTED;
   }
 

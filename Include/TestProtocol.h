@@ -19,6 +19,11 @@
 #define FIELD_VAL(x) ((1UL << 63) | (x##UL << 56) | (x##UL))
 
 typedef struct {
+  UINTN CurrentContextCount;
+  INTN  CurrentNestedLevel;
+} X86_EMU_TEST_DEBUG_STATE;
+
+typedef struct {
   UINT16            HostMachineType;
   UINT64     EFIAPI (*TestRet)(VOID);
   EFI_STATUS EFIAPI (*TestArgs)(UINT64, UINT64, UINT64, UINT64,
@@ -29,4 +34,5 @@ typedef struct {
                                                       UINT64, UINT64, UINT64, UINT64,
                                                       UINT64, UINT64, UINT64, UINT64,
                                                       UINT64, UINT64, UINT64, UINT64));
+  EFI_STATUS EFIAPI (*TestGetDebugState)(X86_EMU_TEST_DEBUG_STATE *DebugState);
 } X86_EMU_TEST_PROTOCOL;

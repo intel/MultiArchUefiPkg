@@ -97,6 +97,7 @@ STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
   TestRet,
   TestArgs,
   TestCbArgs,
+  CpuGetDebugState
 };
 
 STATIC EFI_GUID mX86EmuTestProtocolGuid = X86_EMU_TEST_PROTOCOL_GUID;

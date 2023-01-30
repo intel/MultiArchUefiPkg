@@ -27,6 +27,8 @@
 #include <Protocol/PeCoffImageEmulator.h>
 #include <Protocol/LoadedImage.h>
 
+#include "TestProtocol.h"
+
 #ifdef MDE_CPU_AARCH64
 #define NATIVE_INSN_ALIGNMENT 4
 #elif defined (MDE_CPU_RISCV64)
@@ -151,6 +153,14 @@ CpuRunFunc (
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
   IN  UINT64              *Args
   );
+
+#ifndef NDEBUG
+EFI_STATUS
+EFIAPI
+CpuGetDebugState (
+  OUT X86_EMU_TEST_DEBUG_STATE *DebugState
+  );
+#endif
 
 VOID
 CpuUnregisterCodeRange (

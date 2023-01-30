@@ -903,3 +903,28 @@ CpuExitImage (
 
   UNREACHABLE ();
 }
+
+#ifndef NDEBUG
+EFI_STATUS
+EFIAPI
+CpuGetDebugState (
+  OUT X86_EMU_TEST_DEBUG_STATE *DebugState
+  )
+{
+  EFI_TPL Tpl;
+  CpuRunContext *Context;
+
+  ASSERT (DebugState != NULL);
+  DebugState->CurrentNestedLevel =  mUcShared->nested_level;
+
+  DebugState->CurrentContextCount = 0;
+  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context = mTopContext;
+  while (Context != NULL) {
+    DebugState->CurrentContextCount++;
+    Context = Context->PrevContext;
+  }
+  gBS->RestoreTPL (Tpl);
+  return EFI_SUCCESS;
+}
+#endif
