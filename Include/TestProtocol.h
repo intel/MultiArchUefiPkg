@@ -20,7 +20,6 @@
 
 typedef struct {
   UINTN CurrentContextCount;
-  INTN  CurrentNestedLevel;
 } X86_EMU_TEST_DEBUG_STATE;
 
 typedef struct {

@@ -47,7 +47,6 @@ TestExit (
 
   mTest->TestGetDebugState (&DebugState);
   ASSERT (DebugState.CurrentContextCount == mBeginDebugState.CurrentContextCount + 1);
-  ASSERT (DebugState.CurrentNestedLevel == mBeginDebugState.CurrentNestedLevel + 1);
   DEBUG ((DEBUG_INFO, "Exiting via gBS->Exit\n"));
   ProcessLibraryDestructorList (gImageHandle, gST);
   return gBS->Exit(gImageHandle, EFI_SUCCESS, 0, NULL);
@@ -401,14 +400,13 @@ STATIC
 NO_INLINE
 VOID
 TestTimer (
-  VOID
+  BOOLEAN WithCpuSleep
   )
 {
   EFI_STATUS Status;
   EFI_EVENT OneShotTimer;
   volatile BOOLEAN IsDone = FALSE;
 
-  DEBUG ((DEBUG_INFO, "Testing timer handler %p delivery\n", TestTimerHandler));
   Status = gBS->CreateEvent (
     EVT_TIMER | EVT_NOTIFY_SIGNAL, // Type
     TPL_CALLBACK,                  // NotifyTpl
@@ -425,8 +423,17 @@ TestTimer (
     );
   ASSERT_EFI_ERROR (Status);
 
-  while (!IsDone) { CpuSleep(); };
-  LogResult ("timer", TRUE);
+  while (!IsDone) {
+    if (WithCpuSleep) {
+      CpuSleep();
+    }
+  }
+
+  if (WithCpuSleep) {
+    LogResult ("CpuSleep loop + timer", TRUE);
+  } else {
+    LogResult ("Tight loop + timer", TRUE);
+  }
   gBS->CloseEvent (OneShotTimer);
 }
 
@@ -442,9 +449,7 @@ X86EmulatorTestEntryPoint (
     DEBUG ((DEBUG_ERROR, "X86_EMU_TEST_PROTOCOL is missing\n"));
   } else {
     mTest->TestGetDebugState (&mBeginDebugState);
-    DEBUG ((DEBUG_INFO, "Initial %lu contexts, nested level %ld\n",
-            mBeginDebugState.CurrentContextCount,
-            mBeginDebugState.CurrentNestedLevel));
+    DEBUG ((DEBUG_INFO, "Initial %lu contexts\n", mBeginDebugState.CurrentContextCount));
     DoTestProtocolTests (mTest);
     /*
      * Not all of these work with the old X86Emulator implementation...
@@ -452,10 +457,11 @@ X86EmulatorTestEntryPoint (
     TestNullCall ();
     TestNullCall2 ();
     TestNullDeref ();
-    TestHlt ();
-    TestTimer ();
   }
 
+  TestHlt ();
+  TestTimer (FALSE);
+  TestTimer (TRUE);
   TestPerf ();
   DEBUG ((DEBUG_INFO, "Tests completed!\n"));
 

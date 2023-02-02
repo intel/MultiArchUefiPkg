@@ -16,6 +16,7 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/UefiLib.h>
+#include <Library/TimerLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PeCoffLib.h>
 #include <Library/UefiBootServicesTableLib.h>
@@ -84,9 +85,9 @@ typedef struct {
 typedef struct CpuRunContext {
   EFI_VIRTUAL_ADDRESS  ProgramCounter;
   UINT64               *Args;
-  int                  NestedLevel;
   UINT64               Ret;
   EFI_TPL              Tpl;
+  UINT64               TimeoutAbsTicks;
   uc_context           *PrevUcContext;
   struct CpuRunContext *PrevContext;
   /*

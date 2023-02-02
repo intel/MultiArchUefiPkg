@@ -13,13 +13,14 @@
 #include <unicorn.h>
 #include "X86Emulator.h"
 
-#define INSN_HLT               0xf4
 #define MAX_ARGS               16
 #define EMU_STACK_SIZE         (1024 * 1024)
 #define NATIVE_STACK_SIZE      (1024 * 1024)
 #define RETURN_TO_NATIVE_MAGIC ((UINTN) &CpuReturnToNative)
 #define SYSV_X64_ABI_REDZONE   128
 #define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
+#define MS_TO_NS(x)            (x * 1000000UL)
+#define UC_EMU_EXIT_PERIOD_MS  10
 
 uc_engine *gUE;
 EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
@@ -27,8 +28,8 @@ EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
 STATIC CpuRunContext *mTopContext;
-STATIC uc_shared *mUcShared;
 STATIC uc_context *mOrigContext;
+STATIC UINT64 mUcEmuExitPeriodTicks;
 
 #ifdef ON_PRIVATE_STACK
 BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
@@ -40,13 +41,45 @@ typedef enum {
   CPU_REASON_INVALID,
   CPU_REASON_NONE,
   CPU_REASON_RETURN_TO_NATIVE,
-#ifdef NO_NATIVE_THUNKS
   CPU_REASON_CALL_TO_NATIVE,
-#endif /* NO_NATIVE_THUNKS */
   CPU_REASON_FAILED_EMU,
 } CpuExitReason;
 
-static UINT8 CpuReturnToNative[] = { INSN_HLT };
+#define INSN_INT3 0xcc
+/*
+ * Never executed, only the address is used by CpuIsNativeCb/CpuRunCtxInternal
+ * to detect return back to native code.
+ */
+static UINT8 CpuReturnToNative[] = { INSN_INT3 };
+
+STATIC
+BOOLEAN
+CpuIsNativeCb (
+  IN  uc_engine *UE,
+  IN  UINT64    Address,
+  IN  VOID      *UserData)
+{
+  if (Address == RETURN_TO_NATIVE_MAGIC ||
+      IsNativeCall (Address)) {
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+STATIC
+VOID
+CpuTimeoutCb (
+  IN  uc_engine *UE,
+  IN  UINT64    Address,
+  IN  UINT32    Size,
+  IN  VOID      *UserData)
+{
+  if (GetPerformanceCounter () >
+      mTopContext->TimeoutAbsTicks) {
+    uc_emu_stop (UE);
+  }
+}
 
 STATIC
 UINT32
@@ -138,26 +171,6 @@ CpuNullWriteCb (
   DEBUG_CODE_END ();
 }
 
-#ifndef NO_NATIVE_THUNKS
-STATIC
-BOOLEAN
-CpuIsNative (
-  IN  uc_engine *UE,
-  IN  UINT64    Rip
-  )
-{
-  if (Rip == RETURN_TO_NATIVE_MAGIC) {
-    return FALSE;
-  }
-
-  if (IsNativeCall (Rip)) {
-    return TRUE;
-  }
-
-  return FALSE;
-}
-#endif /* NO_NATIVE_THUNKS */
-
 VOID
 CpuCleanup (
   VOID
@@ -216,6 +229,8 @@ CpuInit (
   uc_err     UcErr;
   EFI_STATUS Status;
   uc_hook    IoReadHook, IoWriteHook;
+  uc_hook    TimeoutHook;
+  uc_hook    IsNativeHook;
   size_t     UnicornCodeGenSize;
 
   Status = CpuPrivateStackInit ();
@@ -245,9 +260,30 @@ CpuInit (
     return EFI_UNSUPPORTED;
   }
 
-  UcErr = uc_get_shared (gUE, &mUcShared);
+  /*
+   * Use a block hook to check for timeouts. We must run UC with interrupts
+   * off because it's not reentrant enough, so we need to bail out
+   * periodically to allow EFI events to fire in situations where
+   * emulated code can run with no traps, such a tight loop of code
+   * polling a variable.
+   *
+   * Eventually this could be optimized within unicorn by generating
+   * the minimum code to read TSC, compare and exit emu on a match.
+   */
+  UcErr = uc_hook_add (gUE, &TimeoutHook, UC_HOOK_BLOCK, CpuTimeoutCb,
+                       NULL, 1, 0);
   if (UcErr != UC_ERR_OK) {
-    DEBUG ((DEBUG_ERROR, "uc_get_shared failed: %a\n", uc_strerror (UcErr)));
+    DEBUG ((DEBUG_ERROR, "Timeout hook failed: %a\n", uc_strerror (UcErr)));
+    return EFI_UNSUPPORTED;
+  }
+
+  /*
+   * Use a UC_HOOK_TB_FIND_FAILURE hook to detect native code execution.
+   */
+  UcErr = uc_hook_add (gUE, &IsNativeHook, UC_HOOK_TB_FIND_FAILURE,
+                       CpuIsNativeCb, NULL, 1, 0);
+  if (UcErr != UC_ERR_OK) {
+    DEBUG ((DEBUG_ERROR, "IsNative hook failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
 
@@ -303,23 +339,7 @@ CpuInit (
   UcErr = uc_ctl_exits_enable(gUE);
   ASSERT (UcErr == UC_ERR_OK);
 
-  UcErr = uc_mem_protect (gUE, RETURN_TO_NATIVE_MAGIC & ~(EFI_PAGE_SIZE - 1),
-                          EFI_PAGE_SIZE, UC_PROT_ALL);
-  if (UcErr != UC_ERR_OK) {
-    DEBUG ((DEBUG_ERROR, "uc_mem_protect on RETURN_TO_NATIVE_MAGIC failed: %a\n",
-            uc_strerror (UcErr)));
-    return EFI_UNSUPPORTED;
-  }
-
   REG_WRITE (RSP, mEmuStackTop);
-
-#ifndef NO_NATIVE_THUNKS
-  UcErr = uc_set_native_thunks (gUE, CpuIsNative, NativeThunk);
-  if (UcErr != UC_ERR_OK) {
-    DEBUG ((DEBUG_ERROR, "uc_set_native_thunks failed: %a\n", uc_strerror (UcErr)));
-    return EFI_UNSUPPORTED;
-  }
-#endif /* NO_NATIVE_THUNKS */
 
   UcErr = uc_get_code_gen_buf (gUE, (void **) &UnicornCodeGenBuf,
                                &UnicornCodeGenSize);
@@ -339,6 +359,19 @@ CpuInit (
   ASSERT (UcErr == UC_ERR_OK);
 
   mTopContext = NULL;
+
+  /*
+   * Performing this in every CpuIsNativeCb is expensive according to bare metal
+   * Arm tests, so do this once.
+   */
+  mUcEmuExitPeriodTicks = DivU64x32 (
+    MultU64x64 (
+      UC_EMU_EXIT_PERIOD_MS,
+      GetPerformanceCounterProperties (NULL, NULL)
+      ),
+    1000u
+    );
+
   return EFI_SUCCESS;
 }
 
@@ -394,7 +427,6 @@ CpuEnterCritical (
 {
   Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context->PrevContext = mTopContext;
-  Context->NestedLevel = mUcShared->nested_level;
 
   mTopContext = Context;
 }
@@ -408,7 +440,6 @@ CpuLeaveCritical (
   Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   ASSERT (mTopContext == Context);
 
-  ASSERT (mTopContext->NestedLevel == mUcShared->nested_level);
   mTopContext = mTopContext->PrevContext;
 }
 
@@ -474,14 +505,14 @@ CpuDump (
 STATIC
 UINT64
 CpuRunCtxInternal (
-  IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
-  IN  UINT64              *Args
+  IN  CpuRunContext *Context
   )
 {
   unsigned      Index;
   uc_err        UcErr;
   CpuExitReason ExitReason;
-  UINT64        Rip = ProgramCounter;
+  UINT64        *Args = Context->Args;
+  UINT64        Rip = Context->ProgramCounter;
 
   DEBUG ((DEBUG_INFO, "XXX x64 fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
           Rip, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5], Args[6], Args[7], Args[8]));
@@ -512,48 +543,57 @@ CpuRunCtxInternal (
 
   for (;;) {
     ExitReason = CPU_REASON_INVALID;
+    /*
+     * Unfortunately UC is not reentrant enough, so we can't use uc_set_native_thunks
+     * (native code could call x64 code!) and we can't take any asynchronous x64 code
+     * execution (events). Disable interrupts while emulating and use a UC_BLOCK_HOOK
+     * to periodically bail out to allow and allow events/timers to fire.
+     *
+     * Prefer masking interrupts to manipulating TPL due to overhead of the later.
+     */
+    DisableInterrupts ();
+    Context->TimeoutAbsTicks = mUcEmuExitPeriodTicks +
+      GetPerformanceCounter ();
     UcErr = uc_emu_start (gUE, Rip, 0, 0, 0);
+    EnableInterrupts ();
+
     Rip = REG_READ (RIP);
 
-#ifdef NO_NATIVE_THUNKS
-    if (UcErr == UC_ERR_FETCH_PROT) {
-      ExitReason = CPU_REASON_CALL_TO_NATIVE;
-    } else
-#endif /* NO_NATIVE_THUNKS */
-      if (UcErr != UC_ERR_OK) {
-        ExitReason = CPU_REASON_FAILED_EMU;
+    if (UcErr == UC_ERR_FIND_TB) {
+      if (Rip == RETURN_TO_NATIVE_MAGIC) {
+        ExitReason = CPU_REASON_RETURN_TO_NATIVE;
       } else {
-        /*
-         * '0' is passed as the 'until' value to uc_emu_start,
-         * but it should never be triggering due to the call
-         * to uc_ctl_exits_enable.
-         */
-        ASSERT (Rip != 0);
-        /*
-         * This could be a 'hlt' as well, but not easy way
-         * to detect this at the moment. Just continue.
-         */
-        ExitReason = CPU_REASON_NONE;
-        if (Rip == (RETURN_TO_NATIVE_MAGIC + 1)) {
-          ExitReason = CPU_REASON_RETURN_TO_NATIVE;
-        }
+        ExitReason = CPU_REASON_CALL_TO_NATIVE;
       }
+    } else if (UcErr != UC_ERR_OK) {
+      ExitReason = CPU_REASON_FAILED_EMU;
+    } else {
+      /*
+       * '0' is passed as the 'until' value to uc_emu_start,
+       * but it should never be triggering due to the call
+       * to uc_ctl_exits_enable.
+       */
+      ASSERT (Rip != 0);
+      /*
+       * This could be due to CpuTimeoutCb firing, or
+       * this could be a 'hlt' as well, but no easy way
+       * to detect this at the moment. Just continue.
+       */
+      ExitReason = CPU_REASON_NONE;
+    }
 
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
-#ifdef NO_NATIVE_THUNKS
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
       NativeThunk (gUE, Rip);
       Rip = CpuStackPop64 ();
-    } else
-#endif /* NO_NATIVE_THUNKS */
-      if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
-        break;
-      } else if (ExitReason == CPU_REASON_FAILED_EMU) {
-        DEBUG ((DEBUG_ERROR, "Emulation failed: %a\n", uc_strerror (UcErr)));
-        X86EmulatorDump ();
-        break;
-      }
+    } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
+      break;
+    } else if (ExitReason == CPU_REASON_FAILED_EMU) {
+      DEBUG ((DEBUG_ERROR, "Emulation failed: %a\n", uc_strerror (UcErr)));
+      X86EmulatorDump ();
+      break;
+    }
   }
 
   if (ExitReason != CPU_REASON_FAILED_EMU) {
@@ -610,9 +650,6 @@ CpuUnregisterCodeRange (
   /*
    * Because images can be loaded into a previously used range,
    * stale TBs can lead to "strange" crashes.
-   *
-   * A full flush is dangerous - we could be doing this in a native call
-   * thunked from a TB (e.g. uc_set_native_thunks).
    */
   uc_ctl_remove_cache(gUE, ImageBase, ImageBase + ImageSize);
 }
@@ -695,7 +732,7 @@ CpuRunCtxOnPrivateStack (
     ASSERT (UcErr == UC_ERR_OK);
   }
 
-  Context->Ret = CpuRunCtxInternal (Context->ProgramCounter, Context->Args);
+  Context->Ret = CpuRunCtxInternal (Context);
 
   if (Context->PrevUcContext != NULL) {
     UcErr = uc_context_restore (gUE, Context->PrevUcContext);
@@ -782,7 +819,6 @@ CpuCleanupContextsOnImageExit (
   Context = mTopContext;
   mTopContext = ImageEntryContext->PrevContext;
   ImageEntryContext->PrevContext = NULL;
-  mUcShared->nested_level = ImageEntryContext->NestedLevel;
   gBS->RestoreTPL (Tpl);
 
   while (Context != NULL) {
@@ -915,7 +951,6 @@ CpuGetDebugState (
   CpuRunContext *Context;
 
   ASSERT (DebugState != NULL);
-  DebugState->CurrentNestedLevel =  mUcShared->nested_level;
 
   DebugState->CurrentContextCount = 0;
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);

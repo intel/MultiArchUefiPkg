@@ -131,12 +131,6 @@ contains critical fixes to the operation of emulator. Beyond fixes, there
 are additional improvements that rely on additional new Unicorn APIs being
 made available.
 
-If you build with NO_NATIVE_THUNKS=YES, a simpler but higher overhead
-mechanism of thunking to native code is used, relying on uc_emu_start
-exits on fetch protection faults. uc_set_native_thunks may be somewhat
-experimental, so this option is useful to help debug any unexpected
-behavior seen.
-
 If you build with ON_PRIVATE_STACK=YES, X86EmulatorDxe will use a dedicated
 native stack for handling x64 emulation. This has some runtime overhead and
 is unneccesary for normal operation.

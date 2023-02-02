@@ -1,7 +1,7 @@
-From cd7d6e81ded45802282d716e603f9a183b5de343 Mon Sep 17 00:00:00 2001
+From c9d5ab41ea42755dd8a45c2b5a2591131a761ecd Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Tue, 10 Jan 2023 23:49:11 -0600
-Subject: [PATCH 6/6] ArmVirtPkg: bundle UCX86EmulatorPkg driver
+Subject: [PATCH 6/7] ArmVirtPkg: bundle UCX86EmulatorPkg driver
 
 Similar to RiscVVirt patch.
 
