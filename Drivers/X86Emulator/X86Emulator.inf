@@ -77,8 +77,5 @@
   DEBUG_*_*_CC_FLAGS = -DCHECK_ORPHAN_CONTEXTS
 
 [BuildOptions.RISCV64]
-  #
-  # Illegal-instruction based traps not reliable enough for
-  # hand-crafted (asm, not C) x64 apps.
-  #
   *_*_*_CC_FLAGS       = -DWRAPPED_ENTRY_POINTS
+  *_*_*_CC_FLAGS       = -DEMU_TIMEOUT_USES_TB_COUNT

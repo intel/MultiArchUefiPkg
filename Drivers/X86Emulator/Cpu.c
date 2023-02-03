@@ -19,8 +19,6 @@
 #define RETURN_TO_NATIVE_MAGIC ((UINTN) &CpuReturnToNative)
 #define SYSV_X64_ABI_REDZONE   128
 #define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
-#define MS_TO_NS(x)            (x * 1000000UL)
-#define UC_EMU_EXIT_PERIOD_MS  10
 
 uc_engine *gUE;
 EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
@@ -29,7 +27,16 @@ STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
 STATIC CpuRunContext *mTopContext;
 STATIC uc_context *mOrigContext;
+
+#ifndef EMU_TIMEOUT_NONE
+#ifdef EMU_TIMEOUT_USES_TB_COUNT
+STATIC UINT64 mTbCount;
+#define UC_EMU_EXIT_PERIOD_TB 4096
+#else
+#define UC_EMU_EXIT_PERIOD_MS  10
 STATIC UINT64 mUcEmuExitPeriodTicks;
+#endif /* EMU_TIMEOUT_USES_TB_COUNT */
+#endif /* EMU_TIMEOUT_NONE */
 
 #ifdef ON_PRIVATE_STACK
 BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
@@ -67,6 +74,7 @@ CpuIsNativeCb (
   return FALSE;
 }
 
+#ifndef EMU_TIMEOUT_NONE
 STATIC
 VOID
 CpuTimeoutCb (
@@ -75,11 +83,19 @@ CpuTimeoutCb (
   IN  UINT32    Size,
   IN  VOID      *UserData)
 {
-  if (GetPerformanceCounter () >
-      mTopContext->TimeoutAbsTicks) {
+#ifdef EMU_TIMEOUT_USES_TB_COUNT
+  /*
+   * On emulated environments, GetPerformanceCounter () can be
+   * extremely expensive.
+   */
+  if ((++mTbCount % UC_EMU_EXIT_PERIOD_TB) == 0) {
+#else
+  if (GetPerformanceCounter () > mTopContext->TimeoutAbsTicks) {
+#endif /* EMU_TIMEOUT_USES_TB_COUNT */
     uc_emu_stop (UE);
   }
 }
+#endif /* EMU_TIMEOUT_NONE */
 
 STATIC
 UINT32
@@ -229,7 +245,9 @@ CpuInit (
   uc_err     UcErr;
   EFI_STATUS Status;
   uc_hook    IoReadHook, IoWriteHook;
+#ifndef EMU_TIMEOUT_NONE
   uc_hook    TimeoutHook;
+#endif /* EMU_TIMEOUT_NONE */
   uc_hook    IsNativeHook;
   size_t     UnicornCodeGenSize;
 
@@ -261,11 +279,18 @@ CpuInit (
   }
 
   /*
-   * Use a block hook to check for timeouts. We must run UC with interrupts
+   * You get better performance, but building with EMU_TIMEOUT_NONE
+   * is highly discouraged - any emulated code that does a tight
+   * loop (polling on some memory updated by an event) will cause
+   * a hard hang.
+   */
+#ifndef EMU_TIMEOUT_NONE
+  /*
+   * Use a block hook to check for timeouts. We must run UC with timer
    * off because it's not reentrant enough, so we need to bail out
    * periodically to allow EFI events to fire in situations where
    * emulated code can run with no traps, such a tight loop of code
-   * polling a variable.
+   * polling a variable updated by an event.
    *
    * Eventually this could be optimized within unicorn by generating
    * the minimum code to read TSC, compare and exit emu on a match.
@@ -276,6 +301,7 @@ CpuInit (
     DEBUG ((DEBUG_ERROR, "Timeout hook failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
+#endif /* EMU_TIMEOUT_NONE */
 
   /*
    * Use a UC_HOOK_TB_FIND_FAILURE hook to detect native code execution.
@@ -360,6 +386,10 @@ CpuInit (
 
   mTopContext = NULL;
 
+#ifndef EMU_TIMEOUT_NONE
+#ifdef EMU_TIMEOUT_USES_TB_COUNT
+  mTbCount = 0;
+#else
   /*
    * Performing this in every CpuIsNativeCb is expensive according to bare metal
    * Arm tests, so do this once.
@@ -371,6 +401,8 @@ CpuInit (
       ),
     1000u
     );
+#endif /* EMU_TIMEOUT_USES_TB_COUNT */
+#endif /* EMU_TIMEOUT_NONE */
 
   return EFI_SUCCESS;
 }
@@ -552,8 +584,11 @@ CpuRunCtxInternal (
      * Prefer masking interrupts to manipulating TPL due to overhead of the later.
      */
     DisableInterrupts ();
-    Context->TimeoutAbsTicks = mUcEmuExitPeriodTicks +
-      GetPerformanceCounter ();
+
+#ifndef EMU_TIMEOUT_USES_TB_COUNT
+    Context->TimeoutAbsTicks = mUcEmuExitPeriodTicks + GetPerformanceCounter ();
+#endif /* EMU_TIMEOUT_USES_TB_COUNT */
+
     UcErr = uc_emu_start (gUE, Rip, 0, 0, 0);
     EnableInterrupts ();
 

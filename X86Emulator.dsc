@@ -26,14 +26,29 @@
   #
   # Use an emulated entry point, instead of relying on
   # exception-driven thunking of native to emulated code.
+  # On by default in RISC-V builds (via INF file).
   #
   WRAPPED_ENTRY_POINTS           = NO
   #
   # Handle unexpected/non-linear control flow by native code,
   # that can result in a resource leak inside the emulator.
+  # On by default in DEBUG builds (via INF file).
   #
   CHECK_ORPHAN_CONTEXTS          = NO
-
+  #
+  # In an emulated environment, GetPerformanceCounter () can be
+  # extremely expensive When running on RISC-V in an emulated
+  # environment, this option is highly suggested (and is on
+  # via INF file).
+  #
+  EMU_TIMEOUT_USES_TB_COUNT      = NO
+  #
+  # For maximum performance, don't periodically bail out
+  # of emulation. This is only useful for situations where
+  # you know the executed code won't do tight loops polling
+  # on some memory location updated by an event.
+  #
+  EMU_TIMEOUT_NONE               = NO
 !include unicorn/efi/UnicornPkg.dsc.inc
 
 [PcdsFixedAtBuild.common]
@@ -115,6 +130,12 @@
 !endif
 !if $(CHECK_ORPHAN_CONTEXTS) == YES
   *_*_*_CC_FLAGS                       = -DCHECK_ORPHAN_CONTEXTS
+!endif
+!if $(EMU_TIMEOUT_USES_TB_COUNT) == YES
+  *_*_*_CC_FLAGS                       = -DEMU_TIMEOUT_USES_TB_COUNT
+!endif
+!if $(EMU_TIMEOUT_NONE) == YES
+  *_*_*_CC_FLAGS                       = -DEMU_TIMEOUT_NONE
 !endif
 
 [Components]

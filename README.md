@@ -146,6 +146,20 @@ more runtime checks to handle unexpeced/non-linear control flow from
 native code, that can result in a resource leak inside the emulator.
 This is enabled by default for DEBUG builds.
 
+Due to the way the Unicorn Engine operates, emulated code is run in a
+critical section with timers disabled. To avoid hangs due to emulated
+tight loops polling on some memory location updated by an event, we
+periodically bail out. Using the cycle counter is the obvious choice,
+but on *emulated* systems the later can be very expensive. On physical
+systems you probably want this off. If your non-native binaries are
+known good, you can also try building with EMU_TIMEOUT_NONE for maximum
+performance.
+
+Note: RISC-V builds default to enabling the EMU_TIMEOUT_USES_TB_COUNT
+option (in the INF file), since all testing is done in Qemu today.
+
+Note 2: X86EmulatorTest will _not_ correctly work with EMU_TIMEOUT_NONE.
+
 Finally, you can choose to build with BaseDebugLibNull. By default
 UefiDebugLibConOut is used to get some reasonable debugging output, but
 the extra code generated for DEBUG((...)) macros used for logging does
