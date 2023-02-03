@@ -78,4 +78,3 @@
 
 [BuildOptions.RISCV64]
   *_*_*_CC_FLAGS       = -DWRAPPED_ENTRY_POINTS
-  *_*_*_CC_FLAGS       = -DEMU_TIMEOUT_USES_TB_COUNT

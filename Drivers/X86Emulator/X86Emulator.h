@@ -90,7 +90,9 @@ typedef struct CpuRunContext {
   UINT64               *Args;
   UINT64               Ret;
   EFI_TPL              Tpl;
+
   UINT64               TimeoutAbsTicks;
+  BOOLEAN              StoppedOnTimeout;
   uc_context           *PrevUcContext;
   struct CpuRunContext *PrevContext;
   /*

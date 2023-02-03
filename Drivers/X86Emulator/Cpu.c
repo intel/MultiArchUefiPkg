@@ -29,13 +29,12 @@ STATIC CpuRunContext *mTopContext;
 STATIC uc_context *mOrigContext;
 
 #ifndef EMU_TIMEOUT_NONE
-#ifdef EMU_TIMEOUT_USES_TB_COUNT
 STATIC UINT64 mTbCount;
-#define UC_EMU_EXIT_PERIOD_TB 4096
-#else
+#define UC_EMU_EXIT_PERIOD_TB_MAX 0x100000
+#define UC_EMU_EXIT_PERIOD_TB_MIN 0x100
+STATIC UINT64 mExitPeriodTbs = 0x1000;
 #define UC_EMU_EXIT_PERIOD_MS  10
-STATIC UINT64 mUcEmuExitPeriodTicks;
-#endif /* EMU_TIMEOUT_USES_TB_COUNT */
+STATIC UINT64 mExitPeriodTicks;
 #endif /* EMU_TIMEOUT_NONE */
 
 #ifdef ON_PRIVATE_STACK
@@ -83,15 +82,18 @@ CpuTimeoutCb (
   IN  UINT32    Size,
   IN  VOID      *UserData)
 {
-#ifdef EMU_TIMEOUT_USES_TB_COUNT
   /*
-   * On emulated environments, GetPerformanceCounter () can be
-   * extremely expensive.
+   * GetPerformanceCounter () is a system register read, and is more expensive
+   * than reading a variable. Moreover, in an emulated environment,
+   * GetPerformanceCounter () is extremely expensive, as it's likely a native
+   * helper.
+   *
+   * So the UC_HOOK_BLOCK callback is going to be as simple, fast and short
+   * as possible. mExitPeriodTbs is then re-calibrated once we return
+   * from uc_emu_start.
    */
-  if ((++mTbCount % UC_EMU_EXIT_PERIOD_TB) == 0) {
-#else
-  if (GetPerformanceCounter () > mTopContext->TimeoutAbsTicks) {
-#endif /* EMU_TIMEOUT_USES_TB_COUNT */
+  if ((++mTbCount & (mExitPeriodTbs - 1)) == 0) {
+    mTopContext->StoppedOnTimeout = TRUE;
     uc_emu_stop (UE);
   }
 }
@@ -387,21 +389,14 @@ CpuInit (
   mTopContext = NULL;
 
 #ifndef EMU_TIMEOUT_NONE
-#ifdef EMU_TIMEOUT_USES_TB_COUNT
   mTbCount = 0;
-#else
-  /*
-   * Performing this in every CpuIsNativeCb is expensive according to bare metal
-   * Arm tests, so do this once.
-   */
-  mUcEmuExitPeriodTicks = DivU64x32 (
+  mExitPeriodTicks = DivU64x32 (
     MultU64x64 (
       UC_EMU_EXIT_PERIOD_MS,
       GetPerformanceCounterProperties (NULL, NULL)
       ),
     1000u
     );
-#endif /* EMU_TIMEOUT_USES_TB_COUNT */
 #endif /* EMU_TIMEOUT_NONE */
 
   return EFI_SUCCESS;
@@ -583,14 +578,30 @@ CpuRunCtxInternal (
      *
      * Prefer masking interrupts to manipulating TPL due to overhead of the later.
      */
-    DisableInterrupts ();
+    DisableInterrupts (); {
+#ifndef EMU_TIMEOUT_NONE
+      Context->StoppedOnTimeout = FALSE;
+      Context->TimeoutAbsTicks = mExitPeriodTicks + GetPerformanceCounter ();
+#endif /* EMU_TIMEOUT_NONE */
 
-#ifndef EMU_TIMEOUT_USES_TB_COUNT
-    Context->TimeoutAbsTicks = mUcEmuExitPeriodTicks + GetPerformanceCounter ();
-#endif /* EMU_TIMEOUT_USES_TB_COUNT */
+      UcErr = uc_emu_start (gUE, Rip, 0, 0, 0);
 
-    UcErr = uc_emu_start (gUE, Rip, 0, 0, 0);
-    EnableInterrupts ();
+#ifndef EMU_TIMEOUT_NONE
+      if (Context->StoppedOnTimeout) {
+        UINT64 Ticks = GetPerformanceCounter ();
+
+        if (Ticks > mTopContext->TimeoutAbsTicks) {
+          if (mExitPeriodTbs > UC_EMU_EXIT_PERIOD_TB_MIN) {
+            mExitPeriodTbs = mExitPeriodTbs >> 1;
+          }
+        } else if (Ticks < mTopContext->TimeoutAbsTicks) {
+          if (mExitPeriodTbs < UC_EMU_EXIT_PERIOD_TB_MAX) {
+            mExitPeriodTbs = mExitPeriodTbs << 1;
+          }
+        }
+      }
+#endif /* EMU_TIMEOUT_NONE */
+    } EnableInterrupts ();
 
     Rip = REG_READ (RIP);
 
@@ -1132,7 +1143,8 @@ CpuGetDebugState (
 
   ASSERT (DebugState != NULL);
 
-  DebugState->CurrentContextCount = 0;
+  ZeroMem (DebugState, sizeof (*DebugState));
+
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context = mTopContext;
   while (Context != NULL) {
@@ -1140,6 +1152,13 @@ CpuGetDebugState (
     Context = Context->PrevContext;
   }
   gBS->RestoreTPL (Tpl);
+
+#ifndef EMU_TIMEOUT_NONE
+  DebugState->ExitPeriodMs = UC_EMU_EXIT_PERIOD_MS;
+  DebugState->ExitPeriodTicks = mExitPeriodTicks;
+  DebugState->ExitPeriodTbs = mExitPeriodTbs;
+#endif /* EMU_TIMEOUT_NONE */
+
   return EFI_SUCCESS;
 }
 #endif

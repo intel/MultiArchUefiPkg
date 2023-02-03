@@ -20,6 +20,9 @@
 
 typedef struct {
   UINTN CurrentContextCount;
+  UINTN ExitPeriodMs;
+  UINTN ExitPeriodTicks;
+  UINTN ExitPeriodTbs;
 } X86_EMU_TEST_DEBUG_STATE;
 
 typedef struct {
