@@ -7,8 +7,9 @@ are supported.
 
 It's derived from https://github.com/ardbiesheuvel/X86EmulatorPkg, yet
 is otherwise a reimplementation using https://www.unicorn-engine.org/.
-Same performance, half the binary size (on AArch64) and portable.
-You can have all three.
+It has competitive performance, given portability, size (2/3rds the
+binary size on AArch64) and correctness in modeling the emulated UEFI
+Boot Service environment,
 
 ## How does it work?
 
