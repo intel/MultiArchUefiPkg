@@ -41,19 +41,19 @@
 
 #define UNUSED __attribute__((unused))
 
-#define REG_READ(x) ({                                  \
-      UINT64 Reg;                                       \
-      UNUSED uc_err UcErr;                              \
-      UcErr = uc_reg_read (gUE, UC_X86_REG_##x, &Reg);  \
-      ASSERT (UcErr == UC_ERR_OK);                      \
-      Reg;                                              \
+#define REG_READ(CpuEmu, x) ({                                  \
+      UINT64 Reg;                                               \
+      UNUSED uc_err UcErr;                                      \
+      UcErr = uc_reg_read ((CpuEmu)->UE, x, &Reg);              \
+      ASSERT (UcErr == UC_ERR_OK);                              \
+      Reg;                                                      \
     })
 
-#define REG_WRITE(x, Val) ({                              \
-      UNUSED uc_err UcErr;                                \
-      UINT64 Temp = Val;                                  \
-      UcErr = uc_reg_write (gUE, UC_X86_REG_##x, &Temp);  \
-      ASSERT (UcErr == UC_ERR_OK);                        \
+#define REG_WRITE(CpuEmu, x, Val) ({                              \
+      UNUSED uc_err UcErr;                                        \
+      UINT64 Temp = Val;                                          \
+      UcErr = uc_reg_write ((CpuEmu)->UE, x, &Temp);              \
+      ASSERT (UcErr == UC_ERR_OK);                                \
     })
 
 typedef struct uc_struct uc_engine;
@@ -63,9 +63,18 @@ extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
 extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
 
-extern uc_engine *gUE;
 extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
 extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
+
+typedef struct CpuRunContext CpuRunContext;
+
+typedef struct CpuEmu {
+  int       StackReg;
+  VOID      (*CpuDump)(struct CpuEmu *);
+  UINT64    (*RunCtxInternal)(CpuRunContext *);
+  VOID      (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);
+  uc_engine *UE;
+} CpuEmu;
 
 typedef struct {
   LIST_ENTRY               Link;
@@ -73,6 +82,10 @@ typedef struct {
   EFI_PHYSICAL_ADDRESS     ImageEntry;
   UINT64                   ImageSize;
   EFI_HANDLE               ImageHandle;
+  /*
+   * ISA-specific.
+   */
+  CpuEmu                   *Cpu;
   /*
    * To support the Exit() boot service.
    */
@@ -83,6 +96,7 @@ typedef struct {
 } X86_IMAGE_RECORD;
 
 typedef struct CpuRunContext {
+  CpuEmu               *Cpu;
   EFI_VIRTUAL_ADDRESS  ProgramCounter;
 #ifdef CHECK_ORPHAN_CONTEXTS
   UINT64               LeakCookie;
@@ -192,9 +206,9 @@ CpuRegisterCodeRange (
   );
 
 VOID
-NativeThunk (
-  IN  uc_engine *UE,
-  IN  UINT64    Rip
+NativeThunkX86 (
+  IN  CpuEmu *Cpu,
+  IN  UINT64 Rip
   );
 
 EFI_STATUS

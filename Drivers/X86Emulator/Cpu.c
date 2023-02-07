@@ -20,9 +20,9 @@
 #define SYSV_X64_ABI_REDZONE   128
 #define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
 
-uc_engine *gUE;
 EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
 EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
+CpuEmu CpuX86;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
 STATIC CpuRunContext *mTopContext;
@@ -189,16 +189,26 @@ CpuNullWriteCb (
   DEBUG_CODE_END ();
 }
 
+STATIC
+VOID
+CpuCleanupEx (
+  IN  CpuEmu *Cpu
+  )
+{
+  uc_err UcErr;
+  ASSERT (Cpu != NULL);
+  ASSERT (Cpu->UE != NULL);
+
+  UcErr = uc_close (Cpu->UE);
+  ASSERT (UcErr == UC_ERR_OK);
+}
+
 VOID
 CpuCleanup (
   VOID
   )
 {
-  uc_err UcErr;
-  ASSERT (gUE != NULL);
-
-  UcErr = uc_close (gUE);
-  ASSERT (UcErr == UC_ERR_OK);
+  CpuCleanupEx (&CpuX86);
 }
 
 STATIC
@@ -239,9 +249,11 @@ CpuPrivateStackInit (
   return EFI_SUCCESS;
 }
 
+STATIC
 EFI_STATUS
-CpuInit (
-  VOID
+CpuInitEx (
+  IN  uc_arch Arch,
+  OUT CpuEmu  *Cpu
   )
 {
   uc_err     UcErr;
@@ -253,9 +265,10 @@ CpuInit (
   uc_hook    IsNativeHook;
   size_t     UnicornCodeGenSize;
 
-  Status = CpuPrivateStackInit ();
-  if (EFI_ERROR (Status)) {
-    return Status;
+  if (Arch == UC_ARCH_X86) {
+    Cpu->StackReg = UC_X86_REG_RSP;
+  } else {
+    return EFI_UNSUPPORTED;
   }
 
   /*
@@ -274,7 +287,7 @@ CpuInit (
   }
   mEmuStackTop = mEmuStackStart + EMU_STACK_SIZE;
 
-  UcErr = uc_open(UC_ARCH_X86, UC_MODE_64, &gUE);
+  UcErr = uc_open(Arch, UC_MODE_64, &Cpu->UE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_open failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -297,7 +310,7 @@ CpuInit (
    * Eventually this could be optimized within unicorn by generating
    * the minimum code to read TSC, compare and exit emu on a match.
    */
-  UcErr = uc_hook_add (gUE, &TimeoutHook, UC_HOOK_BLOCK, CpuTimeoutCb,
+  UcErr = uc_hook_add (Cpu->UE, &TimeoutHook, UC_HOOK_BLOCK, CpuTimeoutCb,
                        NULL, 1, 0);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "Timeout hook failed: %a\n", uc_strerror (UcErr)));
@@ -308,36 +321,38 @@ CpuInit (
   /*
    * Use a UC_HOOK_TB_FIND_FAILURE hook to detect native code execution.
    */
-  UcErr = uc_hook_add (gUE, &IsNativeHook, UC_HOOK_TB_FIND_FAILURE,
+  UcErr = uc_hook_add (Cpu->UE, &IsNativeHook, UC_HOOK_TB_FIND_FAILURE,
                        CpuIsNativeCb, NULL, 1, 0);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "IsNative hook failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
 
-  /*
-   * Port I/O hooks.
-   */
-  if (gCpuIo2 != NULL) {
-    UcErr = uc_hook_add (gUE, &IoReadHook, UC_HOOK_INSN, CpuIoReadCb,
-                         NULL, 1, 0, UC_X86_INS_IN);
-    if (UcErr != UC_ERR_OK) {
-      DEBUG ((DEBUG_ERROR, "PIO read hook failed: %a\n", uc_strerror (UcErr)));
-      return EFI_UNSUPPORTED;
-    }
+  if (Arch == UC_ARCH_X86) {
+    /*
+     * Port I/O hooks.
+     */
+    if (gCpuIo2 != NULL) {
+      UcErr = uc_hook_add (Cpu->UE, &IoReadHook, UC_HOOK_INSN, CpuIoReadCb,
+                           NULL, 1, 0, UC_X86_INS_IN);
+      if (UcErr != UC_ERR_OK) {
+        DEBUG ((DEBUG_ERROR, "PIO read hook failed: %a\n", uc_strerror (UcErr)));
+        return EFI_UNSUPPORTED;
+      }
 
-    UcErr = uc_hook_add (gUE, &IoWriteHook, UC_HOOK_INSN, CpuIoWriteCb,
-                         NULL, 1, 0, UC_X86_INS_OUT);
-    if (UcErr != UC_ERR_OK) {
-      DEBUG ((DEBUG_ERROR, "PIO write hook failed: %a\n", uc_strerror (UcErr)));
-      return EFI_UNSUPPORTED;
+      UcErr = uc_hook_add (Cpu->UE, &IoWriteHook, UC_HOOK_INSN, CpuIoWriteCb,
+                           NULL, 1, 0, UC_X86_INS_OUT);
+      if (UcErr != UC_ERR_OK) {
+        DEBUG ((DEBUG_ERROR, "PIO write hook failed: %a\n", uc_strerror (UcErr)));
+        return EFI_UNSUPPORTED;
+      }
     }
   }
 
   /*
    * Read/Write accesses that result from NULL pointer accesses.
    */
-  UcErr = uc_mmio_map (gUE, 0, EFI_PAGE_SIZE,
+  UcErr = uc_mmio_map (Cpu->UE, 0, EFI_PAGE_SIZE,
                        CpuNullReadCb, NULL,
                        CpuNullWriteCb, NULL);
   if (UcErr != UC_ERR_OK) {
@@ -349,7 +364,7 @@ CpuInit (
    * Map all memory but the zero page R/W. Some portions are made
    * executable later (e.g. via CpuRegisterCodeRange).
    */
-  UcErr = uc_mem_map_ptr (gUE, EFI_PAGE_SIZE,
+  UcErr = uc_mem_map_ptr (Cpu->UE, EFI_PAGE_SIZE,
                           (1UL << 48) - EFI_PAGE_SIZE,
                           UC_PROT_READ | UC_PROT_WRITE,
                           (VOID *) EFI_PAGE_SIZE);
@@ -364,12 +379,12 @@ CpuInit (
    * parameter to uc_emu_start, which (given it's 0 value) also avoids
    * an unexpected UC_ERR_OK return on a NULL fn pointer call.
    */
-  UcErr = uc_ctl_exits_enable(gUE);
+  UcErr = uc_ctl_exits_enable(Cpu->UE);
   ASSERT (UcErr == UC_ERR_OK);
 
-  REG_WRITE (RSP, mEmuStackTop);
+  REG_WRITE (Cpu, Cpu->StackReg, mEmuStackTop);
 
-  UcErr = uc_get_code_gen_buf (gUE, (void **) &UnicornCodeGenBuf,
+  UcErr = uc_get_code_gen_buf (Cpu->UE, (void **) &UnicornCodeGenBuf,
                                &UnicornCodeGenSize);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_get_code_gen_buf failed: %a\n", uc_strerror (UcErr)));
@@ -377,13 +392,13 @@ CpuInit (
   }
   UnicornCodeGenBufEnd = UnicornCodeGenBuf + UnicornCodeGenSize;
 
-  UcErr = uc_context_alloc (gUE, &mOrigContext);
+  UcErr = uc_context_alloc (Cpu->UE, &mOrigContext);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "could not allocate orig context: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
 
-  UcErr = uc_context_save (gUE, mOrigContext);
+  UcErr = uc_context_save (Cpu->UE, mOrigContext);
   ASSERT (UcErr == UC_ERR_OK);
 
   mTopContext = NULL;
@@ -402,46 +417,63 @@ CpuInit (
   return EFI_SUCCESS;
 }
 
+EFI_STATUS
+CpuInit (
+  VOID
+  )
+{
+  EFI_STATUS Status;
+
+  Status = CpuPrivateStackInit ();
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  return CpuInitEx (UC_ARCH_X86, &CpuX86);
+}
+
+
 STATIC
 VOID
 CpuStackPushRedZone (
-  VOID
+  IN  CpuEmu *Cpu
   )
 {
   UINT64 Rsp;
 
-  Rsp = REG_READ (RSP);
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
   Rsp -= SYSV_X64_ABI_REDZONE;
-  REG_WRITE (RSP, Rsp);
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
 }
 
 STATIC
 UINT64
 CpuStackPop64 (
-  VOID
+  IN  CpuEmu *Cpu
   )
 {
   UINT64 Rsp;
   UINT64 Val;
 
-  Rsp = REG_READ (RSP);
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
   Val = *(UINT64 *) Rsp;
   Rsp += 8;
-  REG_WRITE (RSP, Rsp);
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
   return Val;
 }
 
 STATIC
 VOID
 CpuStackPush64 (
+  IN  CpuEmu *Cpu,
   IN  UINT64 Val
   )
 {
   UINT64 Rsp;
 
-  Rsp = REG_READ (RSP);
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
   Rsp -= 8;
-  REG_WRITE (RSP, Rsp);
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
 
   *(UINT64 *) Rsp = Val;
 }
@@ -500,7 +532,7 @@ CpuDump (
 
 #define REG(x) do {                                     \
     Printed++;                                          \
-    Val = REG_READ(x);                                  \
+    Val = REG_READ (&CpuX86, UC_X86_REG_##x);           \
     DEBUG ((DEBUG_ERROR, "%6a = 0x%016lx", #x, Val));   \
     if ((Printed & 1) == 0) {                           \
       DEBUG ((DEBUG_ERROR, "\n"));                      \
@@ -515,7 +547,7 @@ CpuDump (
 #undef REG
 #undef REGS
 
-  Val = REG_READ(RSP);
+  Val = REG_READ (&CpuX86, CpuX86.StackReg);
   if (!(Val >= mEmuStackStart && Val < mEmuStackTop)) {
     /*
      * It's not completely invalid for a binary to move it's
@@ -540,33 +572,34 @@ CpuRunCtxInternal (
   CpuExitReason ExitReason;
   UINT64        *Args = Context->Args;
   UINT64        Rip = Context->ProgramCounter;
+  CpuEmu        *Cpu = Context->Cpu;
 
   DEBUG ((DEBUG_INFO, "XXX x64 fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
           Rip, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5], Args[6], Args[7], Args[8]));
 
-  REG_WRITE (RCX, Args[0]);
-  REG_WRITE (RDX, Args[1]);
-  REG_WRITE (R8, Args[2]);
-  REG_WRITE (R9, Args[3]);
+  REG_WRITE (Cpu, UC_X86_REG_RCX, Args[0]);
+  REG_WRITE (Cpu, UC_X86_REG_RDX, Args[1]);
+  REG_WRITE (Cpu, UC_X86_REG_R8, Args[2]);
+  REG_WRITE (Cpu, UC_X86_REG_R9, Args[3]);
 
   for (Index = 0; Index < (MAX_ARGS - 4); Index++) {
     /*
      * Push arguments on stack in reverse order.
      */
-    CpuStackPush64 (Args[(MAX_ARGS - 1) - Index]);
+    CpuStackPush64 (Cpu, Args[(MAX_ARGS - 1) - Index]);
   }
 
   for (Index = 0; Index < 4; Index++) {
     /*
      * Home zone for the called function.
      */
-    CpuStackPush64 (0);
+    CpuStackPush64 (Cpu, 0);
   }
 
   /*
    * Return pointer, magic value that brings us back.
    */
-  CpuStackPush64 (RETURN_TO_NATIVE_MAGIC);
+  CpuStackPush64 (Cpu, RETURN_TO_NATIVE_MAGIC);
 
   for (;;) {
     ExitReason = CPU_REASON_INVALID;
@@ -584,7 +617,7 @@ CpuRunCtxInternal (
       Context->TimeoutAbsTicks = mExitPeriodTicks + GetPerformanceCounter ();
 #endif /* EMU_TIMEOUT_NONE */
 
-      UcErr = uc_emu_start (gUE, Rip, 0, 0, 0);
+      UcErr = uc_emu_start (Cpu->UE, Rip, 0, 0, 0);
 
 #ifndef EMU_TIMEOUT_NONE
       if (Context->StoppedOnTimeout) {
@@ -603,7 +636,7 @@ CpuRunCtxInternal (
 #endif /* EMU_TIMEOUT_NONE */
     } EnableInterrupts ();
 
-    Rip = REG_READ (RIP);
+    Rip = REG_READ (Cpu, UC_X86_REG_RIP);
 
     if (UcErr == UC_ERR_FIND_TB) {
       if (Rip == RETURN_TO_NATIVE_MAGIC) {
@@ -631,8 +664,8 @@ CpuRunCtxInternal (
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      NativeThunk (gUE, Rip);
-      Rip = CpuStackPop64 ();
+      NativeThunkX86 (Cpu, Rip);
+      Rip = CpuStackPop64 (Cpu);
     } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
@@ -650,11 +683,11 @@ CpuRunCtxInternal (
       /*
        * Home Zone, modifiable by function.
        */
-      CpuStackPop64 ();
+      CpuStackPop64 (Cpu);
     }
 
     for (; Index < MAX_ARGS; Index++) {
-      UINT64 Val = CpuStackPop64 ();
+      UINT64 Val = CpuStackPop64 (Cpu);
       DEBUG_CODE_BEGIN ();
       {
         if (Val != Args[Index]) {
@@ -677,7 +710,7 @@ CpuRunCtxInternal (
     return EFI_UNSUPPORTED;
   }
 
-  return REG_READ (RAX);
+  return REG_READ (Cpu, UC_X86_REG_RAX);
 }
 
 VOID
@@ -688,7 +721,7 @@ CpuUnregisterCodeRange (
 {
   uc_err UcErr;
 
-  UcErr = uc_mem_protect (gUE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
+  UcErr = uc_mem_protect (CpuX86.UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -697,7 +730,7 @@ CpuUnregisterCodeRange (
    * Because images can be loaded into a previously used range,
    * stale TBs can lead to "strange" crashes.
    */
-  uc_ctl_remove_cache(gUE, ImageBase, ImageBase + ImageSize);
+  uc_ctl_remove_cache(CpuX86.UE, ImageBase, ImageBase + ImageSize);
 }
 
 VOID
@@ -708,7 +741,7 @@ CpuRegisterCodeRange (
 {
   uc_err UcErr;
 
-  UcErr = uc_mem_protect (gUE, ImageBase, ImageSize, UC_PROT_ALL);
+  UcErr = uc_mem_protect (CpuX86.UE, ImageBase, ImageSize, UC_PROT_ALL);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -867,6 +900,7 @@ CpuRunCtxOnPrivateStack (
   )
 {
   uc_err UcErr;
+  CpuEmu *Cpu = Context->Cpu;
 
 #ifdef CHECK_ORPHAN_CONTEXTS
   CpuRunContext *OrphanContexts = CpuDetectOrphanContexts (Context);
@@ -879,30 +913,30 @@ CpuRunCtxOnPrivateStack (
 #endif /* CHECK_ORPHAN_CONTEXTS */
 
   if (Context->PrevContext != NULL) {
-    UcErr = uc_context_alloc (gUE, &Context->PrevUcContext);
+    UcErr = uc_context_alloc (Cpu->UE, &Context->PrevUcContext);
     if (UcErr != UC_ERR_OK) {
       DEBUG ((DEBUG_ERROR, "could not allocate UC context: %a\n", uc_strerror (UcErr)));
       Context->Ret = EFI_OUT_OF_RESOURCES;
       goto out;
     }
 
-    UcErr = uc_context_save (gUE, Context->PrevUcContext);
+    UcErr = uc_context_save (Cpu->UE, Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
 
     /*
      * EFIAPI (MS x64 ABI) has no concept of a red zone, however code built outside of Tiano
      * can be suspect. Better be safe than sorry!
      */
-    CpuStackPushRedZone ();
+    CpuStackPushRedZone (Cpu);
   } else {
-    UcErr = uc_context_restore (gUE, mOrigContext);
+    UcErr = uc_context_restore (Cpu->UE, mOrigContext);
     ASSERT (UcErr == UC_ERR_OK);
   }
 
   Context->Ret = CpuRunCtxInternal (Context);
 
   if (Context->PrevUcContext != NULL) {
-    UcErr = uc_context_restore (gUE, Context->PrevUcContext);
+    UcErr = uc_context_restore (Cpu->UE, Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
   }
 
@@ -964,6 +998,7 @@ CpuRunFunc (
     return EFI_OUT_OF_RESOURCES;
   }
 
+  Context->Cpu = &CpuX86;
   Context->ProgramCounter = ProgramCounter;
   Context->Args = Args;
 
@@ -987,8 +1022,9 @@ CpuCompressLeakedContexts (
   IN  BOOLEAN        OnImageExit
   )
 {
-  EFI_TPL Tpl;
+  EFI_TPL       Tpl;
   CpuRunContext *Context;
+  CpuEmu        *Cpu = CurrentContext->Cpu;
 
   /*
    * CpuCompressLeakedContexts deals with situations where
@@ -1018,7 +1054,7 @@ CpuCompressLeakedContexts (
     Context = Context->PrevContext;
 
     if (FreedContext->PrevUcContext != NULL) {
-      UcErr = uc_context_restore (gUE, FreedContext->PrevUcContext);
+      UcErr = uc_context_restore (Cpu->UE, FreedContext->PrevUcContext);
       ASSERT (UcErr == UC_ERR_OK);
     }
 
@@ -1052,6 +1088,8 @@ CpuRunImage (
     DEBUG((DEBUG_ERROR, "Can't get emulated image entry point: %r\n", Status));
     return Status;
   }
+
+  Context->Cpu = &CpuX86;
 
   Record = FindImageRecordByAddress ((UINT64) LoadedImage->ImageBase);
   ASSERT (Record != NULL);

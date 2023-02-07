@@ -57,9 +57,9 @@ NativeValidateSupportedCall (
 }
 
 VOID
-NativeThunk (
-  IN  uc_engine *UE,
-  IN  UINT64    Rip
+NativeThunkX86 (
+  IN  CpuEmu *CpuEmu,
+  IN  UINT64 Rip
   )
 {
   UINT64 *StackArgs;
@@ -76,11 +76,11 @@ NativeThunk (
   Func.Rip = NativeValidateSupportedCall (Rip);
   WrapperCall = Func.Rip != Rip;
 
-  Rsp = REG_READ (RSP);
-  Rcx = REG_READ (RCX);
-  Rdx = REG_READ (RDX);
-  R8 = REG_READ (R8);
-  R9 = REG_READ (R9);
+  Rsp = REG_READ (CpuEmu, UC_X86_REG_RSP);
+  Rcx = REG_READ (CpuEmu, UC_X86_REG_RCX);
+  Rdx = REG_READ (CpuEmu, UC_X86_REG_RDX);
+  R8 = REG_READ (CpuEmu, UC_X86_REG_R8);
+  R9 = REG_READ (CpuEmu, UC_X86_REG_R9);
 
   StackArgs = (UINT64 *) Rsp;
 
@@ -138,5 +138,5 @@ NativeThunk (
     CpuCompressLeakedContexts (CurrentTopContext, FALSE);
   }
 
-  REG_WRITE (RAX, Rax);
+  REG_WRITE (CpuEmu, UC_X86_REG_RAX, Rax);
 }
