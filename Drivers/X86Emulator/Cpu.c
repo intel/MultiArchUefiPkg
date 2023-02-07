@@ -24,7 +24,6 @@ CpuEmu CpuX86;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
 STATIC CpuRunContext *mTopContext;
-STATIC uc_context *mOrigContext;
 
 #ifndef EMU_TIMEOUT_NONE
 STATIC UINT64 mTbCount;
@@ -390,13 +389,13 @@ CpuInitEx (
   }
   Cpu->UnicornCodeGenBufEnd = Cpu->UnicornCodeGenBuf + UnicornCodeGenSize;
 
-  UcErr = uc_context_alloc (Cpu->UE, &mOrigContext);
+  UcErr = uc_context_alloc (Cpu->UE, &Cpu->InitialState);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "could not allocate orig context: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
 
-  UcErr = uc_context_save (Cpu->UE, mOrigContext);
+  UcErr = uc_context_save (Cpu->UE, Cpu->InitialState);
   ASSERT (UcErr == UC_ERR_OK);
 
   mTopContext = NULL;
@@ -927,7 +926,7 @@ CpuRunCtxOnPrivateStack (
      */
     CpuStackPushRedZone (Cpu);
   } else {
-    UcErr = uc_context_restore (Cpu->UE, mOrigContext);
+    UcErr = uc_context_restore (Cpu->UE, Cpu->InitialState);
     ASSERT (UcErr == UC_ERR_OK);
   }
 

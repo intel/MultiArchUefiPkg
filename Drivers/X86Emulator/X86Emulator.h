@@ -66,13 +66,14 @@ extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuEmu {
-  int                 StackReg;
-  VOID                (*CpuDump)(struct CpuEmu *);
-  UINT64              (*RunCtxInternal)(CpuRunContext *);
-  VOID                (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);
-  uc_engine           *UE;
+  int                  StackReg;
+  VOID                 (*CpuDump)(struct CpuEmu *);
+  UINT64               (*RunCtxInternal)(CpuRunContext *);
+  VOID                 (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);
+  uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
+  uc_context           *InitialState;
 } CpuEmu;
 
 typedef struct {
