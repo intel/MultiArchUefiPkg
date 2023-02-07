@@ -20,8 +20,6 @@
 #define SYSV_X64_ABI_REDZONE   128
 #define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
 
-EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
-EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
 CpuEmu CpuX86;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
@@ -384,13 +382,13 @@ CpuInitEx (
 
   REG_WRITE (Cpu, Cpu->StackReg, mEmuStackTop);
 
-  UcErr = uc_get_code_gen_buf (Cpu->UE, (void **) &UnicornCodeGenBuf,
+  UcErr = uc_get_code_gen_buf (Cpu->UE, (void **) &Cpu->UnicornCodeGenBuf,
                                &UnicornCodeGenSize);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_get_code_gen_buf failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
-  UnicornCodeGenBufEnd = UnicornCodeGenBuf + UnicornCodeGenSize;
+  Cpu->UnicornCodeGenBufEnd = Cpu->UnicornCodeGenBuf + UnicornCodeGenSize;
 
   UcErr = uc_context_alloc (Cpu->UE, &mOrigContext);
   if (UcErr != UC_ERR_OK) {
@@ -1167,6 +1165,19 @@ CpuExitImage (
   LongJump (&CurrentImageRecord->ImageExitJumpBuffer, -1);
 
   UNREACHABLE ();
+}
+
+BOOLEAN
+CpuAddrIsCodeGen (
+  IN  EFI_PHYSICAL_ADDRESS Address
+  )
+{
+  if (Address >= CpuX86.UnicornCodeGenBuf &&
+      Address < CpuX86.UnicornCodeGenBufEnd) {
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 #ifndef NDEBUG

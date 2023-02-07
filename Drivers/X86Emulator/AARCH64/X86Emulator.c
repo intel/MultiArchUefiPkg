@@ -48,9 +48,7 @@ X86InterpreterSyncExceptionCallback (
    * diagnostics regarding the X86 code this maps onto.
    */
 
-  if (UnicornCodeGenBuf != UnicornCodeGenBufEnd &&
-      AArch64Context->ELR >= UnicornCodeGenBuf &&
-      AArch64Context->ELR < UnicornCodeGenBufEnd) {
+  if (CpuAddrIsCodeGen (AArch64Context->ELR)) {
     /*
      * It looks like we crashed in the JITed code.
      *

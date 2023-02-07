@@ -63,17 +63,16 @@ extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
 extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
 
-extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
-extern EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
-
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuEmu {
-  int       StackReg;
-  VOID      (*CpuDump)(struct CpuEmu *);
-  UINT64    (*RunCtxInternal)(CpuRunContext *);
-  VOID      (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);
-  uc_engine *UE;
+  int                 StackReg;
+  VOID                (*CpuDump)(struct CpuEmu *);
+  UINT64              (*RunCtxInternal)(CpuRunContext *);
+  VOID                (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);
+  uc_engine           *UE;
+  EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
+  EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
 } CpuEmu;
 
 typedef struct {
@@ -203,6 +202,11 @@ VOID
 CpuRegisterCodeRange (
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
+  );
+
+BOOLEAN
+CpuAddrIsCodeGen (
+  IN  EFI_PHYSICAL_ADDRESS Address
   );
 
 VOID

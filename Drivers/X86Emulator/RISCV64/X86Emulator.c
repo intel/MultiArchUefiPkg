@@ -147,9 +147,7 @@ X86InterpreterSyncExceptionCallback (
      * here.
      */
     DEBUG ((DEBUG_ERROR, "Exception occured due to executing x64 as RISC-V code\n"));
-  } else if (UnicornCodeGenBuf != UnicornCodeGenBufEnd &&
-             RiscV64Context->SEPC >= UnicornCodeGenBuf &&
-             RiscV64Context->SEPC < UnicornCodeGenBufEnd) {
+  } else if (CpuAddrIsCodeGen (RiscV64Context->SEPC)) {
     /*
      * It looks like we crashed in the JITed code.
      *
