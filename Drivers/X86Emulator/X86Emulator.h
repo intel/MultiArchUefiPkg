@@ -73,6 +73,8 @@ typedef struct CpuEmu {
   uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
+  EFI_PHYSICAL_ADDRESS EmuStackStart;
+  EFI_PHYSICAL_ADDRESS EmuStackTop;
   uc_context           *InitialState;
 } CpuEmu;
 

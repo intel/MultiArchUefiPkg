@@ -21,8 +21,6 @@
 #define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
 
 CpuEmu CpuX86;
-STATIC EFI_PHYSICAL_ADDRESS mEmuStackStart;
-STATIC EFI_PHYSICAL_ADDRESS mEmuStackTop;
 STATIC CpuRunContext *mTopContext;
 
 #ifndef EMU_TIMEOUT_NONE
@@ -273,16 +271,16 @@ CpuInitEx (
    * with x64 code that may work incorrectly with 64-bit
    * stack values (...by manipulating ESP in 64-bit code!).
    */
-  mEmuStackStart = SIZE_4GB - 1;
-  Status = gBS->AllocatePages (AllocateMaxAddress, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &mEmuStackStart);
+  Cpu->EmuStackStart = SIZE_4GB - 1;
+  Status = gBS->AllocatePages (AllocateMaxAddress, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &Cpu->EmuStackStart);
   if (EFI_ERROR (Status)) {
-    Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &mEmuStackStart);
+    Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &Cpu->EmuStackStart);
   }
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "failed to allocate emulated stack: %r\n", Status));
     return Status;
   }
-  mEmuStackTop = mEmuStackStart + EMU_STACK_SIZE;
+  Cpu->EmuStackTop = Cpu->EmuStackStart + EMU_STACK_SIZE;
 
   UcErr = uc_open(Arch, UC_MODE_64, &Cpu->UE);
   if (UcErr != UC_ERR_OK) {
@@ -379,7 +377,7 @@ CpuInitEx (
   UcErr = uc_ctl_exits_enable(Cpu->UE);
   ASSERT (UcErr == UC_ERR_OK);
 
-  REG_WRITE (Cpu, Cpu->StackReg, mEmuStackTop);
+  REG_WRITE (Cpu, Cpu->StackReg, Cpu->EmuStackTop);
 
   UcErr = uc_get_code_gen_buf (Cpu->UE, (void **) &Cpu->UnicornCodeGenBuf,
                                &UnicornCodeGenSize);
@@ -545,7 +543,7 @@ CpuDump (
 #undef REGS
 
   Val = REG_READ (&CpuX86, CpuX86.StackReg);
-  if (!(Val >= mEmuStackStart && Val < mEmuStackTop)) {
+  if (!(Val >= CpuX86.EmuStackStart && Val < CpuX86.EmuStackTop)) {
     /*
      * It's not completely invalid for a binary to move it's
      * stack pointer elsewhere, but it is highly unusual and
@@ -553,8 +551,8 @@ CpuDump (
      * stack pointer by manipulating ESP instead of RSP
      * (which clears the high bits of RSP).
      */
-    DEBUG ((DEBUG_ERROR, "RSP is outside 0x%lx-0x%lx\n",
-            mEmuStackStart, mEmuStackTop));
+    DEBUG ((DEBUG_ERROR, "Emulated stack is outside 0x%lx-0x%lx\n",
+            CpuX86.EmuStackStart, CpuX86.EmuStackTop));
   }
 }
 
