@@ -481,8 +481,8 @@ X86EmulatorTestEntryPoint (
     mTest->TestGetDebugState (&DebugState);
 
     DEBUG ((DEBUG_INFO, "Emu timeout period %lu ms %lu ticks 0x%lx tbs\n",
-            DebugState.ExitPeriodMs, DebugState.ExitPeriodTicks,
-            DebugState.ExitPeriodTbs));
+            DebugState.ExitPeriodMs, DebugState.X86ExitPeriodTicks,
+            DebugState.X86ExitPeriodTbs));
 
     mTest->TestCbArgs((VOID *) TestExit);
     return EFI_ABORTED;

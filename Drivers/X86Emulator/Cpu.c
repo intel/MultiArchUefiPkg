@@ -24,12 +24,10 @@ CpuEmu CpuX86;
 STATIC CpuRunContext *mTopContext;
 
 #ifndef EMU_TIMEOUT_NONE
-STATIC UINT64 mTbCount;
-#define UC_EMU_EXIT_PERIOD_TB_MAX 0x100000
-#define UC_EMU_EXIT_PERIOD_TB_MIN 0x100
-STATIC UINT64 mExitPeriodTbs = 0x1000;
-#define UC_EMU_EXIT_PERIOD_MS  10
-STATIC UINT64 mExitPeriodTicks;
+#define UC_EMU_EXIT_PERIOD_TB_MAX     0x100000
+#define UC_EMU_EXIT_PERIOD_TB_INITIAL 0x1000
+#define UC_EMU_EXIT_PERIOD_TB_MIN     0x100
+#define UC_EMU_EXIT_PERIOD_MS         10
 #endif /* EMU_TIMEOUT_NONE */
 
 #ifdef ON_PRIVATE_STACK
@@ -77,6 +75,7 @@ CpuTimeoutCb (
   IN  UINT32    Size,
   IN  VOID      *UserData)
 {
+  CpuEmu *Cpu = mTopContext->Cpu;
   /*
    * GetPerformanceCounter () is a system register read, and is more expensive
    * than reading a variable. Moreover, in an emulated environment,
@@ -87,7 +86,7 @@ CpuTimeoutCb (
    * as possible. mExitPeriodTbs is then re-calibrated once we return
    * from uc_emu_start.
    */
-  if ((++mTbCount & (mExitPeriodTbs - 1)) == 0) {
+  if ((++(Cpu->TbCount) & (Cpu->ExitPeriodTbs - 1)) == 0) {
     mTopContext->StoppedOnTimeout = TRUE;
     uc_emu_stop (UE);
   }
@@ -399,8 +398,9 @@ CpuInitEx (
   mTopContext = NULL;
 
 #ifndef EMU_TIMEOUT_NONE
-  mTbCount = 0;
-  mExitPeriodTicks = DivU64x32 (
+  Cpu->TbCount = 0;
+  Cpu->ExitPeriodTbs = UC_EMU_EXIT_PERIOD_TB_INITIAL;
+  Cpu->ExitPeriodTicks = DivU64x32 (
     MultU64x64 (
       UC_EMU_EXIT_PERIOD_MS,
       GetPerformanceCounterProperties (NULL, NULL)
@@ -609,7 +609,7 @@ CpuRunCtxInternal (
     DisableInterrupts (); {
 #ifndef EMU_TIMEOUT_NONE
       Context->StoppedOnTimeout = FALSE;
-      Context->TimeoutAbsTicks = mExitPeriodTicks + GetPerformanceCounter ();
+      Context->TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
 #endif /* EMU_TIMEOUT_NONE */
 
       UcErr = uc_emu_start (Cpu->UE, Rip, 0, 0, 0);
@@ -619,12 +619,12 @@ CpuRunCtxInternal (
         UINT64 Ticks = GetPerformanceCounter ();
 
         if (Ticks > mTopContext->TimeoutAbsTicks) {
-          if (mExitPeriodTbs > UC_EMU_EXIT_PERIOD_TB_MIN) {
-            mExitPeriodTbs = mExitPeriodTbs >> 1;
+          if (Cpu->ExitPeriodTbs > UC_EMU_EXIT_PERIOD_TB_MIN) {
+            Cpu->ExitPeriodTbs = Cpu->ExitPeriodTbs >> 1;
           }
         } else if (Ticks < mTopContext->TimeoutAbsTicks) {
-          if (mExitPeriodTbs < UC_EMU_EXIT_PERIOD_TB_MAX) {
-            mExitPeriodTbs = mExitPeriodTbs << 1;
+          if (Cpu->ExitPeriodTbs < UC_EMU_EXIT_PERIOD_TB_MAX) {
+            Cpu->ExitPeriodTbs = Cpu->ExitPeriodTbs << 1;
           }
         }
       }
@@ -1197,13 +1197,13 @@ CpuGetDebugState (
     DebugState->CurrentContextCount++;
     Context = Context->PrevContext;
   }
-  gBS->RestoreTPL (Tpl);
 
 #ifndef EMU_TIMEOUT_NONE
   DebugState->ExitPeriodMs = UC_EMU_EXIT_PERIOD_MS;
-  DebugState->ExitPeriodTicks = mExitPeriodTicks;
-  DebugState->ExitPeriodTbs = mExitPeriodTbs;
+  DebugState->X86ExitPeriodTicks = CpuX86.ExitPeriodTicks;
+  DebugState->X86ExitPeriodTbs = CpuX86.ExitPeriodTbs;
 #endif /* EMU_TIMEOUT_NONE */
+  gBS->RestoreTPL (Tpl);
 
   return EFI_SUCCESS;
 }

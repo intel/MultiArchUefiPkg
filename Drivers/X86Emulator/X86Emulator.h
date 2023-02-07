@@ -76,6 +76,11 @@ typedef struct CpuEmu {
   EFI_PHYSICAL_ADDRESS EmuStackStart;
   EFI_PHYSICAL_ADDRESS EmuStackTop;
   uc_context           *InitialState;
+#ifndef EMU_TIMEOUT_NONE
+  UINT64               TbCount;
+  UINT64               ExitPeriodTbs;
+  UINT64               ExitPeriodTicks;
+#endif /* EMU_TIMEOUT_NONE */
 } CpuEmu;
 
 typedef struct {
