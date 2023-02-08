@@ -17,7 +17,7 @@ extern CONST UINT64 EmulatorThunk[];
 
 VOID
 EFIAPI
-X86InterpreterSyncExceptionCallback (
+EmulatorSyncExceptionCallback (
   IN     EFI_EXCEPTION_TYPE ExceptionType,
   IN OUT EFI_SYSTEM_CONTEXT SystemContext
   )
@@ -78,7 +78,7 @@ ArchInit (
 
   Status = gCpu->RegisterInterruptHandler (gCpu,
                                            EXCEPT_AARCH64_SYNCHRONOUS_EXCEPTIONS,
-                                           &X86InterpreterSyncExceptionCallback);
+                                           &EmulatorSyncExceptionCallback);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler failed: %r\n", Status));
   }

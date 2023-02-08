@@ -103,7 +103,7 @@ RecoverPcFromCall (
 
 VOID
 EFIAPI
-X86InterpreterSyncExceptionCallback (
+EmulatorSyncExceptionCallback (
   IN     EFI_EXCEPTION_TYPE ExceptionType,
   IN OUT EFI_SYSTEM_CONTEXT SystemContext
   )
@@ -204,7 +204,7 @@ ArchInit (
   for (Index = 0; Index < ARRAY_SIZE (mExceptions); Index++) {
     Status = gCpu->RegisterInterruptHandler (gCpu,
                                              mExceptions[Index],
-                                             &X86InterpreterSyncExceptionCallback);
+                                             &EmulatorSyncExceptionCallback);
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler 0x%x: %r\n", mExceptions[Index], Status));
       break;
