@@ -57,10 +57,10 @@ NativeValidateSupportedCall (
   return EfiWrappersOverride (ProgramCounter);
 }
 
-VOID
+UINT64
 NativeThunkX86 (
   IN  CpuContext *Cpu,
-  IN  UINT64     *ProgramCounter
+  IN  UINT64     ProgramCounter
   )
 {
   UINT64 *StackArgs;
@@ -74,8 +74,8 @@ NativeThunkX86 (
   Fn      Func;
   CpuRunContext *CurrentTopContext = CpuGetTopContext ();
 
-  Func.ProgramCounter = NativeValidateSupportedCall (*ProgramCounter);
-  WrapperCall = Func.ProgramCounter != *ProgramCounter;
+  Func.ProgramCounter = NativeValidateSupportedCall (ProgramCounter);
+  WrapperCall = Func.ProgramCounter != ProgramCounter;
 
   Rsp = REG_READ (Cpu, UC_X86_REG_RSP);
   Rcx = REG_READ (Cpu, UC_X86_REG_RCX);
@@ -114,7 +114,7 @@ NativeThunkX86 (
     StackArgs[2] = Rdx;
     StackArgs[3] = R8;
     StackArgs[4] = R9;
-    Rax = Func.WrapperFn (Cpu, *ProgramCounter, StackArgs[0], StackArgs + 1);
+    Rax = Func.WrapperFn (Cpu, ProgramCounter, StackArgs[0], StackArgs + 1);
   } else {
     Rax = Func.NativeFn (Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7],
                          StackArgs[8], StackArgs[9], StackArgs[10], StackArgs[11],
@@ -142,5 +142,5 @@ NativeThunkX86 (
 
   REG_WRITE (Cpu, UC_X86_REG_RAX, Rax);
 
-  *ProgramCounter = CpuStackPop64 (Cpu);
+  return CpuStackPop64 (Cpu);
 }

@@ -70,7 +70,7 @@ typedef struct CpuContext {
   VOID                 (*Dump) (struct CpuContext *);
   VOID                 (*EmuThunkPre) (struct CpuContext *, UINT64 *Args);
   VOID                 (*EmuThunkPost) (struct CpuContext *, UINT64 *Args);
-  VOID                 (*NativeThunk) (struct CpuContext *, UINT64 *ProgramCounter);
+  UINT64               (*NativeThunk) (struct CpuContext *, UINT64 ProgramCounter);
   uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
@@ -256,10 +256,10 @@ CpuAddrIsCodeGen (
   IN  EFI_PHYSICAL_ADDRESS Address
   );
 
-VOID
+UINT64
 NativeThunkX86 (
   IN  CpuContext *Cpu,
-  IN  UINT64     *ProgramCounter
+  IN  UINT64     ProgramCounter
   );
 
 EFI_STATUS

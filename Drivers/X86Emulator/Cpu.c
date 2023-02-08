@@ -741,7 +741,7 @@ CpuRunCtxInternal (
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      Cpu->NativeThunk (Cpu, &ProgramCounter);
+      ProgramCounter = Cpu->NativeThunk (Cpu, ProgramCounter);
     } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
