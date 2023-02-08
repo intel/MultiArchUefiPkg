@@ -1,6 +1,6 @@
 /** @file
 
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -20,10 +20,10 @@
 #define NO_INLINE __attribute__((noinline))
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
-STATIC EFI_GUID mX86EmuTestProtocolGuid = X86_EMU_TEST_PROTOCOL_GUID;
+STATIC EFI_GUID mEmuTestProtocolGuid = EMU_TEST_PROTOCOL_GUID;
 STATIC UINT64 TestArray[EFI_PAGE_SIZE / sizeof (UINT64)];
-STATIC X86_EMU_TEST_DEBUG_STATE mBeginDebugState;
-STATIC X86_EMU_TEST_PROTOCOL *mTest = NULL;
+STATIC EMU_TEST_DEBUG_STATE mBeginDebugState;
+STATIC EMU_TEST_PROTOCOL *mTest = NULL;
 
 STATIC VOID
 LogResult (
@@ -107,7 +107,7 @@ TestCbLj (
 STATIC
 VOID
 DoTestProtocolTests (
-  IN  X86_EMU_TEST_PROTOCOL *Test
+  IN  EMU_TEST_PROTOCOL *Test
   )
 {
   UINT64 Ret;
@@ -450,14 +450,14 @@ TestTimer (
 
 EFI_STATUS
 EFIAPI
-X86EmulatorTestEntryPoint (
+EmulatorTestEntryPoint (
   IN  EFI_HANDLE       ImageHandle,
   IN  EFI_SYSTEM_TABLE *SystemTable
   )
 {
-  gBS->LocateProtocol (&mX86EmuTestProtocolGuid, NULL, (VOID **) &mTest);
+  gBS->LocateProtocol (&mEmuTestProtocolGuid, NULL, (VOID **) &mTest);
   if (mTest == NULL) {
-    DEBUG ((DEBUG_ERROR, "X86_EMU_TEST_PROTOCOL is missing\n"));
+    DEBUG ((DEBUG_ERROR, "EMU_TEST_PROTOCOL is missing\n"));
   } else {
     mTest->TestGetDebugState (&mBeginDebugState);
     DEBUG ((DEBUG_INFO, "Initial %lu contexts\n", mBeginDebugState.ContextCount));
@@ -477,7 +477,7 @@ X86EmulatorTestEntryPoint (
   DEBUG ((DEBUG_INFO, "Tests completed!\n"));
 
   if (mTest != NULL) {
-    X86_EMU_TEST_DEBUG_STATE DebugState;
+    EMU_TEST_DEBUG_STATE DebugState;
     mTest->TestGetDebugState (&DebugState);
 
     DEBUG ((DEBUG_INFO, "Contexts total %lu x86 %lu\n",

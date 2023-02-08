@@ -11,7 +11,7 @@
 
 #pragma once
 
-#define X86_EMU_TEST_PROTOCOL_GUID                                      \
+#define EMU_TEST_PROTOCOL_GUID                                      \
   { 0x9af2f62c, 0xac9b, 0xa821, { 0xa0, 0x8d, 0xec, 0x9e, 0xc4, 0x21, 0xb1, 0xb0 }};
 
 #define ARG_VAL(x) ((x##UL << 56) | (x##UL))
@@ -24,7 +24,7 @@ typedef struct {
   UINTN X86ExitPeriodTicks;
   UINTN X86ExitPeriodTbs;
   UINTN X86ContextCount;
-} X86_EMU_TEST_DEBUG_STATE;
+} EMU_TEST_DEBUG_STATE;
 
 typedef struct {
   UINT16            HostMachineType;
@@ -37,7 +37,7 @@ typedef struct {
                                                       UINT64, UINT64, UINT64, UINT64,
                                                       UINT64, UINT64, UINT64, UINT64,
                                                       UINT64, UINT64, UINT64, UINT64));
-  EFI_STATUS EFIAPI (*TestGetDebugState)(X86_EMU_TEST_DEBUG_STATE *DebugState);
+  EFI_STATUS EFIAPI (*TestGetDebugState)(EMU_TEST_DEBUG_STATE *DebugState);
   UINT64     EFIAPI (*TestSj)(VOID EFIAPI (*Cb)(VOID *Buffer));
   VOID       EFIAPI (*TestLj)(VOID *Buffer);
-} X86_EMU_TEST_PROTOCOL;
+} EMU_TEST_PROTOCOL;

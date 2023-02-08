@@ -1,6 +1,6 @@
 /** @file
 
-    Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+    Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -123,7 +123,7 @@ TestLj (
   UNREACHABLE ();
 }
 
-STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
+STATIC EMU_TEST_PROTOCOL mEmuTestProtocol = {
   HOST_MACHINE_TYPE,
   TestRet,
   TestArgs,
@@ -133,7 +133,7 @@ STATIC X86_EMU_TEST_PROTOCOL mX86EmuTestProtocol = {
   TestLj
 };
 
-STATIC EFI_GUID mX86EmuTestProtocolGuid = X86_EMU_TEST_PROTOCOL_GUID;
+STATIC EFI_GUID mEmuTestProtocolGuid = EMU_TEST_PROTOCOL_GUID;
 
 EFI_STATUS
 TestProtocolInit (
@@ -143,9 +143,9 @@ TestProtocolInit (
   EFI_STATUS Status;
 
   Status = gBS->InstallProtocolInterface (&ImageHandle,
-                                          &mX86EmuTestProtocolGuid,
+                                          &mEmuTestProtocolGuid,
                                           EFI_NATIVE_INTERFACE,
-                                          &mX86EmuTestProtocol);
+                                          &mEmuTestProtocol);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "InstallProtocolInterface failed: %r\n", Status));
   }
@@ -159,8 +159,8 @@ TestProtocolCleanup (
   )
 {
   gBS->UninstallProtocolInterface (ImageHandle,
-                                   &mX86EmuTestProtocolGuid,
-                                   &mX86EmuTestProtocol);
+                                   &mEmuTestProtocolGuid,
+                                   &mEmuTestProtocol);
 }
 
 #endif

@@ -1,6 +1,6 @@
 ## @file
 #
-#  Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 #
 #  This library is free software; you can redistribute it and/or
 #  modify it under the terms of the GNU Lesser General Public
@@ -15,7 +15,7 @@
   FILE_GUID                      = E6727A5E-CBCD-44C8-B37F-78BC3A0C15C9
   MODULE_TYPE                    = UEFI_APPLICATION
   VERSION_STRING                 = 1.0
-  ENTRY_POINT                    = X86EmulatorTestEntryPoint
+  ENTRY_POINT                    = EmulatorTestEntryPoint
 
 #
 #  VALID_ARCHITECTURES           = X64

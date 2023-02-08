@@ -1265,7 +1265,7 @@ CpuAddrIsCodeGen (
 EFI_STATUS
 EFIAPI
 CpuGetDebugState (
-  OUT X86_EMU_TEST_DEBUG_STATE *DebugState
+  OUT EMU_TEST_DEBUG_STATE *DebugState
   )
 {
   EFI_TPL       Tpl;
