@@ -20,7 +20,7 @@
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
   #
-  # Use a dedicated native stack for handling x64 emulation.
+  # Use a dedicated native stack for handling emulation.
   #
   ON_PRIVATE_STACK               = NO
   #

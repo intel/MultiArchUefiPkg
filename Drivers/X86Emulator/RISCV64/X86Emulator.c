@@ -21,8 +21,9 @@ extern CONST UINT64 X86EmulatorThunk[];
 STATIC
 EFI_STATUS
 RecoverPcFromCall (
+  IN  X86_IMAGE_RECORD           *ImageRecord,
   IN  EFI_SYSTEM_CONTEXT_RISCV64 *RiscV64Context,
-  OUT EFI_PHYSICAL_ADDRESS *Pc
+  OUT EFI_PHYSICAL_ADDRESS       *Pc
   )
 {
   UINT32 Insn;
@@ -57,8 +58,8 @@ RecoverPcFromCall (
      * SEPC can be 1 bit away from PC.
      */
     if ((*Pc & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) {
-      DEBUG ((DEBUG_ERROR, "Unexpected x64 RIP: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 2 = 0x%lx\n",
-              *Pc,  RiscV64Context->SEPC, Insn, Ra - 2));
+      DEBUG ((DEBUG_ERROR, "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 2 = 0x%lx\n",
+              ImageRecord->Cpu->Name, *Pc,  RiscV64Context->SEPC, Insn, Ra - 2));
       return EFI_NOT_FOUND;
     }
 
@@ -69,7 +70,8 @@ RecoverPcFromCall (
     /*
      * It was definitely an (unknown) compressed instruction.
      */
-    DEBUG ((DEBUG_ERROR, "Unknown x64 RIP: unknown compressed instruction 0x%x at RA - 2 = 0x%lx\n", Insn, Ra - 2));
+    DEBUG ((DEBUG_ERROR, "Unknown %a PC: unknown compressed instruction 0x%x at RA - 2 = 0x%lx\n",
+            ImageRecord->Cpu->Name, Insn, Ra - 2));
     return EFI_NOT_FOUND;
   }
 
@@ -86,14 +88,15 @@ RecoverPcFromCall (
      * SEPC can be 2 bits away from PC.
      */
     if ((*Pc & INSN_ADDR_MASK) != RiscV64Context->SEPC) {
-      DEBUG ((DEBUG_ERROR, "Unexpected x64 RIP: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 4 = 0x%lx\n",
-              *Pc,  RiscV64Context->SEPC, Insn, Ra - 4));
+      DEBUG ((DEBUG_ERROR, "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 4 = 0x%lx\n",
+              ImageRecord->Cpu->Name, *Pc,  RiscV64Context->SEPC, Insn, Ra - 4));
       return EFI_NOT_FOUND;
     }
 
     return EFI_SUCCESS;
   }
-  DEBUG ((DEBUG_ERROR, "Unknown x64 RIP: unknown instruction 0x%x @ RA - 4 = 0x%lx\n", Insn, Ra - 4));
+  DEBUG ((DEBUG_ERROR, "Unknown %a PC: unknown instruction 0x%x @ RA - 4 = 0x%lx\n",
+          ImageRecord->Cpu->Name, Insn, Ra - 4));
 
   return EFI_NOT_FOUND;
 }
@@ -101,8 +104,8 @@ RecoverPcFromCall (
 VOID
 EFIAPI
 X86InterpreterSyncExceptionCallback (
-  IN     EFI_EXCEPTION_TYPE   ExceptionType,
-  IN OUT EFI_SYSTEM_CONTEXT   SystemContext
+  IN     EFI_EXCEPTION_TYPE ExceptionType,
+  IN OUT EFI_SYSTEM_CONTEXT SystemContext
   )
 {
   EFI_SYSTEM_CONTEXT_RISCV64 *RiscV64Context;
@@ -123,7 +126,8 @@ X86InterpreterSyncExceptionCallback (
        * the address by decoding the instruction that
        * made the call.
        */
-      Status = RecoverPcFromCall (RiscV64Context,
+      Status = RecoverPcFromCall (Record,
+                                  RiscV64Context,
                                   &RiscV64Context->X5);
       if (!EFI_ERROR (Status)) {
         RiscV64Context->X6 = (UINT64)Record;
@@ -142,11 +146,12 @@ X86InterpreterSyncExceptionCallback (
     /*
      * This can happen if CpuDxe doesn't configure MMU, so we only
      * rely on illegal instruction trapping instead of execute protection.
-     * If the invoked x64 code actually looks like a valid RISC-V
+     * If the invoked emulated code actually looks like a valid RISC-V
      * instruction,and the instruction does an invalid operation, we get
      * here.
      */
-    DEBUG ((DEBUG_ERROR, "Exception occured due to executing x64 as RISC-V code\n"));
+    DEBUG ((DEBUG_ERROR, "Exception occured due to executing %a as RISC-V code\n",
+            Record->Cpu->Name));
   } else if (CpuAddrIsCodeGen (RiscV64Context->SEPC)) {
     /*
      * It looks like we crashed in the JITed code.

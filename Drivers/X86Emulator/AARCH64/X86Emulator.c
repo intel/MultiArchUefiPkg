@@ -18,13 +18,13 @@ extern CONST UINT64 X86EmulatorThunk[];
 VOID
 EFIAPI
 X86InterpreterSyncExceptionCallback (
-  IN     EFI_EXCEPTION_TYPE   ExceptionType,
-  IN OUT EFI_SYSTEM_CONTEXT   SystemContext
+  IN     EFI_EXCEPTION_TYPE ExceptionType,
+  IN OUT EFI_SYSTEM_CONTEXT SystemContext
   )
 {
-  EFI_SYSTEM_CONTEXT_AARCH64  *AArch64Context;
-  X86_IMAGE_RECORD            *Record;
-  UINTN                       Ec;
+  EFI_SYSTEM_CONTEXT_AARCH64 *AArch64Context;
+  X86_IMAGE_RECORD           *Record;
+  UINTN                      Ec;
 
   AArch64Context = SystemContext.SystemContextAArch64;
 

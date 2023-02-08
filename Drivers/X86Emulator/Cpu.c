@@ -216,7 +216,7 @@ CpuPrivateStackInit (
 
   Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE), &mNativeStackStart);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "failed to allocate private stack: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Failed to allocate private stack: %r\n", Status));
     return Status;
   }
   mNativeStackTop = mNativeStackStart + NATIVE_STACK_SIZE - EFI_PAGE_SIZE;
@@ -446,7 +446,7 @@ CpuInitEx (
     Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &Cpu->EmuStackStart);
   }
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "failed to allocate emulated stack: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Failed to allocate emulated stack: %r\n", Status));
     return Status;
   }
   Cpu->EmuStackTop = Cpu->EmuStackStart + EMU_STACK_SIZE;

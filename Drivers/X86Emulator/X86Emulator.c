@@ -25,16 +25,17 @@ DumpImageRecords (
   LIST_ENTRY       *Entry;
   X86_IMAGE_RECORD *Record;
 
-  DEBUG ((DEBUG_ERROR, "x64 images:\n"));
+  DEBUG ((DEBUG_ERROR, "Emulated images:\n"));
   for (Entry = GetFirstNode (&mX86ImageList);
        !IsNull (&mX86ImageList, Entry);
        Entry = GetNextNode (&mX86ImageList, Entry)) {
 
     Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
 
-    DEBUG ((DEBUG_ERROR, "\tImage 0x%lx-0x%lx (Entry 0x%lx)\n",
-            Record->ImageBase, Record->ImageBase +
-            Record->ImageSize - 1, Record->ImageEntry));
+    DEBUG ((DEBUG_ERROR, "\t%7a Image 0x%lx-0x%lx (Entry 0x%lx)\n",
+            Record->Cpu->Name, Record->ImageBase,
+            Record->ImageBase + Record->ImageSize - 1,
+            Record->ImageEntry));
   }
 }
 

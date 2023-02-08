@@ -33,8 +33,8 @@ NativeUnsupported (
   IN  UINT64 *Args
   )
 {
-  DEBUG ((DEBUG_ERROR, "Unsupported native call 0x%lx from x64 RIP 0x%lx\n",
-          OriginalRip, ReturnAddress));
+  DEBUG ((DEBUG_ERROR, "Unsupported native call 0x%lx from %a PC 0x%lx\n",
+          OriginalRip, Cpu->Name, ReturnAddress));
   X86EmulatorDump ();
   return EFI_UNSUPPORTED;
 }
@@ -104,9 +104,9 @@ NativeThunkX86 (
    * ----------------
    */
 
-  DEBUG ((DEBUG_VERBOSE, "x64 0x%lx -> %a 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-          StackArgs[0], WrapperCall ? "wrapper" : "native", Func.Rip, Rcx, Rdx, R8, R9,
-          StackArgs[5], StackArgs[6], StackArgs[7], StackArgs[8], StackArgs[9]));
+  DEBUG ((DEBUG_VERBOSE, "%a 0x%lx -> %a 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+          Cpu->Name, StackArgs[0], WrapperCall ? "wrapper" : "native", Func.Rip, Rcx, Rdx,
+          R8, R9, StackArgs[5], StackArgs[6], StackArgs[7], StackArgs[8], StackArgs[9]));
 
   if (WrapperCall) {
     StackArgs[1] = Rcx;
@@ -124,14 +124,14 @@ NativeThunkX86 (
   if (CpuGetTopContext () != CurrentTopContext) {
     /*
      * Consider the following sequence:
-     * - x64->native call
+     * - emulated->native call
      * - native does SetJump
-     * - native->x64 call
-     * - x64->native call
+     * - native->emulated call
+     * - emulated->native call
      * - native does LongJump
      *
-     * This isn't that crazy - e.g. an x64 binary starting another
-     * x64 binary, which calls gBS->Exit. While we can handle gBS->Exit
+     * This isn't that crazy - e.g. an emulated binary starting another
+     * emu binary, which calls gBS->Exit. While we can handle gBS->Exit
      * cleanly ourselves, let's detect code that does something similar,
      * which will result in UC engine state being out of sync with the
      * expected context state.

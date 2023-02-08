@@ -39,9 +39,9 @@ EfiWrappersDumpEvents ()
     Record = BASE_CR (Entry, WRAPPED_EVENT_RECORD, Link);
     Image = FindImageRecordByAddress (Record->CallerRip);
 
-    DEBUG ((DEBUG_ERROR, "\tImageBase 0x%lx Event %p Fn %p Context %p\n",
-            Image->ImageBase, Record->Event, Record->X64NotifyFunction,
-            Record->X64NotifyContext));
+    DEBUG ((DEBUG_ERROR, "\t%7a ImageBase 0x%lx Event %p Fn %p Context %p\n",
+            Image->Cpu->Name, Image->ImageBase, Record->Event,
+            Record->X64NotifyFunction, Record->X64NotifyContext));
   }
 }
 
