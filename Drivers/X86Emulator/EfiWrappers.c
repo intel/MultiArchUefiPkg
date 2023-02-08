@@ -30,7 +30,7 @@ EfiWrappersDumpEvents ()
 {
   LIST_ENTRY           *Entry;
   WRAPPED_EVENT_RECORD *Record;
-  X86_IMAGE_RECORD     *Image;
+  ImageRecord     *Image;
 
   DEBUG ((DEBUG_ERROR, "Wrapped EFI_EVENTs:\n"));
   for (Entry = GetFirstNode (&mEventList);

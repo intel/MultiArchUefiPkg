@@ -23,7 +23,7 @@ X86InterpreterSyncExceptionCallback (
   )
 {
   EFI_SYSTEM_CONTEXT_AARCH64 *AArch64Context;
-  X86_IMAGE_RECORD           *Record;
+  ImageRecord                *Record;
   UINTN                      Ec;
 
   AArch64Context = SystemContext.SystemContextAArch64;

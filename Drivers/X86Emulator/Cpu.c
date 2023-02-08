@@ -1151,7 +1151,7 @@ CpuRunImage (
 {
   EFI_STATUS                Status;
   CpuRunContext             *Context;
-  X86_IMAGE_RECORD          *Record;
+  ImageRecord               *Record;
   EFI_LOADED_IMAGE_PROTOCOL *LoadedImage;
   UINT64                    Args[2] = { (UINT64) ImageHandle, (UINT64) SystemTable };
 
@@ -1210,10 +1210,10 @@ CpuExitImage (
   IN  UINT64     *Args
   )
 {
-  EFI_TPL          Tpl;
-  CpuRunContext    *Context;
-  X86_IMAGE_RECORD *CurrentImageRecord;
-  EFI_HANDLE       Handle =  (VOID *) Args[0];
+  EFI_TPL       Tpl;
+  CpuRunContext *Context;
+  ImageRecord   *CurrentImageRecord;
+  EFI_HANDLE    Handle =  (VOID *) Args[0];
 
   CurrentImageRecord = FindImageRecordByHandle (Handle);
   if (CurrentImageRecord == NULL) {

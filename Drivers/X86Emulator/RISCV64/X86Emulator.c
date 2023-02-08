@@ -21,9 +21,9 @@ extern CONST UINT64 X86EmulatorThunk[];
 STATIC
 EFI_STATUS
 RecoverPcFromCall (
-  IN  X86_IMAGE_RECORD           *ImageRecord,
+  IN  ImageRecord                *ImageRecord,
   IN  EFI_SYSTEM_CONTEXT_RISCV64 *RiscV64Context,
-  OUT EFI_PHYSICAL_ADDRESS       *Pc
+  OUT EFI_PHYSICAL_ADDRESS       *ProgramCounter
   )
 {
   UINT32 Insn;
@@ -53,13 +53,13 @@ RecoverPcFromCall (
       (Insn & 0xf80) != 0 &&       // rs1
       (Insn & 0x7c) == 0) {        // rs2
     UINTN Rs = (Insn >> 7) & 0x1F;
-    *Pc = (&RiscV64Context->X0)[Rs];
+    *ProgramCounter = (&RiscV64Context->X0)[Rs];
     /*
      * SEPC can be 1 bit away from PC.
      */
-    if ((*Pc & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) {
+    if ((*ProgramCounter & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) {
       DEBUG ((DEBUG_ERROR, "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 2 = 0x%lx\n",
-              ImageRecord->Cpu->Name, *Pc,  RiscV64Context->SEPC, Insn, Ra - 2));
+              ImageRecord->Cpu->Name, *ProgramCounter,  RiscV64Context->SEPC, Insn, Ra - 2));
       return EFI_NOT_FOUND;
     }
 
@@ -83,13 +83,13 @@ RecoverPcFromCall (
     UINTN Rs = (Insn >> 15) & 0x1F;
 
     imm12.x = Insn >> 20;
-    *Pc = (&RiscV64Context->X0)[Rs] + imm12.x;
+    *ProgramCounter = (&RiscV64Context->X0)[Rs] + imm12.x;
     /*
      * SEPC can be 2 bits away from PC.
      */
-    if ((*Pc & INSN_ADDR_MASK) != RiscV64Context->SEPC) {
+    if ((*ProgramCounter & INSN_ADDR_MASK) != RiscV64Context->SEPC) {
       DEBUG ((DEBUG_ERROR, "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 4 = 0x%lx\n",
-              ImageRecord->Cpu->Name, *Pc,  RiscV64Context->SEPC, Insn, Ra - 4));
+              ImageRecord->Cpu->Name, *ProgramCounter,  RiscV64Context->SEPC, Insn, Ra - 4));
       return EFI_NOT_FOUND;
     }
 
@@ -109,7 +109,7 @@ X86InterpreterSyncExceptionCallback (
   )
 {
   EFI_SYSTEM_CONTEXT_RISCV64 *RiscV64Context;
-  X86_IMAGE_RECORD           *Record;
+  ImageRecord                *Record;
 
   RiscV64Context = SystemContext.SystemContextRiscV64;
   Record = FindImageRecordByAddress (RiscV64Context->SEPC);

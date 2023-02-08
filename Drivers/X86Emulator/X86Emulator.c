@@ -22,15 +22,15 @@ DumpImageRecords (
   VOID
   )
 {
-  LIST_ENTRY       *Entry;
-  X86_IMAGE_RECORD *Record;
+  LIST_ENTRY  *Entry;
+  ImageRecord *Record;
 
   DEBUG ((DEBUG_ERROR, "Emulated images:\n"));
   for (Entry = GetFirstNode (&mX86ImageList);
        !IsNull (&mX86ImageList, Entry);
        Entry = GetNextNode (&mX86ImageList, Entry)) {
 
-    Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
+    Record = BASE_CR (Entry, ImageRecord, Link);
 
     DEBUG ((DEBUG_ERROR, "\t%7a Image 0x%lx-0x%lx (Entry 0x%lx)\n",
             Record->Cpu->Name, Record->ImageBase,
@@ -39,19 +39,19 @@ DumpImageRecords (
   }
 }
 
-X86_IMAGE_RECORD *
+ImageRecord *
 FindImageRecordByAddress (
   IN  EFI_PHYSICAL_ADDRESS Address
   )
 {
-  LIST_ENTRY       *Entry;
-  X86_IMAGE_RECORD *Record;
+  LIST_ENTRY  *Entry;
+  ImageRecord *Record;
 
   for (Entry = GetFirstNode (&mX86ImageList);
        !IsNull (&mX86ImageList, Entry);
        Entry = GetNextNode (&mX86ImageList, Entry)) {
 
-    Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
+    Record = BASE_CR (Entry, ImageRecord, Link);
 
     if (Address >= Record->ImageBase &&
         Address < Record->ImageBase + Record->ImageSize) {
@@ -61,19 +61,19 @@ FindImageRecordByAddress (
   return NULL;
 }
 
-X86_IMAGE_RECORD *
+ImageRecord *
 FindImageRecordByHandle (
   IN  EFI_HANDLE Handle
   )
 {
-  LIST_ENTRY       *Entry;
-  X86_IMAGE_RECORD *Record;
+  LIST_ENTRY  *Entry;
+  ImageRecord *Record;
 
   for (Entry = GetFirstNode (&mX86ImageList);
        !IsNull (&mX86ImageList, Entry);
        Entry = GetNextNode (&mX86ImageList, Entry)) {
 
-    Record = BASE_CR (Entry, X86_IMAGE_RECORD, Link);
+    Record = BASE_CR (Entry, ImageRecord, Link);
 
     if (Handle == Record->ImageHandle) {
       return Record;
@@ -130,7 +130,7 @@ RegisterX86Image (
   )
 {
   EFI_STATUS                   Status;
-  X86_IMAGE_RECORD             *Record;
+  ImageRecord                  *Record;
   PE_COFF_LOADER_IMAGE_CONTEXT ImageContext;
 
   ZeroMem (&ImageContext, sizeof (ImageContext));
@@ -204,8 +204,8 @@ UnregisterX86Image (
   IN  EFI_PHYSICAL_ADDRESS                 ImageBase
   )
 {
-  X86_IMAGE_RECORD *Record;
-  EFI_STATUS       Status;
+  ImageRecord *Record;
+  EFI_STATUS  Status;
 
   Record = FindImageRecordByAddress (ImageBase);
   if (Record == NULL) {
@@ -236,10 +236,10 @@ STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mX86EmulatorProtocol = {
 
 UINT64
 X86EmulatorVmEntry (
-  IN  UINT64           ProgramCounter,
-  IN  UINT64           *Args,
-  IN  X86_IMAGE_RECORD *Record,
-  IN  UINT64           Lr
+  IN  UINT64      ProgramCounter,
+  IN  UINT64      *Args,
+  IN  ImageRecord *Record,
+  IN  UINT64      Lr
   )
 {
   return CpuRunFunc (Record->Cpu, ProgramCounter, (UINT64 *) Args);

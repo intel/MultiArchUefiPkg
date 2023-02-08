@@ -101,7 +101,7 @@ typedef struct {
   EFI_STATUS               ImageExitStatus;
   UINTN                    ImageExitDataSize;
   CHAR16                   *ImageExitData;
-} X86_IMAGE_RECORD;
+} ImageRecord;
 
 typedef struct CpuRunContext {
   CpuContext           *Cpu;
@@ -120,7 +120,7 @@ typedef struct CpuRunContext {
   /*
    * Only set when we're invoking the entry point of an image.
    */
-  X86_IMAGE_RECORD     *ImageRecord;
+  ImageRecord          *ImageRecord;
 } CpuRunContext;
 
 extern CpuContext                CpuX86;
@@ -133,12 +133,12 @@ X86EmulatorDump (
   VOID
   );
 
-X86_IMAGE_RECORD *
+ImageRecord *
 FindImageRecordByAddress (
   IN  EFI_PHYSICAL_ADDRESS Address
   );
 
-X86_IMAGE_RECORD *
+ImageRecord *
 FindImageRecordByHandle (
   IN  EFI_HANDLE Handle
   );
