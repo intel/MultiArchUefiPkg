@@ -18,7 +18,7 @@
 #define NATIVE_STACK_SIZE      (1024 * 1024)
 #define RETURN_TO_NATIVE_MAGIC ((UINTN) &CpuReturnToNative)
 #define SYSV_X64_ABI_REDZONE   128
-#define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
+#define CURRENT_FP()           ((UINTN) __builtin_frame_address(0))
 
 CpuContext CpuX86;
 STATIC CpuRunContext *mTopContext;
@@ -32,8 +32,8 @@ STATIC CpuRunContext *mTopContext;
 
 #ifdef ON_PRIVATE_STACK
 STATIC BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
-STATIC EFI_PHYSICAL_ADDRESS mNativeStackStart;
-STATIC EFI_PHYSICAL_ADDRESS mNativeStackTop;
+STATIC EFI_PHYSICAL_ADDRESS     mNativeStackStart;
+STATIC EFI_PHYSICAL_ADDRESS     mNativeStackTop;
 #endif /* ON_PRIVATE_STACK */
 
 typedef enum {
@@ -44,12 +44,11 @@ typedef enum {
   CPU_REASON_FAILED_EMU,
 } CpuExitReason;
 
-#define INSN_INT3 0xcc
 /*
- * Never executed, only the address is used by CpuIsNativeCb/CpuRunCtxInternal
+ * Only the address is used by CpuIsNativeCb/CpuRunCtxInternal
  * to detect return back to native code.
  */
-static UINT8 CpuReturnToNative[] = { INSN_INT3 };
+STATIC VOID *CpuReturnToNative;
 
 STATIC
 BOOLEAN
