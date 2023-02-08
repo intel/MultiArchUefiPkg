@@ -13,7 +13,7 @@
 #include "X86Emulator.h"
 #include <Library/DefaultExceptionHandlerLib.h>
 
-extern CONST UINT64 X86EmulatorThunk[];
+extern CONST UINT64 EmulatorThunk[];
 
 VOID
 EFIAPI
@@ -38,7 +38,7 @@ X86InterpreterSyncExceptionCallback (
     if (Record != NULL) {
       AArch64Context->X16 = AArch64Context->ELR;
       AArch64Context->X17 = (UINT64)Record;
-      AArch64Context->ELR = (UINT64)X86EmulatorThunk;
+      AArch64Context->ELR = (UINT64)EmulatorThunk;
       return;
     }
   }
@@ -65,7 +65,7 @@ X86InterpreterSyncExceptionCallback (
             AArch64Context->LR - (UINT64) gDriverImage->ImageBase));
   }
 
-  X86EmulatorDump ();
+  EmulatorDump ();
   DefaultExceptionHandler (ExceptionType, SystemContext);
 }
 

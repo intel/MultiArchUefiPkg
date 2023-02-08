@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
 // Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
 //
 // This library is free software; you can redistribute it and/or
@@ -9,9 +10,9 @@
 
 .text
 
-GCC_ASM_EXPORT(X86EmulatorThunk)
+GCC_ASM_EXPORT(EmulatorThunk)
 
-ASM_PFX(X86EmulatorThunk):
+ASM_PFX(EmulatorThunk):
         stp             x29, x30, [sp, #-80]!
         mov             x29, sp
 
@@ -24,7 +25,7 @@ ASM_PFX(X86EmulatorThunk):
         add             x1, sp, #16
         mov             x2, x17
         mov             x3, x30
-        bl              X86EmulatorVmEntry
+        bl              EmulatorVmEntry
 
         ldp             x29, x30, [sp], #80
         ret

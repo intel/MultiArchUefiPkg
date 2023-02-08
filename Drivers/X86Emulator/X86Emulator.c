@@ -15,7 +15,7 @@
 EFI_CPU_ARCH_PROTOCOL     *gCpu;
 EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
 EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
-STATIC LIST_ENTRY         mX86ImageList;
+STATIC LIST_ENTRY         mImageList;
 
 VOID
 DumpImageRecords (
@@ -26,9 +26,9 @@ DumpImageRecords (
   ImageRecord *Record;
 
   DEBUG ((DEBUG_ERROR, "Emulated images:\n"));
-  for (Entry = GetFirstNode (&mX86ImageList);
-       !IsNull (&mX86ImageList, Entry);
-       Entry = GetNextNode (&mX86ImageList, Entry)) {
+  for (Entry = GetFirstNode (&mImageList);
+       !IsNull (&mImageList, Entry);
+       Entry = GetNextNode (&mImageList, Entry)) {
 
     Record = BASE_CR (Entry, ImageRecord, Link);
 
@@ -47,9 +47,9 @@ FindImageRecordByAddress (
   LIST_ENTRY  *Entry;
   ImageRecord *Record;
 
-  for (Entry = GetFirstNode (&mX86ImageList);
-       !IsNull (&mX86ImageList, Entry);
-       Entry = GetNextNode (&mX86ImageList, Entry)) {
+  for (Entry = GetFirstNode (&mImageList);
+       !IsNull (&mImageList, Entry);
+       Entry = GetNextNode (&mImageList, Entry)) {
 
     Record = BASE_CR (Entry, ImageRecord, Link);
 
@@ -69,9 +69,9 @@ FindImageRecordByHandle (
   LIST_ENTRY  *Entry;
   ImageRecord *Record;
 
-  for (Entry = GetFirstNode (&mX86ImageList);
-       !IsNull (&mX86ImageList, Entry);
-       Entry = GetNextNode (&mX86ImageList, Entry)) {
+  for (Entry = GetFirstNode (&mImageList);
+       !IsNull (&mImageList, Entry);
+       Entry = GetNextNode (&mImageList, Entry)) {
 
     Record = BASE_CR (Entry, ImageRecord, Link);
 
@@ -105,7 +105,7 @@ IsNativeCall (
 STATIC
 BOOLEAN
 EFIAPI
-IsX86ImageSupported (
+IsImageSupported (
   IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
   IN  UINT16                               ImageType,
   IN  EFI_DEVICE_PATH_PROTOCOL             *DevicePath OPTIONAL
@@ -122,7 +122,7 @@ IsX86ImageSupported (
 STATIC
 EFI_STATUS
 EFIAPI
-RegisterX86Image (
+RegisterImage (
   IN      EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
   IN      EFI_PHYSICAL_ADDRESS                 ImageBase,
   IN      UINT64                               ImageSize,
@@ -165,14 +165,14 @@ RegisterX86Image (
 
   CpuRegisterCodeRange (Record->Cpu, ImageBase, ImageSize);
 
-  InsertTailList (&mX86ImageList, &Record->Link);
+  InsertTailList (&mImageList, &Record->Link);
 
   /*
-   * On AArch64, X86Emulator relies on no-execute protection of the "foreign"
+   * On AArch64, this code relies on no-execute protection of the "foreign"
    * binary for seamless thunking to emulated code. Any attempt by native code
    * to call into the emulated code will be patched up by the installed
    * exception handler (X86InterpreterSyncExceptionCallback) to invoke
-   * X86EmulatorVmEntry instead.
+   * EmulatorVmEntry instead.
    *
    * Exception-driven detection of emulated code execution is the key
    * feature enabling emulated drivers to work, as their protocols can thus
@@ -199,7 +199,7 @@ RegisterX86Image (
 STATIC
 EFI_STATUS
 EFIAPI
-UnregisterX86Image (
+UnregisterImage (
   IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
   IN  EFI_PHYSICAL_ADDRESS                 ImageBase
   )
@@ -215,7 +215,7 @@ UnregisterX86Image (
   CpuUnregisterCodeRange (Record->Cpu, Record->ImageBase, Record->ImageSize);
 
   /*
-   * Remove non-exec protection installed by RegisterX86Image.
+   * Remove non-exec protection installed by RegisterImage.
    */
   Status = gCpu->SetMemoryAttributes (gCpu, Record->ImageBase,
                                       Record->ImageSize, 0);
@@ -226,16 +226,16 @@ UnregisterX86Image (
   return Status;
 }
 
-STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mX86EmulatorProtocol = {
-  IsX86ImageSupported,
-  RegisterX86Image,
-  UnregisterX86Image,
+STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocol = {
+  IsImageSupported,
+  RegisterImage,
+  UnregisterImage,
   EDKII_PECOFF_IMAGE_EMULATOR_VERSION,
   EFI_IMAGE_MACHINE_X64
 };
 
 UINT64
-X86EmulatorVmEntry (
+EmulatorVmEntry (
   IN  UINT64      ProgramCounter,
   IN  UINT64      *Args,
   IN  ImageRecord *Record,
@@ -246,7 +246,7 @@ X86EmulatorVmEntry (
 }
 
 VOID
-X86EmulatorDump (
+EmulatorDump (
   VOID
   )
 {
@@ -257,7 +257,7 @@ X86EmulatorDump (
 
 EFI_STATUS
 EFIAPI
-X86EmulatorDxeEntryPoint (
+EmulatorDxeEntryPoint (
   IN  EFI_HANDLE       ImageHandle,
   IN  EFI_SYSTEM_TABLE *SystemTable
   )
@@ -272,7 +272,7 @@ X86EmulatorDxeEntryPoint (
     return Status;
   }
 
-  InitializeListHead (&mX86ImageList);
+  InitializeListHead (&mImageList);
 
   EfiWrappersInit ();
 
@@ -303,7 +303,7 @@ X86EmulatorDxeEntryPoint (
   Status = gBS->InstallProtocolInterface (&ImageHandle,
                                           &gEdkiiPeCoffImageEmulatorProtocolGuid,
                                           EFI_NATIVE_INTERFACE,
-                                          &mX86EmulatorProtocol);
+                                          &mEmulatorProtocol);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "InstallProtocolInterface failed: %r\n", Status));
     ArchCleanup ();
@@ -317,7 +317,7 @@ X86EmulatorDxeEntryPoint (
     DEBUG ((DEBUG_ERROR, "InstallProtocolInterface failed: %r\n", Status));
     gBS->UninstallProtocolInterface (ImageHandle,
                                      &gEdkiiPeCoffImageEmulatorProtocolGuid,
-                                     &mX86EmulatorProtocol);
+                                     &mEmulatorProtocol);
     ArchCleanup ();
     CpuCleanup ();
     return Status;

@@ -129,7 +129,7 @@ extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
 
 VOID
-X86EmulatorDump (
+EmulatorDump (
   VOID
   );
 

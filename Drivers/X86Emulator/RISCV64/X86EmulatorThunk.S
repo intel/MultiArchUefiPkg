@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -9,8 +9,8 @@
 
         .text
         .align 3
-        .global         X86EmulatorThunk
-X86EmulatorThunk:
+        .global         EmulatorThunk
+EmulatorThunk:
         addi            sp, sp, -80
         sd              ra, 0(sp)
         sd              s0, 8(sp)
@@ -29,7 +29,7 @@ X86EmulatorThunk:
         addi            a1, sp, 16
         mv              a2, t1
         mv              a3, ra
-        jal             X86EmulatorVmEntry
+        jal             EmulatorVmEntry
 
         ld              ra, 0(sp)
         ld              s0, 8(sp)

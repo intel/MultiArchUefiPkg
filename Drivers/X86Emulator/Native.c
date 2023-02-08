@@ -35,7 +35,7 @@ NativeUnsupported (
 {
   DEBUG ((DEBUG_ERROR, "Unsupported native call 0x%lx from %a PC 0x%lx\n",
           OriginalProgramCounter, Cpu->Name, ReturnAddress));
-  X86EmulatorDump ();
+  EmulatorDump ();
   return EFI_UNSUPPORTED;
 }
 

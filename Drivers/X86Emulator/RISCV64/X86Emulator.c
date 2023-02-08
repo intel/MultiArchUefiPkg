@@ -16,7 +16,7 @@
 #define INSN_C_ADDR_MASK (-1ULL - 1)
 #define INSN_ADDR_MASK   (-1ULL - 3)
 
-extern CONST UINT64 X86EmulatorThunk[];
+extern CONST UINT64 EmulatorThunk[];
 
 STATIC
 EFI_STATUS
@@ -131,7 +131,7 @@ X86InterpreterSyncExceptionCallback (
                                   &RiscV64Context->X5);
       if (!EFI_ERROR (Status)) {
         RiscV64Context->X6 = (UINT64)Record;
-        RiscV64Context->SEPC = (UINT64)X86EmulatorThunk;
+        RiscV64Context->SEPC = (UINT64)EmulatorThunk;
         return;
       }
     }
@@ -167,7 +167,7 @@ X86InterpreterSyncExceptionCallback (
             RiscV64Context->X1 - (UINT64) gDriverImage->ImageBase));
   }
 
-  X86EmulatorDump ();
+  EmulatorDump ();
   DumpCpuContext (ExceptionType, SystemContext);
 
   CpuBreakpoint ();

@@ -156,11 +156,11 @@ CpuNullReadCb (
 {
   DEBUG ((DEBUG_ERROR, "UINT%u NULL-ptr read to 0x%lx\n",
           Size * 8, Offset));
-  DEBUG_CODE_BEGIN ();
-  {
-    X86EmulatorDump ();
-  }
-  DEBUG_CODE_END ();
+
+  DEBUG_CODE_BEGIN (); {
+    EmulatorDump ();
+  } DEBUG_CODE_END ();
+
   return 0xAFAFAFAFAFAFAFAFUL;
 }
 
@@ -175,11 +175,10 @@ CpuNullWriteCb (
 {
   DEBUG ((DEBUG_ERROR, "UINT%u NULL-ptr write to 0x%lx\n",
           Size * 8, Offset));
-  DEBUG_CODE_BEGIN ();
-  {
-    X86EmulatorDump ();
-  }
-  DEBUG_CODE_END ();
+
+  DEBUG_CODE_BEGIN (); {
+    EmulatorDump ();
+  } DEBUG_CODE_END ();
 }
 
 STATIC
@@ -388,8 +387,8 @@ CpuX86EmuThunkPost (
 
   for (; Index < MAX_ARGS; Index++) {
     UINT64 Val = CpuStackPop64 (Cpu);
-    DEBUG_CODE_BEGIN ();
-    {
+
+    DEBUG_CODE_BEGIN (); {
       if (Val != Args[Index]) {
         /*
          * The code doesn't know how many args were passed, so you can
@@ -401,8 +400,7 @@ CpuX86EmuThunkPost (
                 "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
                 Index, Val, Args[Index]));
       }
-    }
-    DEBUG_CODE_END ();
+    } DEBUG_CODE_END ();
   }
 }
 
@@ -748,7 +746,7 @@ CpuRunCtxInternal (
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
       DEBUG ((DEBUG_ERROR, "Emulation failed: %a\n", uc_strerror (UcErr)));
-      X86EmulatorDump ();
+      EmulatorDump ();
       break;
     }
   }
