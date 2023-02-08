@@ -84,18 +84,18 @@ FindImageRecordByHandle (
 
 BOOLEAN
 IsNativeCall (
-  IN  UINT64 Pc
+  IN  UINT64 ProgramCounter
   )
 {
-  if ((Pc & (NATIVE_INSN_ALIGNMENT - 1)) != 0) {
+  if ((ProgramCounter & (NATIVE_INSN_ALIGNMENT - 1)) != 0) {
     return FALSE;
   }
 
-  if (Pc < EFI_PAGE_SIZE) {
+  if (ProgramCounter < EFI_PAGE_SIZE) {
     return TRUE;
   }
 
-  if (FindImageRecordByAddress ((EFI_PHYSICAL_ADDRESS) Pc) != NULL) {
+  if (FindImageRecordByAddress (ProgramCounter) != NULL) {
     return FALSE;
   }
 
@@ -236,13 +236,13 @@ STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mX86EmulatorProtocol = {
 
 UINT64
 X86EmulatorVmEntry (
-  IN  UINT64           Pc,
+  IN  UINT64           ProgramCounter,
   IN  UINT64           *Args,
   IN  X86_IMAGE_RECORD *Record,
   IN  UINT64           Lr
   )
 {
-  return CpuRunFunc (Record->Cpu, Pc, (UINT64 *) Args);
+  return CpuRunFunc (Record->Cpu, ProgramCounter, (UINT64 *) Args);
 }
 
 VOID

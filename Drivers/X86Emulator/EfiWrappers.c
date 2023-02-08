@@ -20,8 +20,8 @@ typedef struct {
   EFI_EVENT        Event;
   VOID             *X64NotifyContext;
   EFI_EVENT_NOTIFY X64NotifyFunction;
-  UINT64           CallerRip;
-  CpuEmu           *Cpu;
+  UINT64           CallerProgramCounter;
+  CpuContext       *Cpu;
 } WRAPPED_EVENT_RECORD;
 
 STATIC
@@ -37,7 +37,7 @@ EfiWrappersDumpEvents ()
        !IsNull (&mEventList, Entry);
        Entry = GetNextNode (&mEventList, Entry)) {
     Record = BASE_CR (Entry, WRAPPED_EVENT_RECORD, Link);
-    Image = FindImageRecordByAddress (Record->CallerRip);
+    Image = FindImageRecordByAddress (Record->CallerProgramCounter);
 
     DEBUG ((DEBUG_ERROR, "\t%7a ImageBase 0x%lx Event %p Fn %p Context %p\n",
             Image->Cpu->Name, Image->ImageBase, Record->Event,
@@ -83,10 +83,10 @@ EfiWrappersFindEvent (
 
 EFI_STATUS
 EfiWrapperCloseEvent (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 OriginalRip,
-  IN  UINT64 ReturnAddress,
-  IN  UINT64 *Args
+  IN  CpuContext *Cpu,
+  IN  UINT64     OriginalProgramCounter,
+  IN  UINT64     ReturnAddress,
+  IN  UINT64     *Args
   )
 {
   EFI_EVENT            Event = (EFI_EVENT) Args[0];
@@ -109,10 +109,10 @@ EfiWrapperCloseEvent (
 
 EFI_STATUS
 EfiWrapperCreateEventCommon (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 OriginalRip,
-  IN  UINT64 ReturnAddress,
-  IN  UINT64 *Args
+  IN  CpuContext *Cpu,
+  IN  UINT64     OriginalProgramCounter,
+  IN  UINT64     ReturnAddress,
+  IN  UINT64     *Args
   )
 {
   UINT32               Type = Args[0];
@@ -125,10 +125,10 @@ EfiWrapperCreateEventCommon (
   EFI_STATUS           Status;
   EFI_TPL              Tpl;
 
-  if (OriginalRip == (UINT64) gBS->CreateEvent) {
+  if (OriginalProgramCounter == (UINT64) gBS->CreateEvent) {
     Event = (VOID *) Args[4];
   } else {
-    ASSERT (OriginalRip == (UINT64) gBS->CreateEventEx);
+    ASSERT (OriginalProgramCounter == (UINT64) gBS->CreateEventEx);
     EventGroup = (VOID *) Args[4];
     Event = (VOID *) Args[5];
   }
@@ -140,7 +140,7 @@ EfiWrapperCreateEventCommon (
   }
 
   Record->Cpu = Cpu;
-  Record->CallerRip = ReturnAddress;
+  Record->CallerProgramCounter = ReturnAddress;
   Record->X64NotifyContext = NotifyContext;
   Record->X64NotifyFunction = NotifyFunction;
   NotifyFunction = EfiWrappersEventNotify;
@@ -154,7 +154,7 @@ EfiWrapperCreateEventCommon (
   InsertTailList (&mEventList, &Record->Link);
   gBS->RestoreTPL (Tpl);
 
-  if (OriginalRip == (UINT64) gBS->CreateEvent) {
+  if (OriginalProgramCounter == (UINT64) gBS->CreateEvent) {
     Status = gBS->CreateEvent (Type, NotifyTpl, NotifyFunction,
                                NotifyContext, &Record->Event);
   } else {
@@ -176,7 +176,7 @@ EfiWrapperCreateEventCommon (
 
 UINT64
 EfiWrappersOverride (
-  IN  UINT64 Rip
+  IN  UINT64 ProgramCounter
   )
 {
    /*
@@ -185,27 +185,27 @@ EfiWrappersOverride (
     */
 
 #ifdef WRAPPED_ENTRY_POINTS
-  if (Rip == (UINT64) gBS->CreateEvent) {
+  if (ProgramCounter == (UINT64) gBS->CreateEvent) {
     return (UINT64) EfiWrapperCreateEventCommon;
-  } else if (Rip == (UINT64) gBS->CreateEventEx) {
+  } else if (ProgramCounter == (UINT64) gBS->CreateEventEx) {
     return (UINT64) EfiWrapperCreateEventCommon;
-  } else if (Rip == (UINT64) gBS->CloseEvent) {
+  } else if (ProgramCounter == (UINT64) gBS->CloseEvent) {
     return (UINT64) EfiWrapperCloseEvent;
   }
 #endif /* WRAPPED_ENTRY_POINTS */
-  if (Rip == (UINTN) gBS->ExitBootServices) {
+  if (ProgramCounter == (UINTN) gBS->ExitBootServices) {
     DEBUG ((DEBUG_ERROR,
             "Unsupported emulated ExitBootServices\n"));
     return (UINT64) &NativeUnsupported;
-  } else if (Rip == (UINTN) gCpu->RegisterInterruptHandler) {
+  } else if (ProgramCounter == (UINTN) gCpu->RegisterInterruptHandler) {
     DEBUG ((DEBUG_ERROR,
             "Unsupported emulated RegisterInterruptHandler\n"));
     return (UINT64) &NativeUnsupported;
-  } else if (Rip == (UINTN) gBS->Exit) {
+  } else if (ProgramCounter == (UINTN) gBS->Exit) {
     return (UINT64) &CpuExitImage;
   }
 
-  return Rip;
+  return ProgramCounter;
 }
 
 VOID

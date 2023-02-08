@@ -41,18 +41,18 @@
 
 #define UNUSED __attribute__((unused))
 
-#define REG_READ(CpuEmu, x) ({                                  \
+#define REG_READ(CpuContext, x) ({                              \
       UINT64 Reg;                                               \
       UNUSED uc_err UcErr;                                      \
-      UcErr = uc_reg_read ((CpuEmu)->UE, x, &Reg);              \
+      UcErr = uc_reg_read ((CpuContext)->UE, x, &Reg);          \
       ASSERT (UcErr == UC_ERR_OK);                              \
       Reg;                                                      \
     })
 
-#define REG_WRITE(CpuEmu, x, Val) ({                              \
+#define REG_WRITE(CpuContext, x, Val) ({                          \
       UNUSED uc_err UcErr;                                        \
       UINT64 Temp = Val;                                          \
-      UcErr = uc_reg_write ((CpuEmu)->UE, x, &Temp);              \
+      UcErr = uc_reg_write ((CpuContext)->UE, x, &Temp);          \
       ASSERT (UcErr == UC_ERR_OK);                                \
     })
 
@@ -61,16 +61,16 @@ typedef struct uc_context uc_context;
 
 typedef struct CpuRunContext CpuRunContext;
 
-typedef struct CpuEmu {
+typedef struct CpuContext {
   const char           *Name;
   int                  StackReg;
   int                  ProgramCounterReg;
   int                  ReturnValueReg;
   int                  Contexts;
-  VOID                 (*Dump) (struct CpuEmu *);
-  VOID                 (*EmuThunkPre) (struct CpuEmu *, UINT64 *Args);
-  VOID                 (*EmuThunkPost) (struct CpuEmu *, UINT64 *Args);
-  VOID                 (*NativeThunk) (struct CpuEmu *, UINT64 *ProgramCounter);
+  VOID                 (*Dump) (struct CpuContext *);
+  VOID                 (*EmuThunkPre) (struct CpuContext *, UINT64 *Args);
+  VOID                 (*EmuThunkPost) (struct CpuContext *, UINT64 *Args);
+  VOID                 (*NativeThunk) (struct CpuContext *, UINT64 *ProgramCounter);
   uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
@@ -82,7 +82,7 @@ typedef struct CpuEmu {
   UINT64               ExitPeriodTbs;
   UINT64               ExitPeriodTicks;
 #endif /* EMU_TIMEOUT_NONE */
-} CpuEmu;
+} CpuContext;
 
 typedef struct {
   LIST_ENTRY               Link;
@@ -93,7 +93,7 @@ typedef struct {
   /*
    * ISA-specific.
    */
-  CpuEmu                   *Cpu;
+  CpuContext               *Cpu;
   /*
    * To support the Exit() boot service.
    */
@@ -104,7 +104,7 @@ typedef struct {
 } X86_IMAGE_RECORD;
 
 typedef struct CpuRunContext {
-  CpuEmu               *Cpu;
+  CpuContext           *Cpu;
   EFI_VIRTUAL_ADDRESS  ProgramCounter;
 #ifdef CHECK_ORPHAN_CONTEXTS
   UINT64               LeakCookie;
@@ -123,7 +123,7 @@ typedef struct CpuRunContext {
   X86_IMAGE_RECORD     *ImageRecord;
 } CpuRunContext;
 
-extern CpuEmu                    CpuX86;
+extern CpuContext                CpuX86;
 extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
 extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
@@ -150,7 +150,7 @@ DumpImageRecords (
 
 UINT64
 CpuStackPop64 (
-  IN  CpuEmu *Cpu
+  IN  CpuContext *Cpu
   );
 
 VOID
@@ -170,7 +170,7 @@ CpuInit (
 
 BOOLEAN
 IsNativeCall (
-  IN  UINT64 Pc
+  IN  UINT64 ProgramCounter
   );
 
 EFI_STATUS
@@ -187,10 +187,10 @@ CpuCompressLeakedContexts (
 
 EFI_STATUS
 CpuExitImage (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 OriginalRip,
-  IN  UINT64 ReturnAddress,
-  IN  UINT64 *Args
+  IN  CpuContext *Cpu,
+  IN  UINT64     OriginalProgramCounter,
+  IN  UINT64     ReturnAddress,
+  IN  UINT64     *Args
   );
 
 CpuRunContext *
@@ -200,7 +200,7 @@ CpuGetTopContext (
 
 UINT64
 CpuRunFunc (
-  IN  CpuEmu              *Cpu,
+  IN  CpuContext          *Cpu,
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
   IN  UINT64              *Args
   );
@@ -215,14 +215,14 @@ CpuGetDebugState (
 
 VOID
 CpuUnregisterCodeRange (
-  IN  CpuEmu               *Cpu,
+  IN  CpuContext           *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   );
 
 VOID
 CpuRegisterCodeRange (
-  IN  CpuEmu               *Cpu,
+  IN  CpuContext           *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   );
@@ -234,17 +234,17 @@ CpuAddrIsCodeGen (
 
 VOID
 NativeThunkX86 (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 *Rip
+  IN  CpuContext *Cpu,
+  IN  UINT64     *ProgramCounter
   );
 
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 OriginalRip,
-  IN  UINT64 ReturnAddress,
-  IN  UINT64 *Args
+  IN  CpuContext *Cpu,
+  IN  UINT64     OriginalProgramCounter,
+  IN  UINT64     ReturnAddress,
+  IN  UINT64     *Args
   );
 
 EFI_STATUS
@@ -269,7 +269,7 @@ EfiWrappersInit (
 
 UINT64
 EfiWrappersOverride (
-  IN  UINT64 Rip
+  IN  UINT64 ProgramCounter
   );
 
 VOID

@@ -20,7 +20,7 @@
 #define SYSV_X64_ABI_REDZONE   128
 #define CURRENT_FP()           ((EFI_PHYSICAL_ADDRESS) __builtin_frame_address(0))
 
-CpuEmu CpuX86;
+CpuContext CpuX86;
 STATIC CpuRunContext *mTopContext;
 
 #ifndef EMU_TIMEOUT_NONE
@@ -58,8 +58,7 @@ CpuIsNativeCb (
   IN  UINT64    Address,
   IN  VOID      *UserData)
 {
-  if (Address == RETURN_TO_NATIVE_MAGIC ||
-      IsNativeCall (Address)) {
+  if (Address == RETURN_TO_NATIVE_MAGIC || IsNativeCall (Address)) {
     return TRUE;
   }
 
@@ -75,7 +74,7 @@ CpuTimeoutCb (
   IN  UINT32    Size,
   IN  VOID      *UserData)
 {
-  CpuEmu *Cpu = mTopContext->Cpu;
+  CpuContext *Cpu = mTopContext->Cpu;
   /*
    * GetPerformanceCounter () is a system register read, and is more expensive
    * than reading a variable. Moreover, in an emulated environment,
@@ -186,7 +185,7 @@ CpuNullWriteCb (
 STATIC
 VOID
 CpuCleanupEx (
-  IN  CpuEmu *Cpu
+  IN  CpuContext *Cpu
   )
 {
   uc_err UcErr;
@@ -214,7 +213,8 @@ CpuPrivateStackInit (
 #ifdef ON_PRIVATE_STACK
   EFI_STATUS Status;
 
-  Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE), &mNativeStackStart);
+  Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData,
+                               EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE), &mNativeStackStart);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Failed to allocate private stack: %r\n", Status));
     return Status;
@@ -246,11 +246,11 @@ CpuPrivateStackInit (
 STATIC
 VOID
 CpuX86Dump (
-  IN  CpuEmu *Cpu
+  IN  CpuContext *Cpu
   )
 {
-  UINT64 Val;
-  UNUSED UINTN Printed = 0;
+         UINT64 Val;
+  UNUSED UINTN  Printed = 0;
 
 #define REGS()                                  \
   REG(RIP);                                     \
@@ -292,7 +292,7 @@ CpuX86Dump (
 STATIC
 VOID
 CpuStackPushRedZone (
-  IN  CpuEmu *Cpu
+  IN  CpuContext *Cpu
   )
 {
   UINT64 Rsp;
@@ -304,7 +304,7 @@ CpuStackPushRedZone (
 
 UINT64
 CpuStackPop64 (
-  IN  CpuEmu *Cpu
+  IN  CpuContext *Cpu
   )
 {
   UINT64 Rsp;
@@ -320,8 +320,8 @@ CpuStackPop64 (
 STATIC
 VOID
 CpuStackPush64 (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 Val
+  IN  CpuContext *Cpu,
+  IN  UINT64     Val
   )
 {
   UINT64 Rsp;
@@ -336,8 +336,8 @@ CpuStackPush64 (
 STATIC
 VOID
 CpuX86EmuThunkPre (
-  IN  struct CpuEmu *Cpu,
-  IN  UINT64        *Args
+  IN  struct CpuContext *Cpu,
+  IN  UINT64            *Args
   )
 {
   unsigned Index;
@@ -370,8 +370,8 @@ CpuX86EmuThunkPre (
 STATIC
 VOID
 CpuX86EmuThunkPost (
-  IN  struct CpuEmu *Cpu,
-  IN  UINT64        *Args
+  IN  struct CpuContext *Cpu,
+  IN  UINT64            *Args
   )
 {
   unsigned Index;
@@ -409,13 +409,14 @@ CpuX86EmuThunkPost (
 STATIC
 EFI_STATUS
 CpuInitEx (
-  IN  uc_arch Arch,
-  OUT CpuEmu  *Cpu
+  IN  uc_arch    Arch,
+  OUT CpuContext *Cpu
   )
 {
   uc_err     UcErr;
   EFI_STATUS Status;
-  uc_hook    IoReadHook, IoWriteHook;
+  uc_hook    IoReadHook;
+  uc_hook    IoWriteHook;
 #ifndef EMU_TIMEOUT_NONE
   uc_hook    TimeoutHook;
 #endif /* EMU_TIMEOUT_NONE */
@@ -631,8 +632,8 @@ CpuDump (
   VOID
   )
 {
-  UINT64 Val;
-  CpuEmu *Cpu;
+  UINT64     Val;
+  CpuContext *Cpu;
 
   if (mTopContext == NULL) {
     /*
@@ -669,12 +670,12 @@ CpuRunCtxInternal (
   uc_err        UcErr;
   CpuExitReason ExitReason;
   UINT64        *Args = Context->Args;
-  UINT64        PC = Context->ProgramCounter;
-  CpuEmu        *Cpu = Context->Cpu;
+  UINT64        ProgramCounter = Context->ProgramCounter;
+  CpuContext    *Cpu = Context->Cpu;
 
   DEBUG ((DEBUG_INFO, "XXX %a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-          Cpu->Name, PC, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5],
-          Args[6], Args[7], Args[8]));
+          Cpu->Name, ProgramCounter, Args[0], Args[1], Args[2], Args[3], Args[4],
+          Args[5], Args[6], Args[7], Args[8]));
 
   ASSERT (Cpu->EmuThunkPre != NULL);
   Cpu->EmuThunkPre (Cpu, Args);
@@ -695,7 +696,7 @@ CpuRunCtxInternal (
       Context->TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
 #endif /* EMU_TIMEOUT_NONE */
 
-      UcErr = uc_emu_start (Cpu->UE, PC, 0, 0, 0);
+      UcErr = uc_emu_start (Cpu->UE, ProgramCounter, 0, 0, 0);
 
 #ifndef EMU_TIMEOUT_NONE
       if (Context->StoppedOnTimeout) {
@@ -714,10 +715,10 @@ CpuRunCtxInternal (
 #endif /* EMU_TIMEOUT_NONE */
     } EnableInterrupts ();
 
-    PC = REG_READ (Cpu, Cpu->ProgramCounterReg);
+    ProgramCounter = REG_READ (Cpu, Cpu->ProgramCounterReg);
 
     if (UcErr == UC_ERR_FIND_TB) {
-      if (PC == RETURN_TO_NATIVE_MAGIC) {
+      if (ProgramCounter == RETURN_TO_NATIVE_MAGIC) {
         ExitReason = CPU_REASON_RETURN_TO_NATIVE;
       } else {
         ExitReason = CPU_REASON_CALL_TO_NATIVE;
@@ -730,7 +731,7 @@ CpuRunCtxInternal (
        * but it should never be triggering due to the call
        * to uc_ctl_exits_enable.
        */
-      ASSERT (PC != 0);
+      ASSERT (ProgramCounter != 0);
       /*
        * This could be due to CpuTimeoutCb firing, or
        * this could be a 'hlt' as well, but no easy way
@@ -742,7 +743,7 @@ CpuRunCtxInternal (
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      Cpu->NativeThunk (Cpu, &PC);
+      Cpu->NativeThunk (Cpu, &ProgramCounter);
     } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
@@ -764,7 +765,7 @@ CpuRunCtxInternal (
 
 VOID
 CpuUnregisterCodeRange (
-  IN  CpuEmu               *Cpu,
+  IN  CpuContext           *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   )
@@ -785,7 +786,7 @@ CpuUnregisterCodeRange (
 
 VOID
 CpuRegisterCodeRange (
-  IN  CpuEmu               *Cpu,
+  IN  CpuContext           *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   )
@@ -804,7 +805,7 @@ CpuAllocContext (
   VOID
   )
 {
-  EFI_STATUS Status;
+  EFI_STATUS    Status;
   CpuRunContext *Context;
 
   Status = gBS->AllocatePool (EfiBootServicesData,
@@ -908,9 +909,9 @@ CpuDetectOrphanContexts (
     /*
      * Contexts could have different Context->Cpu, if say an Arm binary invoked
      * an x86 protocol. Important to do the following operations in the context
-     * of the right CpuEmu.
+     * of the right CpuContext.
      */
-    CpuEmu *Cpu = Context->Cpu;
+    CpuContext *Cpu = Context->Cpu;
 
     if (Orphan == NULL) {
       Orphan = Context->PrevContext;
@@ -960,8 +961,8 @@ CpuRunCtxOnPrivateStack (
   IN  CpuRunContext *Context
   )
 {
-  uc_err UcErr;
-  CpuEmu *Cpu = Context->Cpu;
+  uc_err     UcErr;
+  CpuContext *Cpu = Context->Cpu;
 
 #ifdef CHECK_ORPHAN_CONTEXTS
   CpuRunContext *OrphanContexts = CpuDetectOrphanContexts (Context);
@@ -1046,7 +1047,7 @@ CpuRunCtx (
 
 UINT64
 CpuRunFunc (
-  IN  CpuEmu              *Cpu,
+  IN  CpuContext          *Cpu,
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
   IN  UINT64              *Args
   )
@@ -1117,9 +1118,9 @@ CpuCompressLeakedContexts (
     /*
      * Contexts could have different Context->Cpu, if say an Arm binary invoked
      * an x86 protocol. Important to do the following operations in the context
-     * of the right CpuEmu.
+     * of the right CpuContext.
      */
-    CpuEmu *Cpu = Context->Cpu;
+    CpuContext *Cpu = Context->Cpu;
 
     Cpu->Contexts--;
     ASSERT (Cpu->Contexts >= 0);
@@ -1148,11 +1149,11 @@ CpuRunImage (
   IN  EFI_SYSTEM_TABLE *SystemTable
   )
 {
-  EFI_STATUS Status;
-  CpuRunContext *Context;
-  X86_IMAGE_RECORD *Record;
+  EFI_STATUS                Status;
+  CpuRunContext             *Context;
+  X86_IMAGE_RECORD          *Record;
   EFI_LOADED_IMAGE_PROTOCOL *LoadedImage;
-  UINT64 Args[2] = { (UINT64) ImageHandle, (UINT64) SystemTable };
+  UINT64                    Args[2] = { (UINT64) ImageHandle, (UINT64) SystemTable };
 
   Context = CpuAllocContext ();
   if (Context == NULL) {
@@ -1203,10 +1204,10 @@ CpuRunImage (
 
 EFI_STATUS
 CpuExitImage (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 OriginalRip,
-  IN  UINT64 ReturnAddress,
-  IN  UINT64 *Args
+  IN  CpuContext *Cpu,
+  IN  UINT64     OriginalProgramCounter,
+  IN  UINT64     ReturnAddress,
+  IN  UINT64     *Args
   )
 {
   EFI_TPL          Tpl;
@@ -1270,7 +1271,7 @@ CpuGetDebugState (
   OUT X86_EMU_TEST_DEBUG_STATE *DebugState
   )
 {
-  EFI_TPL Tpl;
+  EFI_TPL       Tpl;
   CpuRunContext *Context;
 
   ASSERT (DebugState != NULL);
