@@ -42,9 +42,9 @@ To quickly compile for AArch64:
         $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
         $ git submodule update --init
         $ export GCC5_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
-        $ build -a AARCH64 -t GCC5 -p UCX86EmulatorPkg/X86Emulator.dsc -b RELEASE
+        $ build -a AARCH64 -t GCC5 -p UCX86EmulatorPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/UCX86Emulator/RELEASE_GCC5/AARCH64/X86EmulatorDxe.efi
+This will produce Build/UCX86Emulator/RELEASE_GCC5/AARCH64/EmulatorDxe.efi
 
 To quickly compile for RISCV64:
 
@@ -59,9 +59,9 @@ To quickly compile for RISCV64:
         need to be applied to the UEFI firmware used for testing.
 
         $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
-        $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/X86Emulator.dsc -b RELEASE
+        $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/UCX86Emulator/RELEASE_GCC5/RISCV64/X86EmulatorDxe.efi
+This will produce Build/UCX86Emulator/RELEASE_GCC5/RISCV64/EmulatorDxe.efi
 
 ## ArmVirtPkg firmware with the bundled emulator
 
@@ -120,9 +120,9 @@ This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
 There's a small test application:
 
         $ export GCC5_X64_PREFIX=... (if you are on a non-X64 system)
-        $ build -a X64 -t GCC5 -p UCX86EmulatorPkg/X86EmulatorTest.dsc
+        $ build -a X64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
 
-When run against a DEBUG build of X86EmulatorDxe, will run further sanity tests.
+When run against a DEBUG build of EmulatorDxe, will run further sanity tests.
 
 ## Special builds
 
@@ -132,17 +132,17 @@ contains critical fixes to the operation of emulator. Beyond fixes, there
 are additional improvements that rely on additional new Unicorn APIs being
 made available.
 
-If you build with ON_PRIVATE_STACK=YES, X86EmulatorDxe will use a dedicated
+If you build with ON_PRIVATE_STACK=YES, EmulatorDxe will use a dedicated
 native stack for handling x64 emulation. This has some runtime overhead and
 is unneccesary for normal operation.
 
-If you build with WRAPPED_ENTRY_POINTS=YES, X86EmulatorDxe will use a
+If you build with WRAPPED_ENTRY_POINTS=YES, EmulatorDxe will use a
 different mechanism for invoking emulated code, for debugging situations
 where the X86InterpreterSyncExceptionCallback machinery (exception-driven
 detection of emulated code execution) doesn't work (e.g. adding a new host
 CPU port, running certain x64 apps on RISC-V, ...).
 
-If you build with CHECK_ORPHAN_CONTEXTS=YES, X86EmulatorDxe will perform
+If you build with CHECK_ORPHAN_CONTEXTS=YES, EmulatorDxe will perform
 more runtime checks to handle unexpeced/non-linear control flow from
 native code, that can result in a resource leak inside the emulator.
 This is enabled by default for DEBUG builds.
@@ -153,7 +153,7 @@ tight loops polling on some memory location updated by an event, we
 periodically bail out. If your non-native binaries are known good, you
 can also try building with EMU_TIMEOUT_NONE for maximum performance.
 
-Note 1: X86EmulatorTest will _not_ correctly work with EMU_TIMEOUT_NONE.
+Note 1: EmulatorTest will _not_ correctly work with EMU_TIMEOUT_NONE.
 
 Finally, you can choose to build with BaseDebugLibNull. By default
 UefiDebugLibConOut is used to get some reasonable debugging output, but

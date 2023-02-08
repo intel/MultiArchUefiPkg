@@ -10,7 +10,7 @@
 ##
 
 [Defines]
-  PLATFORM_NAME                  = X86EmulatorTest
+  PLATFORM_NAME                  = EmulatorTest
   PLATFORM_GUID                  = 62ad1d2c-27bf-4021-b32d-268d0e71c1234
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
@@ -73,4 +73,4 @@
 [BuildOptions]
 
 [Components]
-  UCX86EmulatorPkg/Application/X86EmulatorTest/X86EmulatorTest.inf
+  UCX86EmulatorPkg/Application/EmulatorTest/EmulatorTest.inf

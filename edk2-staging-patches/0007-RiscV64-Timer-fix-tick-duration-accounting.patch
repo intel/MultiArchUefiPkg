@@ -1,4 +1,4 @@
-From 9672fa65c561ebfe913d50152b98b7a176d98567 Mon Sep 17 00:00:00 2001
+From 817a2272956b3940ef85c79d1991b56641506842 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Thu, 2 Feb 2023 02:07:30 -0600
 Subject: [PATCH 7/7] RiscV64 Timer: fix tick duration accounting

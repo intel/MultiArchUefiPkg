@@ -1,4 +1,4 @@
-From 54b1dac3dbce9ac084bb9c5a790d2122e5713338 Mon Sep 17 00:00:00 2001
+From 27ab534bcbf64e77509f84310be4a828ee1c9506 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Tue, 10 Jan 2023 23:39:44 -0600
 Subject: [PATCH 5/7] OvmfPkg: bundle UCX86EmulatorPkg driver
@@ -12,7 +12,7 @@ Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
  2 files changed, 15 insertions(+)
 
 diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
-index f96f564a4c..8c4a50eb16 100644
+index f96f564a4c..ca87ca3384 100644
 --- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
 +++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
 @@ -515,3 +515,13 @@
@@ -23,14 +23,14 @@ index f96f564a4c..8c4a50eb16 100644
 +  #
 +  # X64 emulator for OpRoms, etc.
 +  #
-+  UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf {
++  UCX86EmulatorPkg/Drivers/Emulator/Emulator.inf {
 +    <LibraryClasses>
 +      UnicornEngineLib|unicorn/efi/UnicornEngineLib.inf
 +      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
 +      UnicornX86Lib|unicorn/efi/UnicornX86Lib.inf
 +  }
 diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
-index 56ab774aa4..612aea2548 100644
+index 56ab774aa4..80f8adcb54 100644
 --- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
 +++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
 @@ -202,6 +202,11 @@ INF  MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
@@ -40,7 +40,7 @@ index 56ab774aa4..612aea2548 100644
 +#
 +# X64 emulator for OpRoms, etc.
 +#
-+INF  UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf
++INF  UCX86EmulatorPkg/Drivers/Emulator/Emulator.inf
 +
  ################################################################################
  

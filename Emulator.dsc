@@ -11,7 +11,7 @@
 ##
 
 [Defines]
-  PLATFORM_NAME                  = X86Emulator
+  PLATFORM_NAME                  = Emulator
   PLATFORM_GUID                  = 62ad1d2c-27bf-4021-b32d-268d0e71c032
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
@@ -129,4 +129,4 @@
 !endif
 
 [Components]
-  UCX86EmulatorPkg/Drivers/X86Emulator/X86Emulator.inf
+  UCX86EmulatorPkg/Drivers/Emulator/Emulator.inf
