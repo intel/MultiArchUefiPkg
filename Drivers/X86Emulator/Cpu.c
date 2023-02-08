@@ -58,7 +58,7 @@ CpuIsNativeCb (
   IN  UINT64    Address,
   IN  VOID      *UserData)
 {
-  if (Address == RETURN_TO_NATIVE_MAGIC || IsNativeCall (Address)) {
+  if (Address == RETURN_TO_NATIVE_MAGIC || EmulatorIsNativeCall (Address)) {
     return TRUE;
   }
 
@@ -1167,7 +1167,7 @@ CpuRunImage (
     return Status;
   }
 
-  Record = FindImageRecordByAddress ((UINT64) LoadedImage->ImageBase);
+  Record = ImageFindByAddress ((UINT64) LoadedImage->ImageBase);
   ASSERT (Record != NULL);
   ASSERT (Record->Cpu != NULL);
 
@@ -1213,7 +1213,7 @@ CpuExitImage (
   ImageRecord   *CurrentImageRecord;
   EFI_HANDLE    Handle =  (VOID *) Args[0];
 
-  CurrentImageRecord = FindImageRecordByHandle (Handle);
+  CurrentImageRecord = ImageFindByHandle (Handle);
   if (CurrentImageRecord == NULL) {
     DEBUG((DEBUG_ERROR, "CpuExitImage: bad Handle argument 0x%lx\n", Handle));
     return EFI_INVALID_PARAMETER;

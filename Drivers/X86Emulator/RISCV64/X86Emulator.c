@@ -112,7 +112,7 @@ X86InterpreterSyncExceptionCallback (
   ImageRecord                *Record;
 
   RiscV64Context = SystemContext.SystemContextRiscV64;
-  Record = FindImageRecordByAddress (RiscV64Context->SEPC);
+  Record = ImageFindByAddress (RiscV64Context->SEPC);
 
   if (ExceptionType == EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT ||
       ExceptionType == EXCEPT_RISCV_ILLEGAL_INST) {

@@ -24,6 +24,7 @@
 
 [Sources]
   X86Emulator.c
+  Image.c
   Native.c
   Cpu.c
   TestProtocol.c

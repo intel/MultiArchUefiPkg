@@ -134,18 +134,42 @@ EmulatorDump (
   );
 
 ImageRecord *
-FindImageRecordByAddress (
+ImageFindByAddress (
   IN  EFI_PHYSICAL_ADDRESS Address
   );
 
 ImageRecord *
-FindImageRecordByHandle (
+ImageFindByHandle (
   IN  EFI_HANDLE Handle
   );
 
 VOID
-DumpImageRecords (
+ImageDump (
   VOID
+  );
+
+BOOLEAN
+EFIAPI
+ImageProtocolSupported (
+  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
+  IN  UINT16                               ImageType,
+  IN  EFI_DEVICE_PATH_PROTOCOL             *DevicePath OPTIONAL
+  );
+
+EFI_STATUS
+EFIAPI
+ImageProtocolUnregister (
+  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
+  IN  EFI_PHYSICAL_ADDRESS                 ImageBase
+  );
+
+EFI_STATUS
+EFIAPI
+ImageProtocolRegister (
+  IN      EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
+  IN      EFI_PHYSICAL_ADDRESS                 ImageBase,
+  IN      UINT64                               ImageSize,
+  IN  OUT EFI_IMAGE_ENTRY_POINT                *EntryPoint
   );
 
 UINT64
@@ -169,7 +193,7 @@ CpuInit (
   );
 
 BOOLEAN
-IsNativeCall (
+EmulatorIsNativeCall (
   IN  UINT64 ProgramCounter
   );
 

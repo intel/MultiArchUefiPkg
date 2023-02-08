@@ -37,7 +37,7 @@ EfiWrappersDumpEvents ()
        !IsNull (&mEventList, Entry);
        Entry = GetNextNode (&mEventList, Entry)) {
     Record = BASE_CR (Entry, WRAPPED_EVENT_RECORD, Link);
-    Image = FindImageRecordByAddress (Record->CallerProgramCounter);
+    Image = ImageFindByAddress (Record->CallerProgramCounter);
 
     DEBUG ((DEBUG_ERROR, "\t%7a ImageBase 0x%lx Event %p Fn %p Context %p\n",
             Image->Cpu->Name, Image->ImageBase, Record->Event,
