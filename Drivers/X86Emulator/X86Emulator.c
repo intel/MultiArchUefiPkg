@@ -128,41 +128,41 @@ RegisterX86Image (
   IN  OUT EFI_IMAGE_ENTRY_POINT                *EntryPoint
   )
 {
-  EFI_STATUS       Status;
-  X86_IMAGE_RECORD *Record;
+  EFI_STATUS                   Status;
+  X86_IMAGE_RECORD             *Record;
+  PE_COFF_LOADER_IMAGE_CONTEXT ImageContext;
 
-  DEBUG_CODE_BEGIN ();
-  {
-    PE_COFF_LOADER_IMAGE_CONTEXT  ImageContext;
-    EFI_STATUS                    Status;
+  ZeroMem (&ImageContext, sizeof (ImageContext));
 
-    ZeroMem (&ImageContext, sizeof (ImageContext));
+  ImageContext.Handle    = (VOID *)(UINTN)ImageBase;
+  ImageContext.ImageRead = PeCoffLoaderImageReadFromMemory;
 
-    ImageContext.Handle    = (VOID *)(UINTN)ImageBase;
-    ImageContext.ImageRead = PeCoffLoaderImageReadFromMemory;
-
-    Status = PeCoffLoaderGetImageInfo (&ImageContext);
-    if (EFI_ERROR (Status)) {
-      DEBUG((DEBUG_ERROR, "PeCoffLoaderGetImageInfo failed: %r\n", Status));
-      return Status;
-    }
-
-    ASSERT (ImageContext.Machine == EFI_IMAGE_MACHINE_X64);
-    ASSERT (ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_APPLICATION ||
-            ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER);
+  Status = PeCoffLoaderGetImageInfo (&ImageContext);
+  if (EFI_ERROR (Status)) {
+    DEBUG((DEBUG_ERROR, "PeCoffLoaderGetImageInfo failed: %r\n", Status));
+    return Status;
   }
-  DEBUG_CODE_END ();
 
-  CpuRegisterCodeRange (ImageBase, ImageSize);
+  ASSERT (ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_APPLICATION ||
+          ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER);
 
-  Record = AllocatePool (sizeof *Record);
+  Record = AllocatePool (sizeof (*Record));
   if (Record == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
 
+  if (ImageContext.Machine == EFI_IMAGE_MACHINE_X64) {
+    Record->Cpu = &CpuX86;
+  } else {
+    Record->Cpu = NULL;
+  }
+
+  ASSERT (Record->Cpu != NULL);
   Record->ImageBase = ImageBase;
   Record->ImageEntry = (UINT64) *EntryPoint;
   Record->ImageSize = ImageSize;
+
+  CpuRegisterCodeRange (Record->Cpu, ImageBase, ImageSize);
 
   InsertTailList (&mX86ImageList, &Record->Link);
 
@@ -211,7 +211,7 @@ UnregisterX86Image (
     return EFI_NOT_FOUND;
   }
 
-  CpuUnregisterCodeRange (Record->ImageBase, Record->ImageSize);
+  CpuUnregisterCodeRange (Record->Cpu, Record->ImageBase, Record->ImageSize);
 
   /*
    * Remove non-exec protection installed by RegisterX86Image.
@@ -241,7 +241,7 @@ X86EmulatorVmEntry (
   IN  UINT64           Lr
   )
 {
-  return CpuRunFunc(Pc, (UINT64 *) Args);
+  return CpuRunFunc (Record->Cpu, Pc, (UINT64 *) Args);
 }
 
 VOID

@@ -59,18 +59,14 @@
 typedef struct uc_struct uc_engine;
 typedef struct uc_context uc_context;
 
-extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
-extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
-extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
-
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuEmu {
   int                  StackReg;
   int                  Contexts;
-  VOID                 (*CpuDump)(struct CpuEmu *);
-  UINT64               (*RunCtxInternal)(CpuRunContext *);
-  VOID                 (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);
+  VOID                 (*Dump) (struct CpuEmu *);
+  UINT64               (*RunCtxInternal) (CpuRunContext *);
+  VOID                 (*NativeThunk) (struct CpuEmu *, UINT64 *ProgramCounter);
   uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
@@ -123,6 +119,11 @@ typedef struct CpuRunContext {
   X86_IMAGE_RECORD     *ImageRecord;
 } CpuRunContext;
 
+extern CpuEmu                    CpuX86;
+extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
+extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
+extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
+
 VOID
 X86EmulatorDump (
   VOID
@@ -141,6 +142,11 @@ FindImageRecordByHandle (
 VOID
 DumpImageRecords (
   VOID
+  );
+
+UINT64
+CpuStackPop64 (
+  IN  CpuEmu *Cpu
   );
 
 VOID
@@ -177,6 +183,7 @@ CpuCompressLeakedContexts (
 
 EFI_STATUS
 CpuExitImage (
+  IN  CpuEmu *Cpu,
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args
@@ -189,6 +196,7 @@ CpuGetTopContext (
 
 UINT64
 CpuRunFunc (
+  IN  CpuEmu              *Cpu,
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
   IN  UINT64              *Args
   );
@@ -203,12 +211,14 @@ CpuGetDebugState (
 
 VOID
 CpuUnregisterCodeRange (
+  IN  CpuEmu               *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   );
 
 VOID
 CpuRegisterCodeRange (
+  IN  CpuEmu               *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   );
@@ -221,12 +231,13 @@ CpuAddrIsCodeGen (
 VOID
 NativeThunkX86 (
   IN  CpuEmu *Cpu,
-  IN  UINT64 Rip
+  IN  UINT64 *Rip
   );
 
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
+  IN  CpuEmu *Cpu,
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args

@@ -21,6 +21,7 @@ typedef struct {
   VOID             *X64NotifyContext;
   EFI_EVENT_NOTIFY X64NotifyFunction;
   UINT64           CallerRip;
+  CpuEmu           *Cpu;
 } WRAPPED_EVENT_RECORD;
 
 STATIC
@@ -55,7 +56,7 @@ EfiWrappersEventNotify (
   WRAPPED_EVENT_RECORD *Record = Context;
   UINT64 Args[2] = { (UINT64) Event, (UINT64) Record->X64NotifyContext };
 
-  CpuRunFunc ((UINT64) Record->X64NotifyFunction, Args);
+  CpuRunFunc (Record->Cpu, (UINT64) Record->X64NotifyFunction, Args);
 }
 
 STATIC
@@ -82,6 +83,7 @@ EfiWrappersFindEvent (
 
 EFI_STATUS
 EfiWrapperCloseEvent (
+  IN  CpuEmu *Cpu,
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args
@@ -107,6 +109,7 @@ EfiWrapperCloseEvent (
 
 EFI_STATUS
 EfiWrapperCreateEventCommon (
+  IN  CpuEmu *Cpu,
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args
@@ -136,6 +139,7 @@ EfiWrapperCreateEventCommon (
      return EFI_OUT_OF_RESOURCES;
   }
 
+  Record->Cpu = Cpu;
   Record->CallerRip = ReturnAddress;
   Record->X64NotifyContext = NotifyContext;
   Record->X64NotifyFunction = NotifyFunction;

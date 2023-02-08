@@ -19,14 +19,15 @@ typedef union {
                      UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64);
-  UINT64 (*WrapperFn)(UINT64 OriginalRip, UINT64 ReturnAddress,
-                      UINT64 *Args);
+  UINT64 (*WrapperFn)(CpuEmu *Cpu, UINT64 OriginalRip,
+                      UINT64 ReturnAddress, UINT64 *Args);
   UINT64 Rip;
 } Fn;
 
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
+  IN  CpuEmu *Cpu,
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args
@@ -58,8 +59,8 @@ NativeValidateSupportedCall (
 
 VOID
 NativeThunkX86 (
-  IN  CpuEmu *CpuEmu,
-  IN  UINT64 Rip
+  IN  CpuEmu *Cpu,
+  IN  UINT64 *Rip
   )
 {
   UINT64 *StackArgs;
@@ -73,14 +74,14 @@ NativeThunkX86 (
   Fn      Func;
   CpuRunContext *CurrentTopContext = CpuGetTopContext ();
 
-  Func.Rip = NativeValidateSupportedCall (Rip);
-  WrapperCall = Func.Rip != Rip;
+  Func.Rip = NativeValidateSupportedCall (*Rip);
+  WrapperCall = Func.Rip != *Rip;
 
-  Rsp = REG_READ (CpuEmu, UC_X86_REG_RSP);
-  Rcx = REG_READ (CpuEmu, UC_X86_REG_RCX);
-  Rdx = REG_READ (CpuEmu, UC_X86_REG_RDX);
-  R8 = REG_READ (CpuEmu, UC_X86_REG_R8);
-  R9 = REG_READ (CpuEmu, UC_X86_REG_R9);
+  Rsp = REG_READ (Cpu, UC_X86_REG_RSP);
+  Rcx = REG_READ (Cpu, UC_X86_REG_RCX);
+  Rdx = REG_READ (Cpu, UC_X86_REG_RDX);
+  R8 = REG_READ (Cpu, UC_X86_REG_R8);
+  R9 = REG_READ (Cpu, UC_X86_REG_R9);
 
   StackArgs = (UINT64 *) Rsp;
 
@@ -112,7 +113,7 @@ NativeThunkX86 (
     StackArgs[2] = Rdx;
     StackArgs[3] = R8;
     StackArgs[4] = R9;
-    Rax = Func.WrapperFn (Rip, StackArgs[0], StackArgs + 1);
+    Rax = Func.WrapperFn (Cpu, *Rip, StackArgs[0], StackArgs + 1);
   } else {
     Rax = Func.NativeFn (Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7],
                          StackArgs[8], StackArgs[9], StackArgs[10], StackArgs[11],
@@ -138,5 +139,7 @@ NativeThunkX86 (
     CpuCompressLeakedContexts (CurrentTopContext, FALSE);
   }
 
-  REG_WRITE (CpuEmu, UC_X86_REG_RAX, Rax);
+  REG_WRITE (Cpu, UC_X86_REG_RAX, Rax);
+
+  *Rip = CpuStackPop64 (Cpu);
 }

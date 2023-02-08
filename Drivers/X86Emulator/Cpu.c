@@ -31,7 +31,7 @@ STATIC CpuRunContext *mTopContext;
 #endif /* EMU_TIMEOUT_NONE */
 
 #ifdef ON_PRIVATE_STACK
-BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
+STATIC BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
 STATIC EFI_PHYSICAL_ADDRESS mNativeStackStart;
 STATIC EFI_PHYSICAL_ADDRESS mNativeStackTop;
 #endif /* ON_PRIVATE_STACK */
@@ -244,6 +244,52 @@ CpuPrivateStackInit (
 }
 
 STATIC
+VOID
+CpuX86Dump (
+  IN  CpuEmu *Cpu
+  )
+{
+  UINT64 Val;
+  UNUSED UINTN Printed = 0;
+
+#define REGS()                                  \
+  REG(RIP);                                     \
+  REG(RFLAGS);                                  \
+  REG(RDI);                                     \
+  REG(RSI);                                     \
+  REG(RBP);                                     \
+  REG(RSP);                                     \
+  REG(RBX);                                     \
+  REG(RDX);                                     \
+  REG(RCX);                                     \
+  REG(RAX);                                     \
+  REG(R8);                                      \
+  REG(R9);                                      \
+  REG(R10);                                     \
+  REG(R11);                                     \
+  REG(R12);                                     \
+  REG(R13);                                     \
+  REG(R14);                                     \
+  REG(R15);
+
+#define REG(x) do {                                     \
+    Printed++;                                          \
+    Val = REG_READ (Cpu, UC_X86_REG_##x);               \
+    DEBUG ((DEBUG_ERROR, "%6a = 0x%016lx", #x, Val));   \
+    if ((Printed & 1) == 0) {                           \
+      DEBUG ((DEBUG_ERROR, "\n"));                      \
+    } else {                                            \
+      DEBUG ((DEBUG_ERROR, " "));                       \
+    }                                                   \
+  } while (0);
+
+  REGS ();
+
+#undef REG
+#undef REGS
+}
+
+STATIC
 EFI_STATUS
 CpuInitEx (
   IN  uc_arch Arch,
@@ -261,6 +307,8 @@ CpuInitEx (
 
   if (Arch == UC_ARCH_X86) {
     Cpu->StackReg = UC_X86_REG_RSP;
+    Cpu->Dump = CpuX86Dump;
+    Cpu->NativeThunk = NativeThunkX86;
   } else {
     return EFI_UNSUPPORTED;
   }
@@ -441,7 +489,6 @@ CpuStackPushRedZone (
   REG_WRITE (Cpu, Cpu->StackReg, Rsp);
 }
 
-STATIC
 UINT64
 CpuStackPop64 (
   IN  CpuEmu *Cpu
@@ -507,47 +554,22 @@ CpuDump (
   )
 {
   UINT64 Val;
-  UNUSED UINTN Printed = 0;
+  CpuEmu *Cpu;
 
-#define REGS()                                  \
-  REG(RIP);                                     \
-  REG(RFLAGS);                                  \
-  REG(RDI);                                     \
-  REG(RSI);                                     \
-  REG(RBP);                                     \
-  REG(RSP);                                     \
-  REG(RBX);                                     \
-  REG(RDX);                                     \
-  REG(RCX);                                     \
-  REG(RAX);                                     \
-  REG(R8);                                      \
-  REG(R9);                                      \
-  REG(R10);                                     \
-  REG(R11);                                     \
-  REG(R12);                                     \
-  REG(R13);                                     \
-  REG(R14);                                     \
-  REG(R15);
+  if (mTopContext == NULL) {
+    /*
+     * Nothing to do. We're not executing anything.
+     */
+    return;
+  }
 
-#define REG(x) do {                                     \
-    Printed++;                                          \
-    Val = REG_READ (&CpuX86, UC_X86_REG_##x);           \
-    DEBUG ((DEBUG_ERROR, "%6a = 0x%016lx", #x, Val));   \
-    if ((Printed & 1) == 0) {                           \
-      DEBUG ((DEBUG_ERROR, "\n"));                      \
-    } else {                                            \
-      DEBUG ((DEBUG_ERROR, " "));                       \
-    }                                                   \
-  } while (0);
+  Cpu = mTopContext->Cpu;
 
   DEBUG ((DEBUG_ERROR, "Emulated state:\n"));
-  REGS ();
+  Cpu->Dump (Cpu);
 
-#undef REG
-#undef REGS
-
-  Val = REG_READ (&CpuX86, CpuX86.StackReg);
-  if (!(Val >= CpuX86.EmuStackStart && Val < CpuX86.EmuStackTop)) {
+  Val = REG_READ (Cpu, Cpu->StackReg);
+  if (!(Val >= Cpu->EmuStackStart && Val < Cpu->EmuStackTop)) {
     /*
      * It's not completely invalid for a binary to move it's
      * stack pointer elsewhere, but it is highly unusual and
@@ -556,7 +578,7 @@ CpuDump (
      * (which clears the high bits of RSP).
      */
     DEBUG ((DEBUG_ERROR, "Emulated stack is outside 0x%lx-0x%lx\n",
-            CpuX86.EmuStackStart, CpuX86.EmuStackTop));
+            Cpu->EmuStackStart, Cpu->EmuStackTop));
   }
 }
 
@@ -663,8 +685,7 @@ CpuRunCtxInternal (
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      NativeThunkX86 (Cpu, Rip);
-      Rip = CpuStackPop64 (Cpu);
+      Cpu->NativeThunk (Cpu, &Rip);
     } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
@@ -714,13 +735,14 @@ CpuRunCtxInternal (
 
 VOID
 CpuUnregisterCodeRange (
+  IN  CpuEmu               *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   )
 {
   uc_err UcErr;
 
-  UcErr = uc_mem_protect (CpuX86.UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
+  UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -729,18 +751,19 @@ CpuUnregisterCodeRange (
    * Because images can be loaded into a previously used range,
    * stale TBs can lead to "strange" crashes.
    */
-  uc_ctl_remove_cache(CpuX86.UE, ImageBase, ImageBase + ImageSize);
+  uc_ctl_remove_cache(Cpu->UE, ImageBase, ImageBase + ImageSize);
 }
 
 VOID
 CpuRegisterCodeRange (
+  IN  CpuEmu               *Cpu,
   IN  EFI_PHYSICAL_ADDRESS ImageBase,
   IN  UINT64               ImageSize
   )
 {
   uc_err UcErr;
 
-  UcErr = uc_mem_protect (CpuX86.UE, ImageBase, ImageSize, UC_PROT_ALL);
+  UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_ALL);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -994,6 +1017,7 @@ CpuRunCtx (
 
 UINT64
 CpuRunFunc (
+  IN  CpuEmu              *Cpu,
   IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
   IN  UINT64              *Args
   )
@@ -1001,13 +1025,15 @@ CpuRunFunc (
   UINT64 Ret;
   CpuRunContext *Context;
 
+  ASSERT (Cpu != NULL);
+
   Context = CpuAllocContext ();
   if (Context == NULL) {
     DEBUG ((DEBUG_ERROR, "Could not allocate CpuRunContext\n"));
     return EFI_OUT_OF_RESOURCES;
   }
 
-  Context->Cpu = &CpuX86;
+  Context->Cpu = Cpu;
   Context->ProgramCounter = ProgramCounter;
   Context->Args = Args;
 
@@ -1113,10 +1139,11 @@ CpuRunImage (
     return Status;
   }
 
-  Context->Cpu = &CpuX86;
-
   Record = FindImageRecordByAddress ((UINT64) LoadedImage->ImageBase);
   ASSERT (Record != NULL);
+  ASSERT (Record->Cpu != NULL);
+
+  Context->Cpu = Record->Cpu;
   Record->ImageHandle = ImageHandle;
 
   Context->ImageRecord = Record;
@@ -1147,6 +1174,7 @@ CpuRunImage (
 
 EFI_STATUS
 CpuExitImage (
+  IN  CpuEmu *Cpu,
   IN  UINT64 OriginalRip,
   IN  UINT64 ReturnAddress,
   IN  UINT64 *Args
