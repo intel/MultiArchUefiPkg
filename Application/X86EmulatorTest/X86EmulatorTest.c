@@ -460,7 +460,7 @@ X86EmulatorTestEntryPoint (
     DEBUG ((DEBUG_ERROR, "X86_EMU_TEST_PROTOCOL is missing\n"));
   } else {
     mTest->TestGetDebugState (&mBeginDebugState);
-    DEBUG ((DEBUG_INFO, "Initial %lu contexts\n", mBeginDebugState.CurrentContextCount));
+    DEBUG ((DEBUG_INFO, "Initial %lu contexts\n", mBeginDebugState.ContextCount));
     DoTestProtocolTests (mTest);
     /*
      * Not all of these work with the old X86Emulator implementation...
@@ -480,6 +480,9 @@ X86EmulatorTestEntryPoint (
     X86_EMU_TEST_DEBUG_STATE DebugState;
     mTest->TestGetDebugState (&DebugState);
 
+    DEBUG ((DEBUG_INFO, "Contexts total %lu x86 %lu\n",
+            DebugState.ContextCount, DebugState.X86ContextCount));
+    ASSERT ((DebugState.ContextCount == DebugState.X86ContextCount));
     DEBUG ((DEBUG_INFO, "Emu timeout period %lu ms %lu ticks 0x%lx tbs\n",
             DebugState.ExitPeriodMs, DebugState.X86ExitPeriodTicks,
             DebugState.X86ExitPeriodTbs));

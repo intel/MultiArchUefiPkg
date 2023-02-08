@@ -19,10 +19,11 @@
 #define FIELD_VAL(x) ((1UL << 63) | (x##UL << 56) | (x##UL))
 
 typedef struct {
-  UINTN CurrentContextCount;
+  UINTN ContextCount;
   UINTN ExitPeriodMs;
   UINTN X86ExitPeriodTicks;
   UINTN X86ExitPeriodTbs;
+  UINTN X86ContextCount;
 } X86_EMU_TEST_DEBUG_STATE;
 
 typedef struct {

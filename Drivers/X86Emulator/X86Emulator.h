@@ -67,6 +67,7 @@ typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuEmu {
   int                  StackReg;
+  int                  Contexts;
   VOID                 (*CpuDump)(struct CpuEmu *);
   UINT64               (*RunCtxInternal)(CpuRunContext *);
   VOID                 (*NativeThunk)(struct CpuEmu *, UINT64 ProgramCounter);

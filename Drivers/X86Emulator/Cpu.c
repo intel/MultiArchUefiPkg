@@ -483,6 +483,7 @@ CpuEnterCritical (
   Context->PrevContext = mTopContext;
 
   mTopContext = Context;
+  Context->Cpu->Contexts++;
 }
 
 STATIC
@@ -495,6 +496,9 @@ CpuLeaveCritical (
   ASSERT (mTopContext == Context);
 
   mTopContext = mTopContext->PrevContext;
+  Context->Cpu->Contexts--;
+
+  ASSERT (Context->Cpu->Contexts >= 0);
 }
 
 VOID
@@ -849,9 +853,19 @@ CpuDetectOrphanContexts (
 
   while (Context->PrevContext != NULL &&
          Context->LeakCookie >= Context->PrevContext->LeakCookie) {
+    /*
+     * Contexts could have different Context->Cpu, if say an Arm binary invoked
+     * an x86 protocol. Important to do the following operations in the context
+     * of the right CpuEmu.
+     */
+    CpuEmu *Cpu = Context->Cpu;
+
     if (Orphan == NULL) {
       Orphan = Context->PrevContext;
     }
+
+    Cpu->Contexts--;
+    ASSERT (Cpu->Contexts >= 0);
     Context->PrevContext = Context->PrevContext->PrevContext;
   }
 
@@ -907,7 +921,7 @@ CpuRunCtxOnPrivateStack (
   CpuFreeOrphanContexts (OrphanContexts);
 #endif /* CHECK_ORPHAN_CONTEXTS */
 
-  if (Context->PrevContext != NULL) {
+  if (Cpu->Contexts > 1) {
     UcErr = uc_context_alloc (Cpu->UE, &Context->PrevUcContext);
     if (UcErr != UC_ERR_OK) {
       DEBUG ((DEBUG_ERROR, "could not allocate UC context: %a\n", uc_strerror (UcErr)));
@@ -1019,7 +1033,8 @@ CpuCompressLeakedContexts (
 {
   EFI_TPL       Tpl;
   CpuRunContext *Context;
-  CpuEmu        *Cpu = CurrentContext->Cpu;
+  CpuRunContext *FromContext;
+  CpuRunContext *ToContext;
 
   /*
    * CpuCompressLeakedContexts deals with situations where
@@ -1039,21 +1054,35 @@ CpuCompressLeakedContexts (
    */
 
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  Context = mTopContext;
-  mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
-  gBS->RestoreTPL (Tpl);
+  Context = FromContext = mTopContext;
+  ToContext = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
 
-  while (Context != mTopContext) {
+  while (Context != ToContext) {
     uc_err UcErr;
-    CpuRunContext *FreedContext = Context;
-    Context = Context->PrevContext;
+    /*
+     * Contexts could have different Context->Cpu, if say an Arm binary invoked
+     * an x86 protocol. Important to do the following operations in the context
+     * of the right CpuEmu.
+     */
+    CpuEmu *Cpu = Context->Cpu;
 
-    if (FreedContext->PrevUcContext != NULL) {
-      UcErr = uc_context_restore (Cpu->UE, FreedContext->PrevUcContext);
-      ASSERT (UcErr == UC_ERR_OK);
+    Cpu->Contexts--;
+    ASSERT (Cpu->Contexts >= 0);
+
+    if (Context->PrevUcContext != NULL) {
+      UcErr = uc_context_restore (Cpu->UE, Context->PrevUcContext);
     }
 
-    CpuFreeContext (FreedContext);
+    Context = Context->PrevContext;
+
+  }
+  gBS->RestoreTPL (Tpl);
+
+  while (FromContext != ToContext) {
+    Context = FromContext;
+    FromContext = Context->PrevContext;
+
+    CpuFreeContext (Context);
   }
 }
 
@@ -1194,7 +1223,7 @@ CpuGetDebugState (
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context = mTopContext;
   while (Context != NULL) {
-    DebugState->CurrentContextCount++;
+    DebugState->ContextCount++;
     Context = Context->PrevContext;
   }
 
@@ -1203,6 +1232,7 @@ CpuGetDebugState (
   DebugState->X86ExitPeriodTicks = CpuX86.ExitPeriodTicks;
   DebugState->X86ExitPeriodTbs = CpuX86.ExitPeriodTbs;
 #endif /* EMU_TIMEOUT_NONE */
+  DebugState->X86ContextCount = CpuX86.Contexts;
   gBS->RestoreTPL (Tpl);
 
   return EFI_SUCCESS;
