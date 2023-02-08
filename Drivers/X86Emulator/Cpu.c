@@ -290,6 +290,123 @@ CpuX86Dump (
 }
 
 STATIC
+VOID
+CpuStackPushRedZone (
+  IN  CpuEmu *Cpu
+  )
+{
+  UINT64 Rsp;
+
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Rsp -= SYSV_X64_ABI_REDZONE;
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
+}
+
+UINT64
+CpuStackPop64 (
+  IN  CpuEmu *Cpu
+  )
+{
+  UINT64 Rsp;
+  UINT64 Val;
+
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Val = *(UINT64 *) Rsp;
+  Rsp += 8;
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
+  return Val;
+}
+
+STATIC
+VOID
+CpuStackPush64 (
+  IN  CpuEmu *Cpu,
+  IN  UINT64 Val
+  )
+{
+  UINT64 Rsp;
+
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Rsp -= 8;
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
+
+  *(UINT64 *) Rsp = Val;
+}
+
+STATIC
+VOID
+CpuX86EmuThunkPre (
+  IN  struct CpuEmu *Cpu,
+  IN  UINT64        *Args
+  )
+{
+  unsigned Index;
+
+  REG_WRITE (Cpu, UC_X86_REG_RCX, Args[0]);
+  REG_WRITE (Cpu, UC_X86_REG_RDX, Args[1]);
+  REG_WRITE (Cpu, UC_X86_REG_R8, Args[2]);
+  REG_WRITE (Cpu, UC_X86_REG_R9, Args[3]);
+
+  for (Index = 0; Index < (MAX_ARGS - 4); Index++) {
+    /*
+     * Push arguments on stack in reverse order.
+     */
+    CpuStackPush64 (Cpu, Args[(MAX_ARGS - 1) - Index]);
+  }
+
+  for (Index = 0; Index < 4; Index++) {
+    /*
+     * Home zone for the called function.
+     */
+    CpuStackPush64 (Cpu, 0);
+  }
+
+  /*
+   * Return pointer, magic value that brings us back.
+   */
+  CpuStackPush64 (Cpu, RETURN_TO_NATIVE_MAGIC);
+}
+
+STATIC
+VOID
+CpuX86EmuThunkPost (
+  IN  struct CpuEmu *Cpu,
+  IN  UINT64        *Args
+  )
+{
+  unsigned Index;
+
+  /*
+   * Pop stack passed parameters.
+   */
+  for (Index = 0; Index < 4; Index++) {
+    /*
+     * Home Zone, modifiable by function.
+     */
+    CpuStackPop64 (Cpu);
+  }
+
+  for (; Index < MAX_ARGS; Index++) {
+    UINT64 Val = CpuStackPop64 (Cpu);
+    DEBUG_CODE_BEGIN ();
+    {
+      if (Val != Args[Index]) {
+        /*
+         * The code doesn't know how many args were passed, so you can
+         * have false positives due to actual Args[] values changing
+         * (not the emulated stack getting corrupted) - because it's just
+         * some variable on the stack, not an actual argument.
+         */
+        DEBUG ((DEBUG_ERROR,
+                "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
+                Index, Val, Args[Index]));
+      }
+    }
+    DEBUG_CODE_END ();
+  }
+}
+
+STATIC
 EFI_STATUS
 CpuInitEx (
   IN  uc_arch Arch,
@@ -306,8 +423,13 @@ CpuInitEx (
   size_t     UnicornCodeGenSize;
 
   if (Arch == UC_ARCH_X86) {
+    Cpu->Name = "x64";
     Cpu->StackReg = UC_X86_REG_RSP;
+    Cpu->ProgramCounterReg = UC_X86_REG_RIP;
+    Cpu->ReturnValueReg = UC_X86_REG_RAX;
     Cpu->Dump = CpuX86Dump;
+    Cpu->EmuThunkPre = CpuX86EmuThunkPre;
+    Cpu->EmuThunkPost = CpuX86EmuThunkPost;
     Cpu->NativeThunk = NativeThunkX86;
   } else {
     return EFI_UNSUPPORTED;
@@ -478,50 +600,6 @@ CpuInit (
 
 STATIC
 VOID
-CpuStackPushRedZone (
-  IN  CpuEmu *Cpu
-  )
-{
-  UINT64 Rsp;
-
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Rsp -= SYSV_X64_ABI_REDZONE;
-  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
-}
-
-UINT64
-CpuStackPop64 (
-  IN  CpuEmu *Cpu
-  )
-{
-  UINT64 Rsp;
-  UINT64 Val;
-
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Val = *(UINT64 *) Rsp;
-  Rsp += 8;
-  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
-  return Val;
-}
-
-STATIC
-VOID
-CpuStackPush64 (
-  IN  CpuEmu *Cpu,
-  IN  UINT64 Val
-  )
-{
-  UINT64 Rsp;
-
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Rsp -= 8;
-  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
-
-  *(UINT64 *) Rsp = Val;
-}
-
-STATIC
-VOID
 CpuEnterCritical (
   IN  CpuRunContext *Context
   )
@@ -588,45 +666,24 @@ CpuRunCtxInternal (
   IN  CpuRunContext *Context
   )
 {
-  unsigned      Index;
   uc_err        UcErr;
   CpuExitReason ExitReason;
   UINT64        *Args = Context->Args;
-  UINT64        Rip = Context->ProgramCounter;
+  UINT64        PC = Context->ProgramCounter;
   CpuEmu        *Cpu = Context->Cpu;
 
-  DEBUG ((DEBUG_INFO, "XXX x64 fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-          Rip, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5], Args[6], Args[7], Args[8]));
+  DEBUG ((DEBUG_INFO, "XXX %a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+          Cpu->Name, PC, Args[0], Args[1], Args[2], Args[3], Args[4], Args[5],
+          Args[6], Args[7], Args[8]));
 
-  REG_WRITE (Cpu, UC_X86_REG_RCX, Args[0]);
-  REG_WRITE (Cpu, UC_X86_REG_RDX, Args[1]);
-  REG_WRITE (Cpu, UC_X86_REG_R8, Args[2]);
-  REG_WRITE (Cpu, UC_X86_REG_R9, Args[3]);
-
-  for (Index = 0; Index < (MAX_ARGS - 4); Index++) {
-    /*
-     * Push arguments on stack in reverse order.
-     */
-    CpuStackPush64 (Cpu, Args[(MAX_ARGS - 1) - Index]);
-  }
-
-  for (Index = 0; Index < 4; Index++) {
-    /*
-     * Home zone for the called function.
-     */
-    CpuStackPush64 (Cpu, 0);
-  }
-
-  /*
-   * Return pointer, magic value that brings us back.
-   */
-  CpuStackPush64 (Cpu, RETURN_TO_NATIVE_MAGIC);
+  ASSERT (Cpu->EmuThunkPre != NULL);
+  Cpu->EmuThunkPre (Cpu, Args);
 
   for (;;) {
     ExitReason = CPU_REASON_INVALID;
     /*
      * Unfortunately UC is not reentrant enough, so we can't use uc_set_native_thunks
-     * (native code could call x64 code!) and we can't take any asynchronous x64 code
+     * (native code could call emulated code!) and we can't take any asynchronous emu code
      * execution (events). Disable interrupts while emulating and use a UC_BLOCK_HOOK
      * to periodically bail out to allow and allow events/timers to fire.
      *
@@ -638,7 +695,7 @@ CpuRunCtxInternal (
       Context->TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
 #endif /* EMU_TIMEOUT_NONE */
 
-      UcErr = uc_emu_start (Cpu->UE, Rip, 0, 0, 0);
+      UcErr = uc_emu_start (Cpu->UE, PC, 0, 0, 0);
 
 #ifndef EMU_TIMEOUT_NONE
       if (Context->StoppedOnTimeout) {
@@ -657,10 +714,10 @@ CpuRunCtxInternal (
 #endif /* EMU_TIMEOUT_NONE */
     } EnableInterrupts ();
 
-    Rip = REG_READ (Cpu, UC_X86_REG_RIP);
+    PC = REG_READ (Cpu, Cpu->ProgramCounterReg);
 
     if (UcErr == UC_ERR_FIND_TB) {
-      if (Rip == RETURN_TO_NATIVE_MAGIC) {
+      if (PC == RETURN_TO_NATIVE_MAGIC) {
         ExitReason = CPU_REASON_RETURN_TO_NATIVE;
       } else {
         ExitReason = CPU_REASON_CALL_TO_NATIVE;
@@ -673,7 +730,7 @@ CpuRunCtxInternal (
        * but it should never be triggering due to the call
        * to uc_ctl_exits_enable.
        */
-      ASSERT (Rip != 0);
+      ASSERT (PC != 0);
       /*
        * This could be due to CpuTimeoutCb firing, or
        * this could be a 'hlt' as well, but no easy way
@@ -685,7 +742,7 @@ CpuRunCtxInternal (
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      Cpu->NativeThunk (Cpu, &Rip);
+      Cpu->NativeThunk (Cpu, &PC);
     } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
@@ -696,41 +753,13 @@ CpuRunCtxInternal (
   }
 
   if (ExitReason != CPU_REASON_FAILED_EMU) {
-    /*
-     * Pop stack passed parameters.
-     */
-    for (Index = 0; Index < 4; Index++) {
-      /*
-       * Home Zone, modifiable by function.
-       */
-      CpuStackPop64 (Cpu);
-    }
-
-    for (; Index < MAX_ARGS; Index++) {
-      UINT64 Val = CpuStackPop64 (Cpu);
-      DEBUG_CODE_BEGIN ();
-      {
-        if (Val != Args[Index]) {
-          /*
-           * The code doesn't know how many args were passed, so you can
-           * have false positives due to actual Args[] values changing
-           * (not the x64 stack getting corrupted) - because it's just
-           * some variable on the stack, not an actual argument.
-           */
-          DEBUG ((DEBUG_ERROR,
-                  "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
-                  Index, Val, Args[Index]));
-        }
-      }
-      DEBUG_CODE_END ();
-    }
-  }
-
-  if (ExitReason == CPU_REASON_FAILED_EMU) {
+    ASSERT (Cpu->EmuThunkPost != NULL);
+    Cpu->EmuThunkPost (Cpu, Args);
+  } else {
     return EFI_UNSUPPORTED;
   }
 
-  return REG_READ (Cpu, UC_X86_REG_RAX);
+  return REG_READ (Cpu, Cpu->ReturnValueReg);
 }
 
 VOID
@@ -805,7 +834,7 @@ CpuFreeContext (
 
 #ifdef CHECK_ORPHAN_CONTEXTS
 /*
- * Every time the emulator executes x64 code on behalf
+ * Every time the emulator executes emulated code on behalf
  * of the caller, a new context is allocated and inserted
  * into the linked list pointed to by mTopContext. This is
  * then freed. Normal control flow cannot result in contexts
@@ -828,7 +857,7 @@ CpuFreeContext (
  * wrapped via CpuExitImage!
  *
  * Anyway, this is not normal, and not expected to be done
- * by any kind of application or driver executed via this x64
+ * by any kind of application or driver executed via this emulated
  * emulator. But CHECK_ORPHAN_CONTEXTS allows checking for such
  * behavior.
  */

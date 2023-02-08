@@ -62,10 +62,14 @@ typedef struct uc_context uc_context;
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuEmu {
+  const char           *Name;
   int                  StackReg;
+  int                  ProgramCounterReg;
+  int                  ReturnValueReg;
   int                  Contexts;
   VOID                 (*Dump) (struct CpuEmu *);
-  UINT64               (*RunCtxInternal) (CpuRunContext *);
+  VOID                 (*EmuThunkPre) (struct CpuEmu *, UINT64 *Args);
+  VOID                 (*EmuThunkPost) (struct CpuEmu *, UINT64 *Args);
   VOID                 (*NativeThunk) (struct CpuEmu *, UINT64 *ProgramCounter);
   uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
