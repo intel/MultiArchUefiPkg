@@ -10,7 +10,7 @@
 **/
 
 #include <unicorn.h>
-#include "X86Emulator.h"
+#include "Emulator.h"
 
 #ifdef WRAPPED_ENTRY_POINTS
 STATIC LIST_ENTRY mEventList;

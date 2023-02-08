@@ -10,7 +10,7 @@
 
 **/
 
-#include "X86Emulator.h"
+#include "Emulator.h"
 
 EFI_CPU_ARCH_PROTOCOL     *gCpu;
 EFI_CPU_IO2_PROTOCOL      *gCpuIo2;

@@ -10,7 +10,7 @@
 
 **/
 
-#include "X86Emulator.h"
+#include "Emulator.h"
 
 STATIC LIST_ENTRY mImageList = INITIALIZE_LIST_HEAD_VARIABLE (mImageList);
 

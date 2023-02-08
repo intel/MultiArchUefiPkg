@@ -23,7 +23,7 @@
 #
 
 [Sources]
-  X86Emulator.c
+  Emulator.c
   Image.c
   Native.c
   Cpu.c
@@ -31,12 +31,12 @@
   EfiWrappers.c
 
 [Sources.RISCV64]
-  RISCV64/X86Emulator.c
-  RISCV64/X86EmulatorThunk.S
+  RISCV64/Emulator.c
+  RISCV64/EmulatorThunk.S
 
 [Sources.AARCH64]
-  AARCH64/X86Emulator.c
-  AARCH64/X86EmulatorThunk.S
+  AARCH64/Emulator.c
+  AARCH64/EmulatorThunk.S
 
 [Packages]
   MdePkg/MdePkg.dec

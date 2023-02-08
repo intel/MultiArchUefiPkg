@@ -10,7 +10,7 @@
 
 **/
 
-#include "X86Emulator.h"
+#include "Emulator.h"
 #include <Library/CpuExceptionHandlerLib.h>
 
 #define INSN_C_ADDR_MASK (-1ULL - 1)

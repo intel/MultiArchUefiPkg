@@ -22,7 +22,7 @@
 #
 
 [Sources]
-  X86EmulatorTest.c
+  EmulatorTest.c
 
 [Packages]
   MdePkg/MdePkg.dec

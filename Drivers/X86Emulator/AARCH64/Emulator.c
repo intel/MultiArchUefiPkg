@@ -10,7 +10,7 @@
 
 **/
 
-#include "X86Emulator.h"
+#include "Emulator.h"
 #include <Library/DefaultExceptionHandlerLib.h>
 
 extern CONST UINT64 EmulatorThunk[];

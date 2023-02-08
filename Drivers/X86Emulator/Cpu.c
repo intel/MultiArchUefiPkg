@@ -11,7 +11,7 @@
 **/
 
 #include <unicorn.h>
-#include "X86Emulator.h"
+#include "Emulator.h"
 
 #define MAX_ARGS               16
 #define EMU_STACK_SIZE         (1024 * 1024)

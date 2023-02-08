@@ -11,7 +11,7 @@
 **/
 
 #include <unicorn.h>
-#include "X86Emulator.h"
+#include "Emulator.h"
 #include "TestProtocol.h"
 
 typedef union {
