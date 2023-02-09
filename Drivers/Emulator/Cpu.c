@@ -905,7 +905,7 @@ CpuRunCtxInternal (
     ASSERT (ExitReason != CPU_REASON_INVALID);
 
     if (ExitReason == CPU_REASON_CALL_TO_NATIVE) {
-      ProgramCounter = Cpu->NativeThunk (Cpu, ProgramCounter);
+      ProgramCounter = Cpu->NativeThunk (Context, ProgramCounter);
     } else if (ExitReason == CPU_REASON_RETURN_TO_NATIVE) {
       break;
     } else if (ExitReason == CPU_REASON_FAILED_EMU) {
@@ -1366,7 +1366,6 @@ CpuRunImage (
 
 EFI_STATUS
 CpuExitImage (
-  IN  CpuContext *Cpu,
   IN  UINT64     OriginalProgramCounter,
   IN  UINT64     ReturnAddress,
   IN  UINT64     *Args

@@ -19,7 +19,7 @@ typedef union {
                      UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64,
                      UINT64, UINT64, UINT64, UINT64);
-  UINT64 (*WrapperFn)(CpuContext *Cpu, UINT64 OriginalProgramCounter,
+  UINT64 (*WrapperFn)(UINT64 OriginalProgramCounter,
                       UINT64 ReturnAddress, UINT64 *Args);
   UINT64 ProgramCounter;
 } Fn;
@@ -27,12 +27,13 @@ typedef union {
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
-  IN  CpuContext *Cpu,
   IN  UINT64     OriginalProgramCounter,
   IN  UINT64     ReturnAddress,
   IN  UINT64     *Args
   )
 {
+  CpuContext *Cpu = CpuGetTopContext ()->Cpu;
+
   DEBUG ((DEBUG_ERROR, "Unsupported native call 0x%lx from %a PC 0x%lx\n",
           OriginalProgramCounter, Cpu->Name, ReturnAddress));
   EmulatorDump ();
@@ -57,19 +58,45 @@ NativeValidateSupportedCall (
   return EfiWrappersOverride (ProgramCounter);
 }
 
+STATIC
+VOID
+NativeThunkCheckLeakedContexts (
+  IN  CpuRunContext *Context
+  )
+{
+  if (CpuGetTopContext () != Context) {
+    /*
+     * Consider the following sequence:
+     * - emulated->native call
+     * - native does SetJump
+     * - native->emulated call
+     * - emulated->native call
+     * - native does LongJump
+     *
+     * This isn't that crazy - e.g. an emulated binary starting another
+     * emu binary, which calls gBS->Exit. While we can handle gBS->Exit
+     * cleanly ourselves, let's detect code that does something similar,
+     * which will result in UC engine state being out of sync with the
+     * expected context state.
+     */
+    CpuCompressLeakedContexts (Context, FALSE);
+  }
+}
+
 #ifdef SUPPORTS_AARCH64_BINS
 UINT64
 NativeThunkAArch64 (
-  IN  CpuContext *Cpu,
-  IN  UINT64     ProgramCounter
+  IN  CpuRunContext *Context,
+  IN  UINT64        ProgramCounter
   )
 {
-  UINT64 *StackArgs;
-  BOOLEAN WrapperCall;
-  UINT64  Lr, Sp, X0, X1, X2, X3, X4, X5, X6, X7;
-  Fn      Func;
-  CpuRunContext *CurrentTopContext = CpuGetTopContext ();
+  UINT64     *StackArgs;
+  BOOLEAN    WrapperCall;
+  UINT64     Lr, Sp, X0, X1, X2, X3, X4, X5, X6, X7;
+  Fn         Func;
+  CpuContext *Cpu;
 
+  Cpu = Context->Cpu;
   Func.ProgramCounter = NativeValidateSupportedCall (ProgramCounter);
   WrapperCall = Func.ProgramCounter != ProgramCounter;
 
@@ -107,7 +134,7 @@ NativeThunkAArch64 (
                                      StackArgs[2], StackArgs[3],
                                      StackArgs[4], StackArgs[5],
                                      StackArgs[6], StackArgs[7] };
-    X0 = Func.WrapperFn (Cpu, ProgramCounter, Lr, WrapperArgs);
+    X0 = Func.WrapperFn (ProgramCounter, Lr, WrapperArgs);
   } else {
     X0 = Func.NativeFn (X0, X1, X2, X3, X4, X5, X6, X7,
                         StackArgs[0], StackArgs[1], StackArgs[2],
@@ -115,23 +142,7 @@ NativeThunkAArch64 (
                         StackArgs[6], StackArgs[7]);
   }
 
-  if (CpuGetTopContext () != CurrentTopContext) {
-    /*
-     * Consider the following sequence:
-     * - emulated->native call
-     * - native does SetJump
-     * - native->emulated call
-     * - emulated->native call
-     * - native does LongJump
-     *
-     * This isn't that crazy - e.g. an emulated binary starting another
-     * emu binary, which calls gBS->Exit. While we can handle gBS->Exit
-     * cleanly ourselves, let's detect code that does something similar,
-     * which will result in UC engine state being out of sync with the
-     * expected context state.
-     */
-    CpuCompressLeakedContexts (CurrentTopContext, FALSE);
-  }
+  NativeThunkCheckLeakedContexts (Context);
 
   REG_WRITE (Cpu, UC_ARM64_REG_X0, X0);
 
@@ -141,16 +152,17 @@ NativeThunkAArch64 (
 
 UINT64
 NativeThunkX86 (
-  IN  CpuContext *Cpu,
-  IN  UINT64     ProgramCounter
+  IN  CpuRunContext *Context,
+  IN  UINT64        ProgramCounter
   )
 {
-  UINT64 *StackArgs;
-  BOOLEAN WrapperCall;
-  UINT64  Rax, Rsp, Rcx, Rdx, R8, R9;
-  Fn      Func;
-  CpuRunContext *CurrentTopContext = CpuGetTopContext ();
+  UINT64     *StackArgs;
+  BOOLEAN    WrapperCall;
+  UINT64     Rax, Rsp, Rcx, Rdx, R8, R9;
+  Fn         Func;
+  CpuContext *Cpu;
 
+  Cpu = Context->Cpu;
   Func.ProgramCounter = NativeValidateSupportedCall (ProgramCounter);
   WrapperCall = Func.ProgramCounter != ProgramCounter;
 
@@ -191,7 +203,7 @@ NativeThunkX86 (
     StackArgs[2] = Rdx;
     StackArgs[3] = R8;
     StackArgs[4] = R9;
-    Rax = Func.WrapperFn (Cpu, ProgramCounter, StackArgs[0], StackArgs + 1);
+    Rax = Func.WrapperFn (ProgramCounter, StackArgs[0], StackArgs + 1);
   } else {
     Rax = Func.NativeFn (Rcx, Rdx, R8, R9, StackArgs[5], StackArgs[6], StackArgs[7],
                          StackArgs[8], StackArgs[9], StackArgs[10], StackArgs[11],
@@ -199,23 +211,7 @@ NativeThunkX86 (
                          StackArgs[16]);
   }
 
-  if (CpuGetTopContext () != CurrentTopContext) {
-    /*
-     * Consider the following sequence:
-     * - emulated->native call
-     * - native does SetJump
-     * - native->emulated call
-     * - emulated->native call
-     * - native does LongJump
-     *
-     * This isn't that crazy - e.g. an emulated binary starting another
-     * emu binary, which calls gBS->Exit. While we can handle gBS->Exit
-     * cleanly ourselves, let's detect code that does something similar,
-     * which will result in UC engine state being out of sync with the
-     * expected context state.
-     */
-    CpuCompressLeakedContexts (CurrentTopContext, FALSE);
-  }
+  NativeThunkCheckLeakedContexts (Context);
 
   REG_WRITE (Cpu, UC_X86_REG_RAX, Rax);
 

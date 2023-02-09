@@ -83,7 +83,6 @@ EfiWrappersFindEvent (
 
 EFI_STATUS
 EfiWrapperCloseEvent (
-  IN  CpuContext *Cpu,
   IN  UINT64     OriginalProgramCounter,
   IN  UINT64     ReturnAddress,
   IN  UINT64     *Args
@@ -109,7 +108,6 @@ EfiWrapperCloseEvent (
 
 EFI_STATUS
 EfiWrapperCreateEventCommon (
-  IN  CpuContext *Cpu,
   IN  UINT64     OriginalProgramCounter,
   IN  UINT64     ReturnAddress,
   IN  UINT64     *Args
@@ -139,7 +137,7 @@ EfiWrapperCreateEventCommon (
      return EFI_OUT_OF_RESOURCES;
   }
 
-  Record->Cpu = Cpu;
+  Record->Cpu = CpuGetTopContext ()->Cpu;
   Record->CallerProgramCounter = ReturnAddress;
   Record->X64NotifyContext = NotifyContext;
   Record->X64NotifyFunction = NotifyFunction;

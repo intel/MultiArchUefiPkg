@@ -84,7 +84,7 @@ typedef struct CpuContext {
   VOID                 (*Dump) (struct CpuContext *);
   VOID                 (*EmuThunkPre) (struct CpuContext *, UINT64 *Args);
   VOID                 (*EmuThunkPost) (struct CpuContext *, UINT64 *Args);
-  UINT64               (*NativeThunk) (struct CpuContext *, UINT64 ProgramCounter);
+  UINT64               (*NativeThunk) (struct CpuRunContext *, UINT64 ProgramCounter);
   uc_engine            *UE;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
   EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
@@ -228,7 +228,6 @@ CpuCompressLeakedContexts (
 
 EFI_STATUS
 CpuExitImage (
-  IN  CpuContext *Cpu,
   IN  UINT64     OriginalProgramCounter,
   IN  UINT64     ReturnAddress,
   IN  UINT64     *Args
@@ -275,22 +274,21 @@ CpuAddrIsCodeGen (
 
 UINT64
 NativeThunkX86 (
-  IN  CpuContext *Cpu,
-  IN  UINT64     ProgramCounter
+  IN  CpuRunContext *Context,
+  IN  UINT64        ProgramCounter
   );
 
 #ifdef SUPPORTS_AARCH64_BINS
 UINT64
 NativeThunkAArch64 (
-  IN  CpuContext *Cpu,
-  IN  UINT64     ProgramCounter
+  IN  CpuRunContext *Context,
+  IN  UINT64        ProgramCounter
   );
 #endif /* SUPPORTS_AARCH64_BINS */
 
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
-  IN  CpuContext *Cpu,
   IN  UINT64     OriginalProgramCounter,
   IN  UINT64     ReturnAddress,
   IN  UINT64     *Args
