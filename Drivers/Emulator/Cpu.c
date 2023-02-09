@@ -13,7 +13,6 @@
 #include <unicorn.h>
 #include "Emulator.h"
 
-#define MAX_ARGS               16
 #define EMU_STACK_SIZE         (1024 * 1024)
 #define NATIVE_STACK_SIZE      (1024 * 1024)
 #define RETURN_TO_NATIVE_MAGIC ((UINTN) &CpuReturnToNative)
@@ -21,6 +20,9 @@
 #define CURRENT_FP()           ((UINTN) __builtin_frame_address(0))
 
 CpuContext CpuX86;
+#ifdef SUPPORTS_AARCH64_BINS
+CpuContext CpuAArch64;
+#endif /* SUPPORTS_AARCH64_BINS */
 STATIC CpuRunContext *mTopContext;
 
 #ifndef EMU_TIMEOUT_NONE
@@ -192,6 +194,10 @@ CpuCleanupEx (
 
   UcErr = uc_close (Cpu->UE);
   ASSERT (UcErr == UC_ERR_OK);
+
+  /*
+   * TBD: Do more.
+   */
 }
 
 VOID
@@ -200,6 +206,9 @@ CpuCleanup (
   )
 {
   CpuCleanupEx (&CpuX86);
+#ifdef SUPPORTS_AARCH64_BINS
+  CpuCleanupEx (&CpuAArch64);
+#endif /* SUPPORTS_AARCH64_BINS */
 }
 
 STATIC
@@ -240,6 +249,176 @@ CpuPrivateStackInit (
 #endif /* ON_PRIVATE_STACK */
   return EFI_SUCCESS;
 }
+
+STATIC
+VOID
+CpuStackPushRedZone (
+  IN  CpuContext *Cpu
+  )
+{
+  UINT64 Rsp;
+
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Rsp -= SYSV_X64_ABI_REDZONE;
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
+}
+
+UINT64
+CpuStackPop64 (
+  IN  CpuContext *Cpu
+  )
+{
+  UINT64 Rsp;
+  UINT64 Val;
+
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Val = *(UINT64 *) Rsp;
+  Rsp += 8;
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
+  return Val;
+}
+
+STATIC
+VOID
+CpuStackPush64 (
+  IN  CpuContext *Cpu,
+  IN  UINT64     Val
+  )
+{
+  UINT64 Rsp;
+
+  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Rsp -= 8;
+  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
+
+  *(UINT64 *) Rsp = Val;
+}
+
+#ifdef SUPPORTS_AARCH64_BINS
+STATIC
+VOID
+CpuAArch64Dump (
+  IN  CpuContext *Cpu
+  )
+{
+         UINT64 Val;
+  UNUSED UINTN  Printed = 0;
+
+#define REGS()                                        \
+  REG(PC);                                            \
+  REG(LR);                                            \
+  REG(NZCV);                                          \
+  REG(SP);                                            \
+  REG(FP);                                            \
+  REG(X0);                                            \
+  REG(X1);                                            \
+  REG(X2);                                            \
+  REG(X3);                                            \
+  REG(X4);                                            \
+  REG(X5);                                            \
+  REG(X6);                                            \
+  REG(X7);                                            \
+  REG(X8);                                            \
+  REG(X9);                                            \
+  REG(X10);                                           \
+  REG(X11);                                           \
+  REG(X12);                                           \
+  REG(X13);                                           \
+  REG(X14);                                           \
+  REG(X15);                                           \
+  REG(X16);                                           \
+  REG(X17);                                           \
+  REG(X18);                                           \
+  REG(X19);                                           \
+  REG(X20);                                           \
+  REG(X21);                                           \
+  REG(X22);                                           \
+  REG(X23);                                           \
+  REG(X24);                                           \
+  REG(X25);                                           \
+  REG(X26);                                           \
+  REG(X27);                                           \
+  REG(X28);
+
+#define REG(x) do {                                     \
+    Printed++;                                          \
+    Val = REG_READ (Cpu, UC_ARM64_REG_##x);             \
+    DEBUG ((DEBUG_ERROR, "%4a = 0x%016lx", #x, Val));   \
+    if ((Printed & 1) == 0) {                           \
+      DEBUG ((DEBUG_ERROR, "\n"));                      \
+    } else {                                            \
+      DEBUG ((DEBUG_ERROR, " "));                       \
+    }                                                   \
+  } while (0);
+
+  REGS ();
+
+#undef REG
+#undef REGS
+}
+
+STATIC
+VOID
+CpuAArch64EmuThunkPre (
+  IN  struct CpuContext *Cpu,
+  IN  UINT64            *Args
+  )
+{
+  unsigned Index;
+
+  REG_WRITE (Cpu, UC_ARM64_REG_X0, Args[0]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X1, Args[1]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X2, Args[2]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X3, Args[3]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X4, Args[4]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X5, Args[5]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X6, Args[6]);
+  REG_WRITE (Cpu, UC_ARM64_REG_X7, Args[7]);
+
+  for (Index = 0; Index < (MAX_ARGS - 8); Index++) {
+    /*
+     * Push arguments on stack in reverse order.
+     */
+    CpuStackPush64 (Cpu, Args[(MAX_ARGS - 1) - Index]);
+  }
+
+  /*
+   * Magic value that brings us back.
+   */
+  REG_WRITE (Cpu, UC_ARM64_REG_LR, RETURN_TO_NATIVE_MAGIC);
+}
+
+STATIC
+VOID
+CpuAArch64EmuThunkPost (
+  IN  struct CpuContext *Cpu,
+  IN  UINT64            *Args
+  )
+{
+  unsigned Index;
+
+  /*
+   * Pop stack passed parameters.
+   */
+  for (Index = 8; Index < MAX_ARGS; Index++) {
+    UINT64 Val = CpuStackPop64 (Cpu);
+
+    DEBUG_CODE_BEGIN (); {
+      if (Val != Args[Index]) {
+        /*
+         * The code doesn't know how many args were passed, so you can
+         * have false positives due to actual Args[] values changing
+         * (not the emulated stack getting corrupted) - because it's just
+         * some variable on the stack, not an actual argument.
+         */
+        DEBUG ((DEBUG_ERROR,
+                "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
+                Index, Val, Args[Index]));
+      }
+    } DEBUG_CODE_END ();
+  }
+}
+#endif /* SUPPORTS_AARCH64_BINS */
 
 STATIC
 VOID
@@ -285,50 +464,6 @@ CpuX86Dump (
 
 #undef REG
 #undef REGS
-}
-
-STATIC
-VOID
-CpuStackPushRedZone (
-  IN  CpuContext *Cpu
-  )
-{
-  UINT64 Rsp;
-
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Rsp -= SYSV_X64_ABI_REDZONE;
-  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
-}
-
-UINT64
-CpuStackPop64 (
-  IN  CpuContext *Cpu
-  )
-{
-  UINT64 Rsp;
-  UINT64 Val;
-
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Val = *(UINT64 *) Rsp;
-  Rsp += 8;
-  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
-  return Val;
-}
-
-STATIC
-VOID
-CpuStackPush64 (
-  IN  CpuContext *Cpu,
-  IN  UINT64     Val
-  )
-{
-  UINT64 Rsp;
-
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Rsp -= 8;
-  REG_WRITE (Cpu, Cpu->StackReg, Rsp);
-
-  *(UINT64 *) Rsp = Val;
 }
 
 STATIC
@@ -419,8 +554,11 @@ CpuInitEx (
 #endif /* EMU_TIMEOUT_NONE */
   uc_hook    IsNativeHook;
   size_t     UnicornCodeGenSize;
+  uc_mode    UcMode;
 
   if (Arch == UC_ARCH_X86) {
+    UcMode = UC_MODE_64;
+    Cpu->EmuMachineType = EFI_IMAGE_MACHINE_X64;
     Cpu->Name = "x64";
     Cpu->StackReg = UC_X86_REG_RSP;
     Cpu->ProgramCounterReg = UC_X86_REG_RIP;
@@ -429,6 +567,19 @@ CpuInitEx (
     Cpu->EmuThunkPre = CpuX86EmuThunkPre;
     Cpu->EmuThunkPost = CpuX86EmuThunkPost;
     Cpu->NativeThunk = NativeThunkX86;
+#ifdef SUPPORTS_AARCH64_BINS
+  } else if (Arch == UC_ARCH_ARM64) {
+    Cpu->EmuMachineType = EFI_IMAGE_MACHINE_AARCH64;
+    UcMode = UC_MODE_ARM;
+    Cpu->Name = "AArch64";
+    Cpu->StackReg = UC_ARM64_REG_SP;
+    Cpu->ProgramCounterReg = UC_ARM64_REG_PC;
+    Cpu->ReturnValueReg = UC_ARM64_REG_X0;
+    Cpu->Dump = CpuAArch64Dump;
+    Cpu->EmuThunkPre = CpuAArch64EmuThunkPre;
+    Cpu->EmuThunkPost = CpuAArch64EmuThunkPost;
+    Cpu->NativeThunk = NativeThunkAArch64;
+#endif /* SUPPORTS_AARCH64_BINS */
   } else {
     return EFI_UNSUPPORTED;
   }
@@ -449,7 +600,7 @@ CpuInitEx (
   }
   Cpu->EmuStackTop = Cpu->EmuStackStart + EMU_STACK_SIZE;
 
-  UcErr = uc_open(Arch, UC_MODE_64, &Cpu->UE);
+  UcErr = uc_open(Arch, UcMode, &Cpu->UE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_open failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -592,7 +743,19 @@ CpuInit (
     return Status;
   }
 
-  return CpuInitEx (UC_ARCH_X86, &CpuX86);
+  Status = CpuInitEx (UC_ARCH_X86, &CpuX86);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+#ifdef SUPPORTS_AARCH64_BINS
+  Status = CpuInitEx (UC_ARCH_ARM64, &CpuAArch64);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+#endif /* SUPPORTS_AARCH64_BINS */
+
+  return EFI_SUCCESS;
 }
 
 
@@ -641,8 +804,10 @@ CpuDump (
 
   Cpu = mTopContext->Cpu;
 
-  DEBUG ((DEBUG_ERROR, "Emulated state:\n"));
-  Cpu->Dump (Cpu);
+  if (Cpu->Dump != NULL) {
+    DEBUG ((DEBUG_ERROR, "Emulated state:\n"));
+    Cpu->Dump (Cpu);
+  }
 
   Val = REG_READ (Cpu, Cpu->StackReg);
   if (!(Val >= Cpu->EmuStackStart && Val < Cpu->EmuStackTop)) {
@@ -1258,6 +1423,13 @@ CpuAddrIsCodeGen (
     return TRUE;
   }
 
+#ifdef SUPPORTS_AARCH64_BINS
+  if (Address >= CpuAArch64.UnicornCodeGenBuf &&
+      Address < CpuAArch64.UnicornCodeGenBufEnd) {
+    return TRUE;
+  }
+#endif /* SUPPORTS_AARCH64_BINS */
+
   return FALSE;
 }
 
@@ -1277,6 +1449,15 @@ CpuGetDebugState (
 
   Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context = mTopContext;
+
+  DebugState->HostMachineType = HOST_MACHINE_TYPE;
+  if (Context != NULL) {
+    ASSERT (Context->Cpu != NULL);
+    DebugState->CallerMachineType = Context->Cpu->EmuMachineType;
+  } else {
+    DebugState->CallerMachineType =  DebugState->HostMachineType;
+  }
+
   while (Context != NULL) {
     DebugState->ContextCount++;
     Context = Context->PrevContext;
@@ -1286,8 +1467,15 @@ CpuGetDebugState (
   DebugState->ExitPeriodMs = UC_EMU_EXIT_PERIOD_MS;
   DebugState->X86ExitPeriodTicks = CpuX86.ExitPeriodTicks;
   DebugState->X86ExitPeriodTbs = CpuX86.ExitPeriodTbs;
+#ifdef SUPPORTS_AARCH64_BINS
+  DebugState->AArch64ExitPeriodTicks = CpuAArch64.ExitPeriodTicks;
+  DebugState->AArch64ExitPeriodTbs = CpuAArch64.ExitPeriodTbs;
+#endif /* SUPPORTS_AARCH64_BINS */
 #endif /* EMU_TIMEOUT_NONE */
   DebugState->X86ContextCount = CpuX86.Contexts;
+#ifdef SUPPORTS_AARCH64_BINS
+  DebugState->AArch64ContextCount = CpuAArch64.Contexts;
+#endif /* SUPPORTS_AARCH64_BINS */
   gBS->RestoreTPL (Tpl);
 
   return EFI_SUCCESS;

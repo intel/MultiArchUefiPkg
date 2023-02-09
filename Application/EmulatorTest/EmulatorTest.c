@@ -112,14 +112,37 @@ DoTestProtocolTests (
 {
   UINT64 Ret;
   char *hostType = "unknown";
+  char *myType = "unknown";
 
-  if (Test->HostMachineType == EFI_IMAGE_MACHINE_AARCH64) {
+  switch (mBeginDebugState.HostMachineType) {
+  case EFI_IMAGE_MACHINE_AARCH64:
     hostType = "AArch64";
-  } else if (Test->HostMachineType == EFI_IMAGE_MACHINE_RISCV64) {
+    break;
+  case EFI_IMAGE_MACHINE_RISCV64:
     hostType = "RiscV64";
+    break;
+  case EFI_IMAGE_MACHINE_X64:
+    hostType = "X64";
+    break;
+  default:
+    hostType = "unknown";
   }
 
-  DEBUG ((DEBUG_INFO, "Running on %a host\n", hostType));
+  switch (mBeginDebugState.CallerMachineType) {
+  case EFI_IMAGE_MACHINE_AARCH64:
+    myType = "AArch64";
+    break;
+  case EFI_IMAGE_MACHINE_RISCV64:
+    myType = "RiscV64";
+    break;
+  case EFI_IMAGE_MACHINE_X64:
+    myType = "X64";
+    break;
+  default:
+    myType = "unknown";
+  }
+
+  DEBUG ((DEBUG_INFO, "%a tester running on %a host\n", myType, hostType));
 
   Ret = Test->TestRet ();
   LogResult ("Value return", Ret == RET_VAL);
@@ -131,10 +154,10 @@ DoTestProtocolTests (
   LogResult ("Argument passing", Ret == EFI_SUCCESS);
 
   Ret = Test->TestCbArgs(TestCbArgs);
-  LogResult ("Native->emulated args passing", Ret == EFI_SUCCESS);
+  LogResult ("Callback args passing", Ret == EFI_SUCCESS);
 
   Ret = Test->TestSj (TestCbLj);
-  LogResult ("Native->TestSj/TestLj passing", Ret == EFI_SUCCESS);
+  LogResult ("TestSj/TestLj passing", Ret == EFI_SUCCESS);
 }
 
 STATIC
@@ -189,12 +212,12 @@ TestNullDeref (
 STATIC
 NO_INLINE
 VOID
-TestHlt (
+TestCpuSleep (
   VOID
   )
 {
-  asm volatile("hlt");
-  LogResult ("hlt", TRUE);
+  CpuSleep ();
+  LogResult ("CpuSleep", TRUE);
 }
 
 STATIC
@@ -213,7 +236,7 @@ TestTimerHandler (
 STATIC
 NO_INLINE
 UINT64
-TestPerfEmuCall1 (
+TestPerfMyCall1 (
   VOID
   )
 {
@@ -244,7 +267,7 @@ TestPerfEmpty (
 STATIC
 NO_INLINE
 UINT64
-TestPerfEmuCall (
+TestPerfMyCall (
   IN  volatile BOOLEAN *IsDone
   )
 {
@@ -256,7 +279,7 @@ TestPerfEmuCall (
 
   Result = 0;
   while (!*IsDone) {
-    Result += TestPerfEmuCall1 ();
+    Result += TestPerfMyCall1 ();
   }
 
   return Result;
@@ -377,7 +400,7 @@ TestPerf (
   } while (0)
 
   PTEST (Empty);
-  PTEST (EmuCall);
+  PTEST (MyCall);
   PTEST (NativeCall);
 
   for (Index = 0; Index < ARRAY_SIZE (TestArray); Index++) {
@@ -436,7 +459,7 @@ TestTimer (
 
   while (!IsDone) {
     if (WithCpuSleep) {
-      CpuSleep();
+      CpuSleep ();
     }
   }
 
@@ -462,15 +485,19 @@ EmulatorTestEntryPoint (
     mTest->TestGetDebugState (&mBeginDebugState);
     DEBUG ((DEBUG_INFO, "Initial %lu contexts\n", mBeginDebugState.ContextCount));
     DoTestProtocolTests (mTest);
-    /*
-     * Not all of these work with the old X86Emulator implementation...
-     */
-    TestNullCall ();
-    TestNullCall2 ();
-    TestNullDeref ();
+
+    if (mBeginDebugState.HostMachineType !=
+        mBeginDebugState.CallerMachineType) {
+      /*
+       * Only run these tests if we know we are being emulated.
+       */
+      TestNullCall ();
+      TestNullCall2 ();
+      TestNullDeref ();
+    }
   }
 
-  TestHlt ();
+  TestCpuSleep ();
   TestTimer (FALSE);
   TestTimer (TRUE);
   TestPerf ();
@@ -480,12 +507,18 @@ EmulatorTestEntryPoint (
     EMU_TEST_DEBUG_STATE DebugState;
     mTest->TestGetDebugState (&DebugState);
 
-    DEBUG ((DEBUG_INFO, "Contexts total %lu x86 %lu\n",
-            DebugState.ContextCount, DebugState.X86ContextCount));
-    ASSERT ((DebugState.ContextCount == DebugState.X86ContextCount));
-    DEBUG ((DEBUG_INFO, "Emu timeout period %lu ms %lu ticks 0x%lx tbs\n",
-            DebugState.ExitPeriodMs, DebugState.X86ExitPeriodTicks,
-            DebugState.X86ExitPeriodTbs));
+    DEBUG ((DEBUG_INFO, "Contexts total %lu = X64 %lu + AArch64 %lu\n",
+            DebugState.ContextCount, DebugState.X86ContextCount,
+            DebugState.AArch64ContextCount));
+    ASSERT ((DebugState.ContextCount == (DebugState.X86ContextCount +
+                                         DebugState.AArch64ContextCount)));
+    DEBUG ((DEBUG_INFO, "Emu timeout period %lu ms\n",
+            DebugState.ExitPeriodMs));
+    DEBUG ((DEBUG_INFO, "X64 timeout period %lu ticks 0x%lx tbs\n",
+            DebugState.X86ExitPeriodTicks, DebugState.X86ExitPeriodTbs));
+    DEBUG ((DEBUG_INFO, "AArch64 timeout period %lu ticks 0x%lu tbs\n",
+            DebugState.AArch64ExitPeriodTicks,
+            DebugState.AArch64ExitPeriodTbs));
 
     mTest->TestCbArgs((VOID *) TestExit);
     return EFI_ABORTED;

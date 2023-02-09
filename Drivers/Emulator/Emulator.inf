@@ -47,6 +47,12 @@
 [Packages.AARCH64]
   ArmPkg/ArmPkg.dec
 
+[LibraryClasses.RISCV64]
+  CpuExceptionHandlerLib
+
+[LibraryClasses.AARCH64]
+  DefaultExceptionHandlerLib
+
 [LibraryClasses]
   BaseLib
   BaseMemoryLib
@@ -57,12 +63,6 @@
   UnicornX86Lib
   UnicornStubLib
   UnicornEngineLib
-
-[LibraryClasses.AARCH64]
-  DefaultExceptionHandlerLib
-
-[LibraryClasses.RISCV64]
-  CpuExceptionHandlerLib
 
 [Protocols]
   gEfiLoadedImageProtocolGuid             ## CONSUMES

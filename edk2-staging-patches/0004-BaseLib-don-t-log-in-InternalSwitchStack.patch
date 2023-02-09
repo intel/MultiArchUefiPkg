@@ -1,7 +1,7 @@
-From 9fbd82aecd687f19c595d6c0674df2b9547b5466 Mon Sep 17 00:00:00 2001
+From 504bd97382408343898627ba09387451d30c290d Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Tue, 20 Dec 2022 23:01:47 -0600
-Subject: [PATCH 4/7] BaseLib: don't log in InternalSwitchStack
+Subject: [PATCH 4/8] BaseLib: don't log in InternalSwitchStack
 
 InternalSwitchStack may be called with a high enough TPL.
 

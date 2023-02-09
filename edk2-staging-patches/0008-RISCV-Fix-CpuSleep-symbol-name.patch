@@ -1,0 +1,31 @@
+From 5e58ff8017cd190bad971117e8affa12baf0e095 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Thu, 9 Feb 2023 11:12:51 -0600
+Subject: [PATCH 8/8] RISCV: Fix CpuSleep symbol name.
+
+CpuSleep, not _CpuSleep.
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ MdePkg/Library/BaseCpuLib/RiscV/Cpu.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/MdePkg/Library/BaseCpuLib/RiscV/Cpu.S b/MdePkg/Library/BaseCpuLib/RiscV/Cpu.S
+index 375b91d314..d6560087e0 100644
+--- a/MdePkg/Library/BaseCpuLib/RiscV/Cpu.S
++++ b/MdePkg/Library/BaseCpuLib/RiscV/Cpu.S
+@@ -10,9 +10,9 @@
+ .align 3
+ .section .text
+ 
+-.global ASM_PFX(_CpuSleep)
++.global ASM_PFX(CpuSleep)
+ 
+-ASM_PFX(_CpuSleep):
++ASM_PFX(CpuSleep):
+     wfi
+     ret
+ 
+-- 
+2.25.1
+

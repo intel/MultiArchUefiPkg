@@ -1,9 +1,9 @@
-From 27ab534bcbf64e77509f84310be4a828ee1c9506 Mon Sep 17 00:00:00 2001
+From ac9ecba8002782ac78af07f45743f93034ca7b62 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Tue, 10 Jan 2023 23:39:44 -0600
-Subject: [PATCH 5/7] OvmfPkg: bundle UCX86EmulatorPkg driver
+Subject: [PATCH 5/8] OvmfPkg: bundle UCX86EmulatorPkg driver
 
-Tested with Radeon GOP (passed through device).
+Tested with x64 Radeon GOP (passed through device).
 
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---

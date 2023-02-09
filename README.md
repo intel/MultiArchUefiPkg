@@ -1,31 +1,35 @@
 # UCX86EmulatorPkg
 
 This code implements a DXE driver for EDK2/Tianocore that allows
-64-bit x86 UEFI drivers (aka x86_64, X64, AMD64) to be executed
-on other 64-bit UEFI environments. Today, AArch64 and RISC-V
+non-native UEFI boot service drivers and applications to be executed
+in 64-bit UEFI environments. In AArch64 environments, EmulatorDxe
+supports X64 (aka x86_64, AMD64) UEFI binaries. On RISCV64,
+EmulatorDxe can be build with X64 and AARCH64 UEFI binary support.
+
+Today, AArch64 and RISC-V
 are supported.
 
 It's derived from https://github.com/ardbiesheuvel/X86EmulatorPkg, yet
 is otherwise a reimplementation using https://www.unicorn-engine.org/.
-It has competitive performance, given portability, size (2/3rds the
-binary size on AArch64) and correctness in modeling the emulated UEFI
-Boot Service environment,
+It has competitive performance, portability, support for multiple
+emulated ISAs, size (2/3rds the binary size on AArch64) and correctness
+in modeling the emulated UEFI Boot Service environment,
 
 ## How does it work?
 
 UEFI code uses a pretty narrowly-defined ABI, which makes it
-easy to thunk x64 code making EFIAPI calls to native code -
+easy to thunk x64/AArch64 code making EFIAPI calls to native code:
 no FP/SIMD, no returning large values, etc. E.g. calls like:
 
-UINT64
-EFIAPI
-Fn(UINT64, UINT64, UINT64, UINT64,
-   UINT64, UINT64, UINT64, UINT64,
-   UINT64, UINT64, UINT64, UINT64,
-   UINT64, UINT64, UINT64, UINT64);
+        UINT64
+        EFIAPI
+        Fn(UINT64, UINT64, UINT64, UINT64,
+           UINT64, UINT64, UINT64, UINT64,
+           UINT64, UINT64, UINT64, UINT64,
+           UINT64, UINT64, UINT64, UINT64);
 
-...with up to 16 arguments are supported both x64 -> native
-and native -> x64, which covers all UEFI needs.
+...with up to 16 arguments are supported both emulated -> native
+and native -> emulated, which covers all UEFI needs.
 
 The emulator presents an x64 UEFI Boot Services environment,
 appropriate for running Boot Servces drivers (e.g. OpRom drivers
@@ -121,8 +125,13 @@ There's a small test application:
 
         $ export GCC5_X64_PREFIX=... (if you are on a non-X64 system)
         $ build -a X64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
+        $ build -a AARCH64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
+        $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
 
 When run against a DEBUG build of EmulatorDxe, will run further sanity tests.
+The application can be run in a native environment for overhead comparison
+purposes (e.g. a RISCV64 EmulatorTest vs an AARCH64 EmulatorTest in a
+RISCV64 environment).
 
 ## Special builds
 
@@ -140,7 +149,13 @@ If you build with WRAPPED_ENTRY_POINTS=YES, EmulatorDxe will use a
 different mechanism for invoking emulated code, for debugging situations
 where the X86InterpreterSyncExceptionCallback machinery (exception-driven
 detection of emulated code execution) doesn't work (e.g. adding a new host
-CPU port, running certain x64 apps on RISC-V, ...).
+CPU port, running certain x64 apps on RISC-V, ...). Due to maturity
+of RISC-V UEFI firmware at this time, all RISC-V builds default to
+WRAPPED_ENTRY_POINTS=YES.
+
+A RISC-V build can include AArch64 support when built with the
+SUPPORTS_AARCH64_BINS=YES option. Note: this will increase the
+binary size nearly 2x to 3MiB! This option is off by defualt.
 
 If you build with CHECK_ORPHAN_CONTEXTS=YES, EmulatorDxe will perform
 more runtime checks to handle unexpeced/non-linear control flow from

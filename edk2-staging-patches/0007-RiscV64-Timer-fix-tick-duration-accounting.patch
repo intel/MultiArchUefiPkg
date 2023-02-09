@@ -1,7 +1,7 @@
-From 817a2272956b3940ef85c79d1991b56641506842 Mon Sep 17 00:00:00 2001
+From eb21450960f2092f6ba8d9cd32b696b0e316b5ee Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Thu, 2 Feb 2023 02:07:30 -0600
-Subject: [PATCH 7/7] RiscV64 Timer: fix tick duration accounting
+Subject: [PATCH 7/8] RiscV64 Timer: fix tick duration accounting
 
 The TimerDxe implementation doesn't account for the physical
 time passed due to timer handler execution or (perhaps even

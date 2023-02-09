@@ -42,6 +42,13 @@
   # on some memory location updated by an event.
   #
   EMU_TIMEOUT_NONE               = NO
+  #
+  # If you want to support AArch64 UEFI boot service drivers
+  # and applications, say YES. Not available for the AARCH64
+  # build.
+  #
+  SUPPORTS_AARCH64_BINS          = NO
+
 !include unicorn/efi/UnicornPkg.dsc.inc
 
 [PcdsFixedAtBuild.common]
@@ -110,6 +117,9 @@
   NULL|ArmPkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
 
 [LibraryClasses.RISCV64]
+!if $(SUPPORTS_AARCH64_BINS) == YES
+  NULL|unicorn/efi/UnicornArm64Lib.inf
+!endif
   SynchronizationLib|MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf
   CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
 
@@ -126,6 +136,11 @@
 !endif
 !if $(EMU_TIMEOUT_NONE) == YES
   *_*_*_CC_FLAGS                       = -DEMU_TIMEOUT_NONE
+!endif
+!if $(ARCH) != AARCH64
+!if $(SUPPORTS_AARCH64_BINS) == YES
+  *_*_*_CC_FLAGS                       = -DSUPPORTS_AARCH64_BINS
+!endif
 !endif
 
 [Components]

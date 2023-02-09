@@ -30,6 +30,11 @@
 
 #include "TestProtocol.h"
 
+/*
+ * Maximum # of arguments thunked between native and emulated code.
+ */
+#define MAX_ARGS              16
+
 #ifdef MDE_CPU_AARCH64
 #define NATIVE_INSN_ALIGNMENT 4
 #elif defined (MDE_CPU_RISCV64)
@@ -37,6 +42,14 @@
  * Built with compressed instructions, possibly.
  */
 #define NATIVE_INSN_ALIGNMENT 2
+#endif
+
+#ifdef MDE_CPU_AARCH64
+#define HOST_MACHINE_TYPE EFI_IMAGE_MACHINE_AARCH64
+#elif defined (MDE_CPU_RISCV64)
+#define HOST_MACHINE_TYPE EFI_IMAGE_MACHINE_RISCV64
+#else
+#error
 #endif
 
 #define UNUSED __attribute__((unused))
@@ -62,6 +75,7 @@ typedef struct uc_context uc_context;
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuContext {
+  UINT16               EmuMachineType;
   const char           *Name;
   int                  StackReg;
   int                  ProgramCounterReg;
@@ -124,6 +138,9 @@ typedef struct CpuRunContext {
 } CpuRunContext;
 
 extern CpuContext                CpuX86;
+#ifdef SUPPORTS_AARCH64_BINS
+extern CpuContext                CpuAArch64;
+#endif /* SUPPORTS_AARCH64_BINS */
 extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
 extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
@@ -261,6 +278,14 @@ NativeThunkX86 (
   IN  CpuContext *Cpu,
   IN  UINT64     ProgramCounter
   );
+
+#ifdef SUPPORTS_AARCH64_BINS
+UINT64
+NativeThunkAArch64 (
+  IN  CpuContext *Cpu,
+  IN  UINT64     ProgramCounter
+  );
+#endif /* SUPPORTS_AARCH64_BINS */
 
 EFI_STATUS
 EFIAPI

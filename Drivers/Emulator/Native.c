@@ -57,6 +57,88 @@ NativeValidateSupportedCall (
   return EfiWrappersOverride (ProgramCounter);
 }
 
+#ifdef SUPPORTS_AARCH64_BINS
+UINT64
+NativeThunkAArch64 (
+  IN  CpuContext *Cpu,
+  IN  UINT64     ProgramCounter
+  )
+{
+  UINT64 *StackArgs;
+  BOOLEAN WrapperCall;
+  UINT64  Lr, Sp, X0, X1, X2, X3, X4, X5, X6, X7;
+  Fn      Func;
+  CpuRunContext *CurrentTopContext = CpuGetTopContext ();
+
+  Func.ProgramCounter = NativeValidateSupportedCall (ProgramCounter);
+  WrapperCall = Func.ProgramCounter != ProgramCounter;
+
+  Lr = REG_READ (Cpu, UC_ARM64_REG_LR);
+  Sp = REG_READ (Cpu, UC_ARM64_REG_SP);
+  X0 = REG_READ (Cpu, UC_ARM64_REG_X0);
+  X1 = REG_READ (Cpu, UC_ARM64_REG_X1);
+  X2 = REG_READ (Cpu, UC_ARM64_REG_X2);
+  X3 = REG_READ (Cpu, UC_ARM64_REG_X3);
+  X4 = REG_READ (Cpu, UC_ARM64_REG_X4);
+  X5 = REG_READ (Cpu, UC_ARM64_REG_X5);
+  X6 = REG_READ (Cpu, UC_ARM64_REG_X6);
+  X7 = REG_READ (Cpu, UC_ARM64_REG_X7);
+
+  StackArgs = (UINT64 *) Sp;
+
+  /*
+   * EFIAPI (MS) AArch64 Stack Layout (in UINT64's):
+   *
+   * ----------------
+   *   ...
+   *   arg9
+   *   arg8
+   * ----------------
+   */
+
+  DEBUG ((DEBUG_VERBOSE, "%a 0x%lx -> %a 0x%lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+          Cpu->Name, Lr, WrapperCall ? "wrapper" : "native",
+          Func.ProgramCounter, X0, X1, X2, X3, X4, X5, X6, X7,
+          StackArgs[0]));
+
+  if (WrapperCall) {
+    UINT64 WrapperArgs[MAX_ARGS] = { X0, X1, X2, X3, X4, X5, X6, X7,
+                                     StackArgs[0], StackArgs[1],
+                                     StackArgs[2], StackArgs[3],
+                                     StackArgs[4], StackArgs[5],
+                                     StackArgs[6], StackArgs[7] };
+    X0 = Func.WrapperFn (Cpu, ProgramCounter, Lr, WrapperArgs);
+  } else {
+    X0 = Func.NativeFn (X0, X1, X2, X3, X4, X5, X6, X7,
+                        StackArgs[0], StackArgs[1], StackArgs[2],
+                        StackArgs[3], StackArgs[4], StackArgs[5],
+                        StackArgs[6], StackArgs[7]);
+  }
+
+  if (CpuGetTopContext () != CurrentTopContext) {
+    /*
+     * Consider the following sequence:
+     * - emulated->native call
+     * - native does SetJump
+     * - native->emulated call
+     * - emulated->native call
+     * - native does LongJump
+     *
+     * This isn't that crazy - e.g. an emulated binary starting another
+     * emu binary, which calls gBS->Exit. While we can handle gBS->Exit
+     * cleanly ourselves, let's detect code that does something similar,
+     * which will result in UC engine state being out of sync with the
+     * expected context state.
+     */
+    CpuCompressLeakedContexts (CurrentTopContext, FALSE);
+  }
+
+  REG_WRITE (Cpu, UC_ARM64_REG_X0, X0);
+
+  return REG_READ (Cpu, UC_ARM64_REG_LR);
+}
+#endif /* SUPPORTS_AARCH64_BINS */
+
 UINT64
 NativeThunkX86 (
   IN  CpuContext *Cpu,
@@ -65,12 +147,7 @@ NativeThunkX86 (
 {
   UINT64 *StackArgs;
   BOOLEAN WrapperCall;
-  UINT64  Rax;
-  UINT64  Rsp;
-  UINT64  Rcx;
-  UINT64  Rdx;
-  UINT64  R8;
-  UINT64  R9;
+  UINT64  Rax, Rsp, Rcx, Rdx, R8, R9;
   Fn      Func;
   CpuRunContext *CurrentTopContext = CpuGetTopContext ();
 

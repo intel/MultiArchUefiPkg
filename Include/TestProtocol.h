@@ -19,15 +19,19 @@
 #define FIELD_VAL(x) ((1UL << 63) | (x##UL << 56) | (x##UL))
 
 typedef struct {
-  UINTN ContextCount;
-  UINTN ExitPeriodMs;
-  UINTN X86ExitPeriodTicks;
-  UINTN X86ExitPeriodTbs;
-  UINTN X86ContextCount;
+  UINT16 HostMachineType;
+  UINT16 CallerMachineType;
+  UINTN  ContextCount;
+  UINTN  ExitPeriodMs;
+  UINTN  X86ExitPeriodTicks;
+  UINTN  X86ExitPeriodTbs;
+  UINTN  X86ContextCount;
+  UINTN  AArch64ExitPeriodTicks;
+  UINTN  AArch64ExitPeriodTbs;
+  UINTN  AArch64ContextCount;
 } EMU_TEST_DEBUG_STATE;
 
 typedef struct {
-  UINT16            HostMachineType;
   UINT64     EFIAPI (*TestRet)(VOID);
   EFI_STATUS EFIAPI (*TestArgs)(UINT64, UINT64, UINT64, UINT64,
                                 UINT64, UINT64, UINT64, UINT64,

@@ -113,6 +113,10 @@ ImageProtocolRegister (
 
   if (ImageContext.Machine == EFI_IMAGE_MACHINE_X64) {
     Record->Cpu = &CpuX86;
+#ifdef SUPPORTS_AARCH64_BINS
+  } else if (ImageContext.Machine == EFI_IMAGE_MACHINE_AARCH64) {
+    Record->Cpu = &CpuAArch64;
+#endif /* SUPPORTS_AARCH64_BINS */
   } else {
     Record->Cpu = NULL;
   }
@@ -130,7 +134,7 @@ ImageProtocolRegister (
    * On AArch64, this code relies on no-execute protection of the "foreign"
    * binary for seamless thunking to emulated code. Any attempt by native code
    * to call into the emulated code will be patched up by the installed
-   * exception handler (X86InterpreterSyncExceptionCallback) to invoke
+   * exception handler (InterpreterSyncExceptionCallback) to invoke
    * EmulatorVmEntry instead.
    *
    * Exception-driven detection of emulated code execution is the key
