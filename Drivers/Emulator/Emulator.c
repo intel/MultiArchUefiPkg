@@ -36,7 +36,7 @@ EmulatorIsNativeCall (
   return TRUE;
 }
 
-STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocolX86 = {
+STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocolX64 = {
   ImageProtocolSupported,
   ImageProtocolRegister,
   ImageProtocolUnregister,
@@ -83,7 +83,7 @@ EmulatorDxeEntryPoint (
   )
 {
   EFI_STATUS Status;
-  EFI_HANDLE EmuHandleX86 = NULL;
+  EFI_HANDLE EmuHandleX64 = NULL;
 #ifdef SUPPORTS_AARCH64_BINS
   EFI_HANDLE EmuHandleAArch64 = NULL;
 #endif /* SUPPORTS_AARCH64_BINS */
@@ -121,12 +121,12 @@ EmulatorDxeEntryPoint (
     return Status;
   }
 
-  Status = gBS->InstallProtocolInterface (&EmuHandleX86,
+  Status = gBS->InstallProtocolInterface (&EmuHandleX64,
                                           &gEdkiiPeCoffImageEmulatorProtocolGuid,
                                           EFI_NATIVE_INTERFACE,
-                                          &mEmulatorProtocolX86);
+                                          &mEmulatorProtocolX64);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "InstallProtocolInterface mEmulatorProtocolX86 failed: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "InstallProtocolInterface mEmulatorProtocolX64 failed: %r\n", Status));
     goto done;
   }
 
@@ -147,10 +147,10 @@ EmulatorDxeEntryPoint (
 
  done:
   if (EFI_ERROR (Status)) {
-    if (EmuHandleX86 != NULL) {
-      gBS->UninstallProtocolInterface (EmuHandleX86,
+    if (EmuHandleX64 != NULL) {
+      gBS->UninstallProtocolInterface (EmuHandleX64,
                                        &gEdkiiPeCoffImageEmulatorProtocolGuid,
-                                       &mEmulatorProtocolX86);
+                                       &mEmulatorProtocolX64);
     }
 #ifdef SUPPORTS_AARCH64_BINS
     if (EmuHandleAArch64 != NULL) {

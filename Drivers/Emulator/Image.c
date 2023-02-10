@@ -112,7 +112,7 @@ ImageProtocolRegister (
   }
 
   if (ImageContext.Machine == EFI_IMAGE_MACHINE_X64) {
-    Record->Cpu = &CpuX86;
+    Record->Cpu = &CpuX64;
 #ifdef SUPPORTS_AARCH64_BINS
   } else if (ImageContext.Machine == EFI_IMAGE_MACHINE_AARCH64) {
     Record->Cpu = &CpuAArch64;

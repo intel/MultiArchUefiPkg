@@ -508,14 +508,14 @@ EmulatorTestEntryPoint (
     mTest->TestGetDebugState (&DebugState);
 
     DEBUG ((DEBUG_INFO, "Contexts total %lu = X64 %lu + AArch64 %lu\n",
-            DebugState.ContextCount, DebugState.X86ContextCount,
+            DebugState.ContextCount, DebugState.X64ContextCount,
             DebugState.AArch64ContextCount));
-    ASSERT ((DebugState.ContextCount == (DebugState.X86ContextCount +
+    ASSERT ((DebugState.ContextCount == (DebugState.X64ContextCount +
                                          DebugState.AArch64ContextCount)));
     DEBUG ((DEBUG_INFO, "Emu timeout period %lu ms\n",
             DebugState.ExitPeriodMs));
     DEBUG ((DEBUG_INFO, "X64 timeout period %lu ticks 0x%lx tbs\n",
-            DebugState.X86ExitPeriodTicks, DebugState.X86ExitPeriodTbs));
+            DebugState.X64ExitPeriodTicks, DebugState.X64ExitPeriodTbs));
     DEBUG ((DEBUG_INFO, "AArch64 timeout period %lu ticks 0x%lu tbs\n",
             DebugState.AArch64ExitPeriodTicks,
             DebugState.AArch64ExitPeriodTbs));

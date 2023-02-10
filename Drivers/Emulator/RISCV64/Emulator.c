@@ -139,7 +139,7 @@ EmulatorSyncExceptionCallback (
 
   /*
    * We can't handle these exception. Try to produce some meaningful
-   * diagnostics regarding the X86 code this maps onto.
+   * diagnostics regarding the X64 code this maps onto.
    */
 
   if (Record != NULL) {

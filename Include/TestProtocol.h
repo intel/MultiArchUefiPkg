@@ -23,9 +23,9 @@ typedef struct {
   UINT16 CallerMachineType;
   UINTN  ContextCount;
   UINTN  ExitPeriodMs;
-  UINTN  X86ExitPeriodTicks;
-  UINTN  X86ExitPeriodTbs;
-  UINTN  X86ContextCount;
+  UINTN  X64ExitPeriodTicks;
+  UINTN  X64ExitPeriodTbs;
+  UINTN  X64ContextCount;
   UINTN  AArch64ExitPeriodTicks;
   UINTN  AArch64ExitPeriodTbs;
   UINTN  AArch64ContextCount;

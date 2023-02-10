@@ -137,7 +137,7 @@ typedef struct CpuRunContext {
   ImageRecord          *ImageRecord;
 } CpuRunContext;
 
-extern CpuContext                CpuX86;
+extern CpuContext                CpuX64;
 #ifdef SUPPORTS_AARCH64_BINS
 extern CpuContext                CpuAArch64;
 #endif /* SUPPORTS_AARCH64_BINS */
@@ -273,7 +273,7 @@ CpuAddrIsCodeGen (
   );
 
 UINT64
-NativeThunkX86 (
+NativeThunkX64 (
   IN  CpuRunContext *Context,
   IN  UINT64        ProgramCounter
   );

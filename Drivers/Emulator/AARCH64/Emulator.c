@@ -45,7 +45,7 @@ EmulatorSyncExceptionCallback (
 
   /*
    * We can't handle these exception. Try to produce some meaningful
-   * diagnostics regarding the X86 code this maps onto.
+   * diagnostics regarding the emulated code this maps onto.
    */
 
   if (CpuAddrIsCodeGen (AArch64Context->ELR)) {

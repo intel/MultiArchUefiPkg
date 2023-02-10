@@ -151,7 +151,7 @@ NativeThunkAArch64 (
 #endif /* SUPPORTS_AARCH64_BINS */
 
 UINT64
-NativeThunkX86 (
+NativeThunkX64 (
   IN  CpuRunContext *Context,
   IN  UINT64        ProgramCounter
   )

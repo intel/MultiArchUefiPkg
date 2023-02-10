@@ -19,7 +19,7 @@
 #define SYSV_X64_ABI_REDZONE   128
 #define CURRENT_FP()           ((UINTN) __builtin_frame_address(0))
 
-CpuContext CpuX86;
+CpuContext CpuX64;
 #ifdef SUPPORTS_AARCH64_BINS
 CpuContext CpuAArch64;
 #endif /* SUPPORTS_AARCH64_BINS */
@@ -205,7 +205,7 @@ CpuCleanup (
   VOID
   )
 {
-  CpuCleanupEx (&CpuX86);
+  CpuCleanupEx (&CpuX64);
 #ifdef SUPPORTS_AARCH64_BINS
   CpuCleanupEx (&CpuAArch64);
 #endif /* SUPPORTS_AARCH64_BINS */
@@ -422,7 +422,7 @@ CpuAArch64EmuThunkPost (
 
 STATIC
 VOID
-CpuX86Dump (
+CpuX64Dump (
   IN  CpuContext *Cpu
   )
 {
@@ -468,7 +468,7 @@ CpuX86Dump (
 
 STATIC
 VOID
-CpuX86EmuThunkPre (
+CpuX64EmuThunkPre (
   IN  struct CpuContext *Cpu,
   IN  UINT64            *Args
   )
@@ -502,7 +502,7 @@ CpuX86EmuThunkPre (
 
 STATIC
 VOID
-CpuX86EmuThunkPost (
+CpuX64EmuThunkPost (
   IN  struct CpuContext *Cpu,
   IN  UINT64            *Args
   )
@@ -563,10 +563,10 @@ CpuInitEx (
     Cpu->StackReg = UC_X86_REG_RSP;
     Cpu->ProgramCounterReg = UC_X86_REG_RIP;
     Cpu->ReturnValueReg = UC_X86_REG_RAX;
-    Cpu->Dump = CpuX86Dump;
-    Cpu->EmuThunkPre = CpuX86EmuThunkPre;
-    Cpu->EmuThunkPost = CpuX86EmuThunkPost;
-    Cpu->NativeThunk = NativeThunkX86;
+    Cpu->Dump = CpuX64Dump;
+    Cpu->EmuThunkPre = CpuX64EmuThunkPre;
+    Cpu->EmuThunkPost = CpuX64EmuThunkPost;
+    Cpu->NativeThunk = NativeThunkX64;
 #ifdef SUPPORTS_AARCH64_BINS
   } else if (Arch == UC_ARCH_ARM64) {
     Cpu->EmuMachineType = EFI_IMAGE_MACHINE_AARCH64;
@@ -743,7 +743,7 @@ CpuInit (
     return Status;
   }
 
-  Status = CpuInitEx (UC_ARCH_X86, &CpuX86);
+  Status = CpuInitEx (UC_ARCH_X86, &CpuX64);
   if (EFI_ERROR (Status)) {
     return Status;
   }
@@ -1417,8 +1417,8 @@ CpuAddrIsCodeGen (
   IN  EFI_PHYSICAL_ADDRESS Address
   )
 {
-  if (Address >= CpuX86.UnicornCodeGenBuf &&
-      Address < CpuX86.UnicornCodeGenBufEnd) {
+  if (Address >= CpuX64.UnicornCodeGenBuf &&
+      Address < CpuX64.UnicornCodeGenBufEnd) {
     return TRUE;
   }
 
@@ -1464,14 +1464,14 @@ CpuGetDebugState (
 
 #ifndef EMU_TIMEOUT_NONE
   DebugState->ExitPeriodMs = UC_EMU_EXIT_PERIOD_MS;
-  DebugState->X86ExitPeriodTicks = CpuX86.ExitPeriodTicks;
-  DebugState->X86ExitPeriodTbs = CpuX86.ExitPeriodTbs;
+  DebugState->X64ExitPeriodTicks = CpuX64.ExitPeriodTicks;
+  DebugState->X64ExitPeriodTbs = CpuX64.ExitPeriodTbs;
 #ifdef SUPPORTS_AARCH64_BINS
   DebugState->AArch64ExitPeriodTicks = CpuAArch64.ExitPeriodTicks;
   DebugState->AArch64ExitPeriodTbs = CpuAArch64.ExitPeriodTbs;
 #endif /* SUPPORTS_AARCH64_BINS */
 #endif /* EMU_TIMEOUT_NONE */
-  DebugState->X86ContextCount = CpuX86.Contexts;
+  DebugState->X64ContextCount = CpuX64.Contexts;
 #ifdef SUPPORTS_AARCH64_BINS
   DebugState->AArch64ContextCount = CpuAArch64.Contexts;
 #endif /* SUPPORTS_AARCH64_BINS */
