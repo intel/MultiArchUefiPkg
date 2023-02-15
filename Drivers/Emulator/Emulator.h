@@ -95,6 +95,7 @@ typedef struct CpuContext {
   UINT64               TbCount;
   UINT64               ExitPeriodTbs;
   UINT64               ExitPeriodTicks;
+  BOOLEAN              StoppedOnTimeout;
 #endif /* EMU_TIMEOUT_NONE */
 } CpuContext;
 
@@ -127,8 +128,6 @@ typedef struct CpuRunContext {
   UINT64               Ret;
   EFI_TPL              Tpl;
 
-  UINT64               TimeoutAbsTicks;
-  BOOLEAN              StoppedOnTimeout;
   uc_context           *PrevUcContext;
   struct CpuRunContext *PrevContext;
   /*

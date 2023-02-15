@@ -75,7 +75,7 @@ CpuTimeoutCb (
   IN  UINT32    Size,
   IN  VOID      *UserData)
 {
-  CpuContext *Cpu = mTopContext->Cpu;
+  CpuContext *Cpu = UserData;
   /*
    * GetPerformanceCounter () is a system register read, and is more expensive
    * than reading a variable. Moreover, in an emulated environment,
@@ -87,7 +87,7 @@ CpuTimeoutCb (
    * from uc_emu_start.
    */
   if ((++(Cpu->TbCount) & (Cpu->ExitPeriodTbs - 1)) == 0) {
-    mTopContext->StoppedOnTimeout = TRUE;
+    Cpu->StoppedOnTimeout = TRUE;
     uc_emu_stop (UE);
   }
 }
@@ -624,7 +624,7 @@ CpuInitEx (
    * the minimum code to read TSC, compare and exit emu on a match.
    */
   UcErr = uc_hook_add (Cpu->UE, &TimeoutHook, UC_HOOK_BLOCK, CpuTimeoutCb,
-                       NULL, 1, 0);
+                       Cpu, 1, 0);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "Timeout hook failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -854,21 +854,22 @@ CpuRunCtxInternal (
      */
     DisableInterrupts (); {
 #ifndef EMU_TIMEOUT_NONE
-      Context->StoppedOnTimeout = FALSE;
-      Context->TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
+      UINT64 TimeoutAbsTicks;
+      TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
 #endif /* EMU_TIMEOUT_NONE */
 
       UcErr = uc_emu_start (Cpu->UE, ProgramCounter, 0, 0, 0);
 
 #ifndef EMU_TIMEOUT_NONE
-      if (Context->StoppedOnTimeout) {
+      if (Cpu->StoppedOnTimeout) {
+        Cpu->StoppedOnTimeout = FALSE;
         UINT64 Ticks = GetPerformanceCounter ();
 
-        if (Ticks > mTopContext->TimeoutAbsTicks) {
+        if (Ticks > TimeoutAbsTicks) {
           if (Cpu->ExitPeriodTbs > UC_EMU_EXIT_PERIOD_TB_MIN) {
             Cpu->ExitPeriodTbs = Cpu->ExitPeriodTbs >> 1;
           }
-        } else if (Ticks < mTopContext->TimeoutAbsTicks) {
+        } else if (Ticks < TimeoutAbsTicks) {
           if (Cpu->ExitPeriodTbs < UC_EMU_EXIT_PERIOD_TB_MAX) {
             Cpu->ExitPeriodTbs = Cpu->ExitPeriodTbs << 1;
           }
