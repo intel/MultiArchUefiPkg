@@ -471,6 +471,64 @@ TestTimer (
   gBS->CloseEvent (OneShotTimer);
 }
 
+#ifdef MDE_CPU_X64
+STATIC
+NO_INLINE
+UINT64
+EFIAPI
+SelfModCodeFn (
+  IN  UINTN Input
+  )
+{
+  static UINTN Value = 0;
+  return Value++;
+}
+#endif /* MDE_CPU_X64 */
+
+STATIC
+NO_INLINE
+VOID
+TestSelfModCode (
+  VOID
+  )
+{
+#ifdef MDE_CPU_X64
+  UINTN Index;
+  /*
+   *  mov    rax,rcx; ret
+   */
+  static UINT8 Patch1[] = { 0x48, 0x89, 0xC8, 0xC3 };
+  /*
+   *  mov    rax,0xfeed; ret
+   */
+  static UINT8 Patch2[] = { 0x48, 0xC7, 0xC0, 0xED, 0xFE, 0x00, 0x00, 0xC3 };
+
+  LogResult ("Self-modifying code test before", SelfModCodeFn (0x1337) == 0);
+
+  for (Index = 0; Index < sizeof (Patch1); Index++) {
+    ((UINT8 *) SelfModCodeFn)[Index] = Patch1[Index];
+    asm volatile ("" : : : "memory");
+  }
+
+  LogResult ("Self-modifying code test after 1", SelfModCodeFn (0xf00d) == 0xf00d);
+
+  for (Index = 0; Index < sizeof (Patch2); Index++) {
+    ((UINT8 *) SelfModCodeFn)[Index] = Patch2[Index];
+    asm volatile ("" : : : "memory");
+  }
+
+  LogResult ("Self-modifying code test after 2", SelfModCodeFn (0xf00d) == 0xfeed);
+
+  /*
+   * TODO:
+   * - test binary patching at a page boundary.
+   * - test binary patching using gBS->CopyMem.
+   * - test running code from a BootServiceCode pool alloc.
+   * - add AArch64 and RISC-V variants.
+   */
+#endif /* MDE_CPU_X64 */
+}
+
 EFI_STATUS
 EFIAPI
 EmulatorTestEntryPoint (
@@ -497,6 +555,7 @@ EmulatorTestEntryPoint (
     }
   }
 
+  TestSelfModCode ();
   TestCpuSleep ();
   TestTimer (FALSE);
   TestTimer (TRUE);
