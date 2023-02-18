@@ -1,17 +1,24 @@
-From 1b081fcb57a901767cc9f1af90fc4e0c1a3f913a Mon Sep 17 00:00:00 2001
+From d734d303d8467a1e365cab150f00beafa3768387 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
-Date: Thu, 8 Dec 2022 15:38:23 -0600
-Subject: [PATCH 1/8] RISCV: Allow AArc64 and x64 images in BasePeCoffLib
+Date: Fri, 17 Feb 2023 18:33:55 -0600
+Subject: [PATCH 1/8] RISCV: Allow AArch64 and x64 images in BasePeCoffLib
 
-Necessary for UCX86EmulatorPkg to work.
+ARM64 and X64 may allow such foreign images to be used when
+driver implementing EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL is
+present.
 
+Cc: Sunil V L <sunilvl@ventanamicro.com>
+Cc: Daniel Schaefer <git@danielschaefer.me>
+Cc: Michael D Kinney <michael.d.kinney@intel.com>
+Cc: Liming Gao <gaoliming@byosoft.com.cn>
+Cc: Zhiguang Liu <zhiguang.liu@intel.com>
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
  MdePkg/Library/BasePeCoffLib/RiscV/PeCoffLoaderEx.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/MdePkg/Library/BasePeCoffLib/RiscV/PeCoffLoaderEx.c b/MdePkg/Library/BasePeCoffLib/RiscV/PeCoffLoaderEx.c
-index adbfe9ccf5..7ef030a9f5 100644
+index adbfe9ccf580..0e9ee395dc26 100644
 --- a/MdePkg/Library/BasePeCoffLib/RiscV/PeCoffLoaderEx.c
 +++ b/MdePkg/Library/BasePeCoffLib/RiscV/PeCoffLoaderEx.c
 @@ -104,7 +104,14 @@ PeCoffLoaderImageFormatSupported (
@@ -21,7 +28,7 @@ index adbfe9ccf5..7ef030a9f5 100644
 -  if (Machine ==  IMAGE_FILE_MACHINE_RISCV64) {
 +  /*
 +   * ARM64 and X64 may allow such foreign images to be used when
-+   * driver implementing EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL is
++   * a driver implementing EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL is
 +   * present.
 +   */
 +  if (Machine == IMAGE_FILE_MACHINE_RISCV64 ||

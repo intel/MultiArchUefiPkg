@@ -121,7 +121,7 @@
   NULL|unicorn/efi/UnicornArm64Lib.inf
 !endif
   SynchronizationLib|MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf
-  CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
+  CpuExceptionHandlerLib|UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
 
 [BuildOptions]
   *_*_*_CC_FLAGS                       = -DDISABLE_NEW_DEPRECATED_INTERFACES

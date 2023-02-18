@@ -1,7 +1,7 @@
-From a8589547d436745dd54047c1e337bea2919c2ee8 Mon Sep 17 00:00:00 2001
+From ad88cbfe6874087cde8918ad9c2f5e92664a397b Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
-Date: Tue, 10 Jan 2023 23:49:11 -0600
-Subject: [PATCH 6/8] ArmVirtPkg: bundle UCX86EmulatorPkg driver
+Date: Fri, 17 Feb 2023 19:00:35 -0600
+Subject: [PATCH 8/8] ArmVirtPkg: bundle UCX86EmulatorPkg driver
 
 Similar to RiscVVirt patch.
 
@@ -9,14 +9,13 @@ Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
  ArmVirtPkg/ArmVirtQemu.dsc           | 10 ++++++++++
  ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc |  5 +++++
- CryptoPkg/Library/OpensslLib/openssl |  2 +-
- 3 files changed, 16 insertions(+), 1 deletion(-)
+ 2 files changed, 15 insertions(+)
 
 diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
-index 0390b660c0..86014ea84a 100644
+index 72a0cacab4a8..c3c3f53f0c14 100644
 --- a/ArmVirtPkg/ArmVirtQemu.dsc
 +++ b/ArmVirtPkg/ArmVirtQemu.dsc
-@@ -576,3 +576,13 @@
+@@ -585,3 +585,13 @@ [Components.AARCH64]
      <LibraryClasses>
        NULL|OvmfPkg/Fdt/FdtPciPcdProducerLib/FdtPciPcdProducerLib.inf
    }
@@ -31,10 +30,10 @@ index 0390b660c0..86014ea84a 100644
 +      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
 +  }
 diff --git a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
-index 8a063bac04..b5a1720318 100644
+index 8a063bac04ac..b5a1720318a6 100644
 --- a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
 +++ b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
-@@ -194,3 +194,8 @@ READ_LOCK_STATUS   = TRUE
+@@ -194,3 +194,8 @@ [FV.FvMain]
    # Ramdisk support
    #
    INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
@@ -43,13 +42,6 @@ index 8a063bac04..b5a1720318 100644
 +  # X64 emulator for OpRoms, etc.
 +  #
 +  INF UCX86EmulatorPkg/Drivers/Emulator/Emulator.inf
-diff --git a/CryptoPkg/Library/OpensslLib/openssl b/CryptoPkg/Library/OpensslLib/openssl
-index 129058165d..d82e959e62 160000
---- a/CryptoPkg/Library/OpensslLib/openssl
-+++ b/CryptoPkg/Library/OpensslLib/openssl
-@@ -1 +1 @@
--Subproject commit 129058165d195e43a0ad10111b0c2e29bdf65980
-+Subproject commit d82e959e621a3d597f1e0d50ff8c2d8b96915fd7
 -- 
 2.25.1
 

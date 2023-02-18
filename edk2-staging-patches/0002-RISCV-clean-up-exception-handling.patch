@@ -1,7 +1,7 @@
-From d775a288b50cf825c445d07590f6b7e85b74ce35 Mon Sep 17 00:00:00 2001
+From 51a22d71617083b4055598bd6183e32b1b0a3b0a Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
-Date: Thu, 8 Dec 2022 15:38:53 -0600
-Subject: [PATCH 3/8] RISCV: clean up exception handling
+Date: Fri, 17 Feb 2023 18:42:29 -0600
+Subject: [PATCH 2/8] RISCV: clean up exception handling
 
 RegisterCpuInterruptHandler did not allow setting
 exception handlers for anything beyond the timer IRQ.
@@ -10,7 +10,7 @@ of inputs.
 
 RiscVSupervisorModeTrapHandler now will invoke
 set handlers for both exceptions and interrupts.
-Two arrays of handlers are maintained - one of exceptions
+Two arrays of handlers are maintained - one for exceptions
 and one for interrupts.
 
 For unhandled traps, RiscVSupervisorModeTrapHandler dumps
@@ -28,17 +28,19 @@ be saving SIE (the value is saved in SSTATUS.SPIE) or
 directly restored (that's done by SRET). Save and
 restore the entire SSTATUS and STVAL, too.
 
+Cc: Sunil V L <sunilvl@ventanamicro.com>
+Cc: Daniel Schaefer <git@danielschaefer.me>
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
- MdePkg/Include/Protocol/DebugSupport.h        |  23 ++-
- UefiCpuPkg/CpuTimerDxe/RiscV64/Timer.c        |   3 +-
- .../RiscV64/CpuExceptionHandlerLib.c          | 178 +++++++++++++++---
- .../RiscV64/CpuExceptionHandlerLib.h          |  11 +-
- .../RiscV64/SupervisorTrapHandler.S           |  17 +-
- 5 files changed, 188 insertions(+), 44 deletions(-)
+ MdePkg/Include/Protocol/DebugSupport.h        |  23 +-
+ .../CpuExceptionHandlerLib.h                  |  11 +-
+ UefiCpuPkg/CpuTimerDxeRiscV64/Timer.c         |   3 +-
+ .../CpuExceptionHandlerLib.c                  | 215 ++++++++++++++++--
+ .../SupervisorTrapHandler.S                   |  17 +-
+ 5 files changed, 225 insertions(+), 44 deletions(-)
 
 diff --git a/MdePkg/Include/Protocol/DebugSupport.h b/MdePkg/Include/Protocol/DebugSupport.h
-index 2b0ae2d157..0d94c40944 100644
+index 2b0ae2d1577b..0d94c409448c 100644
 --- a/MdePkg/Include/Protocol/DebugSupport.h
 +++ b/MdePkg/Include/Protocol/DebugSupport.h
 @@ -613,11 +613,25 @@ typedef struct {
@@ -80,10 +82,48 @@ index 2b0ae2d157..0d94c40944 100644
  } EFI_SYSTEM_CONTEXT_RISCV64;
  
  //
-diff --git a/UefiCpuPkg/CpuTimerDxe/RiscV64/Timer.c b/UefiCpuPkg/CpuTimerDxe/RiscV64/Timer.c
-index db153f715e..0ecefddf1f 100644
---- a/UefiCpuPkg/CpuTimerDxe/RiscV64/Timer.c
-+++ b/UefiCpuPkg/CpuTimerDxe/RiscV64/Timer.c
+diff --git a/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.h b/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.h
+index 30f47e87552b..9b7e1304dd3b 100644
+--- a/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.h
++++ b/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.h
+@@ -59,7 +59,7 @@ SupervisorModeTrap (
+ #define SMODE_TRAP_REGS_t6       31
+ #define SMODE_TRAP_REGS_sepc     32
+ #define SMODE_TRAP_REGS_sstatus  33
+-#define SMODE_TRAP_REGS_sie      34
++#define SMODE_TRAP_REGS_stval    34
+ #define SMODE_TRAP_REGS_last     35
+ 
+ #define SMODE_TRAP_REGS_OFFSET(x)  ((SMODE_TRAP_REGS_##x) * __SIZEOF_POINTER__)
+@@ -68,7 +68,7 @@ SupervisorModeTrap (
+ #pragma pack(1)
+ typedef struct {
+   //
+-  // Below are follow the format of EFI_SYSTEM_CONTEXT
++  // Below follow the format of EFI_SYSTEM_CONTEXT.
+   //
+   UINT64    zero;
+   UINT64    ra;
+@@ -102,14 +102,9 @@ typedef struct {
+   UINT64    t4;
+   UINT64    t5;
+   UINT64    t6;
+-  //
+-  // Below are the additional information to
+-  // EFI_SYSTEM_CONTEXT, private to supervisor mode trap
+-  // and not public to EFI environment.
+-  //
+   UINT64    sepc;
+   UINT64    sstatus;
+-  UINT64    sie;
++  UINT64    stval;
+ } SMODE_TRAP_REGISTERS;
+ #pragma pack()
+ 
+diff --git a/UefiCpuPkg/CpuTimerDxeRiscV64/Timer.c b/UefiCpuPkg/CpuTimerDxeRiscV64/Timer.c
+index db153f715e60..0ecefddf1f18 100644
+--- a/UefiCpuPkg/CpuTimerDxeRiscV64/Timer.c
++++ b/UefiCpuPkg/CpuTimerDxeRiscV64/Timer.c
 @@ -271,7 +271,8 @@ TimerDriverInitialize (
    //
    // Install interrupt handler for RISC-V Timer.
@@ -94,19 +134,26 @@ index db153f715e..0ecefddf1f 100644
    ASSERT_EFI_ERROR (Status);
  
    //
-diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c
-index f1ee7d236a..cff73f4564 100644
---- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c
-+++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.c
-@@ -12,10 +12,113 @@
+diff --git a/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.c b/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.c
+index f1ee7d236aec..7e8be41cfb9b 100644
+--- a/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.c
++++ b/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/CpuExceptionHandlerLib.c
+@@ -11,11 +11,151 @@
+ #include <Library/CpuExceptionHandlerLib.h>
  #include <Library/DebugLib.h>
  #include <Library/BaseLib.h>
++#include <Library/SerialPortLib.h>
++#include <Library/PrintLib.h>
  #include <Register/RiscV64/RiscVEncoding.h>
 -
-+#include "CpuExceptionLib.h"
  #include "CpuExceptionHandlerLib.h"
  
 -STATIC EFI_CPU_INTERRUPT_HANDLER  mInterruptHandlers[2];
++//
++// Define the maximum message length
++//
++#define MAX_DEBUG_MESSAGE_LENGTH  0x100
++
 +STATIC EFI_CPU_INTERRUPT_HANDLER mExceptionHandlers[EXCEPT_RISCV_MAX_EXCEPTIONS + 1];
 +STATIC EFI_CPU_INTERRUPT_HANDLER mIrqHandlers[EXCEPT_RISCV_MAX_IRQS + 1];
 +
@@ -137,6 +184,37 @@ index f1ee7d236a..cff73f4564 100644
 +  "EXCEPT_RISCV_IRQ_4",
 +  "EXCEPT_RISCV_IRQ_TIMER_FROM_SMODE",
 +};
++
++/**
++  Prints a message to the serial port.
++
++  @param  Format      Format string for the message to print.
++  @param  ...         Variable argument list whose contents are accessed
++                      based on the format string specified by Format.
++
++**/
++VOID
++EFIAPI
++InternalPrintMessage (
++  IN  CONST CHAR8  *Format,
++  ...
++  )
++{
++  CHAR8    Buffer[MAX_DEBUG_MESSAGE_LENGTH];
++  VA_LIST  Marker;
++
++  //
++  // Convert the message to an ASCII String
++  //
++  VA_START (Marker, Format);
++  AsciiVSPrint (Buffer, sizeof (Buffer), Format, Marker);
++  VA_END (Marker);
++
++  //
++  // Send the print string to a Serial Port
++  //
++  SerialPortWrite ((UINT8 *)Buffer, AsciiStrLen (Buffer));
++}
 +
 +/**
 +  Get ASCII format string exception name by exception type.
@@ -214,7 +292,7 @@ index f1ee7d236a..cff73f4564 100644
  
  /**
    Initializes all CPU exceptions entries and provides the default exception handlers.
-@@ -47,34 +150,56 @@ InitializeCpuExceptionHandlers (
+@@ -47,34 +187,56 @@ InitializeCpuExceptionHandlers (
    Registers a function to be called from the processor interrupt handler.
  
    This function registers and enables the handler specified by InterruptHandler for a processor
@@ -280,7 +358,7 @@ index f1ee7d236a..cff73f4564 100644
    return EFI_SUCCESS;
  }
  
-@@ -113,21 +238,28 @@ RiscVSupervisorModeTrapHandler (
+@@ -113,21 +275,28 @@ RiscVSupervisorModeTrapHandler (
    SMODE_TRAP_REGISTERS  *SmodeTrapReg
    )
  {
@@ -321,48 +399,10 @@ index f1ee7d236a..cff73f4564 100644
 +  DumpCpuContext (ExceptionType, RiscVSystemContext);
 +  while (1);
  }
-diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h
-index 30f47e8755..9b7e1304dd 100644
---- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h
-+++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/CpuExceptionHandlerLib.h
-@@ -59,7 +59,7 @@ SupervisorModeTrap (
- #define SMODE_TRAP_REGS_t6       31
- #define SMODE_TRAP_REGS_sepc     32
- #define SMODE_TRAP_REGS_sstatus  33
--#define SMODE_TRAP_REGS_sie      34
-+#define SMODE_TRAP_REGS_stval    34
- #define SMODE_TRAP_REGS_last     35
- 
- #define SMODE_TRAP_REGS_OFFSET(x)  ((SMODE_TRAP_REGS_##x) * __SIZEOF_POINTER__)
-@@ -68,7 +68,7 @@ SupervisorModeTrap (
- #pragma pack(1)
- typedef struct {
-   //
--  // Below are follow the format of EFI_SYSTEM_CONTEXT
-+  // Below follow the format of EFI_SYSTEM_CONTEXT.
-   //
-   UINT64    zero;
-   UINT64    ra;
-@@ -102,14 +102,9 @@ typedef struct {
-   UINT64    t4;
-   UINT64    t5;
-   UINT64    t6;
--  //
--  // Below are the additional information to
--  // EFI_SYSTEM_CONTEXT, private to supervisor mode trap
--  // and not public to EFI environment.
--  //
-   UINT64    sepc;
-   UINT64    sstatus;
--  UINT64    sie;
-+  UINT64    stval;
- } SMODE_TRAP_REGISTERS;
- #pragma pack()
- 
-diff --git a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S
-index 649c4c5bec..45070b5cda 100644
---- a/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S
-+++ b/UefiCpuPkg/Library/CpuExceptionHandlerLib/RiscV64/SupervisorTrapHandler.S
+diff --git a/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/SupervisorTrapHandler.S b/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/SupervisorTrapHandler.S
+index 649c4c5becf4..45070b5cda04 100644
+--- a/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/SupervisorTrapHandler.S
++++ b/UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/SupervisorTrapHandler.S
 @@ -20,14 +20,14 @@ SupervisorModeTrap:
    sd    t0, SMODE_TRAP_REGS_OFFSET(t0)(sp)
  
