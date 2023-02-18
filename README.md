@@ -155,7 +155,7 @@ WRAPPED_ENTRY_POINTS=YES.
 
 A RISC-V build can include AArch64 support when built with the
 SUPPORTS_AARCH64_BINS=YES option. Note: this will increase the
-binary size nearly 2x to 3MiB! This option is off by defualt.
+binary size nearly 2x to 3MiB! This option is off by default.
 
 If you build with CHECK_ORPHAN_CONTEXTS=YES, EmulatorDxe will perform
 more runtime checks to handle unexpeced/non-linear control flow from
