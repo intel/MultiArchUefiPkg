@@ -32,7 +32,7 @@ NativeUnsupported (
   IN  UINT64     *Args
   )
 {
-  CpuContext *Cpu = CpuGetTopContext ()->Cpu;
+  UNUSED CpuContext *Cpu = CpuGetTopContext ()->Cpu;
 
   DEBUG ((DEBUG_ERROR, "Unsupported native call 0x%lx from %a PC 0x%lx\n",
           OriginalProgramCounter, Cpu->Name, ReturnAddress));
