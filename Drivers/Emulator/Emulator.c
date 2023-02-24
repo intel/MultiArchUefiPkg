@@ -12,13 +12,13 @@
 
 #include "Emulator.h"
 
-EFI_CPU_ARCH_PROTOCOL     *gCpu;
-EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
-EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
+EFI_CPU_ARCH_PROTOCOL      *gCpu;
+EFI_CPU_IO2_PROTOCOL       *gCpuIo2;
+EFI_LOADED_IMAGE_PROTOCOL  *gDriverImage;
 
 BOOLEAN
 EmulatorIsNativeCall (
-  IN  UINT64 ProgramCounter
+  IN  UINT64  ProgramCounter
   )
 {
   if ((ProgramCounter & (NATIVE_INSN_ALIGNMENT - 1)) != 0) {
@@ -36,7 +36,7 @@ EmulatorIsNativeCall (
   return TRUE;
 }
 
-STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocolX64 = {
+STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  mEmulatorProtocolX64 = {
   ImageProtocolSupported,
   ImageProtocolRegister,
   ImageProtocolUnregister,
@@ -45,7 +45,7 @@ STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocolX64 = {
 };
 
 #ifdef SUPPORTS_AARCH64_BINS
-STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocolAArch64 = {
+STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  mEmulatorProtocolAArch64 = {
   ImageProtocolSupported,
   ImageProtocolRegister,
   ImageProtocolUnregister,
@@ -56,13 +56,13 @@ STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL mEmulatorProtocolAArch64 = {
 
 UINT64
 EmulatorVmEntry (
-  IN  UINT64      ProgramCounter,
-  IN  UINT64      *Args,
-  IN  ImageRecord *Record,
-  IN  UINT64      Lr
+  IN  UINT64       ProgramCounter,
+  IN  UINT64       *Args,
+  IN  ImageRecord  *Record,
+  IN  UINT64       Lr
   )
 {
-  return CpuRunFunc (Record->Cpu, ProgramCounter, (UINT64 *) Args);
+  return CpuRunFunc (Record->Cpu, ProgramCounter, (UINT64 *)Args);
 }
 
 VOID
@@ -78,21 +78,24 @@ EmulatorDump (
 EFI_STATUS
 EFIAPI
 EmulatorDxeEntryPoint (
-  IN  EFI_HANDLE       ImageHandle,
-  IN  EFI_SYSTEM_TABLE *SystemTable
+  IN  EFI_HANDLE        ImageHandle,
+  IN  EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_STATUS Status;
-  EFI_HANDLE EmuHandleX64 = NULL;
-#ifdef SUPPORTS_AARCH64_BINS
-  EFI_HANDLE EmuHandleAArch64 = NULL;
-#endif /* SUPPORTS_AARCH64_BINS */
+  EFI_STATUS  Status;
+  EFI_HANDLE  EmuHandleX64 = NULL;
 
-  Status = gBS->HandleProtocol (ImageHandle,
-                                &gEfiLoadedImageProtocolGuid,
-                                (VOID **)&gDriverImage);
+ #ifdef SUPPORTS_AARCH64_BINS
+  EFI_HANDLE  EmuHandleAArch64 = NULL;
+ #endif /* SUPPORTS_AARCH64_BINS */
+
+  Status = gBS->HandleProtocol (
+                  ImageHandle,
+                  &gEfiLoadedImageProtocolGuid,
+                  (VOID **)&gDriverImage
+                  );
   if (EFI_ERROR (Status)) {
-    DEBUG((DEBUG_ERROR, "Can't get driver LoadedImage: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Can't get driver LoadedImage: %r\n", Status));
     return Status;
   }
 
@@ -104,8 +107,11 @@ EmulatorDxeEntryPoint (
     return Status;
   }
 
-  Status = gBS->LocateProtocol (&gEfiCpuIo2ProtocolGuid, NULL,
-                                (VOID **)&gCpuIo2);
+  Status = gBS->LocateProtocol (
+                  &gEfiCpuIo2ProtocolGuid,
+                  NULL,
+                  (VOID **)&gCpuIo2
+                  );
   if (Status != EFI_SUCCESS) {
     DEBUG ((DEBUG_WARN, "EFI_CPU_IO2_PROTOCOL is missing\n"));
   }
@@ -121,44 +127,55 @@ EmulatorDxeEntryPoint (
     return Status;
   }
 
-  Status = gBS->InstallProtocolInterface (&EmuHandleX64,
-                                          &gEdkiiPeCoffImageEmulatorProtocolGuid,
-                                          EFI_NATIVE_INTERFACE,
-                                          &mEmulatorProtocolX64);
+  Status = gBS->InstallProtocolInterface (
+                  &EmuHandleX64,
+                  &gEdkiiPeCoffImageEmulatorProtocolGuid,
+                  EFI_NATIVE_INTERFACE,
+                  &mEmulatorProtocolX64
+                  );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "InstallProtocolInterface mEmulatorProtocolX64 failed: %r\n", Status));
     goto done;
   }
 
-#ifdef SUPPORTS_AARCH64_BINS
-  Status = gBS->InstallProtocolInterface (&EmuHandleAArch64,
-                                          &gEdkiiPeCoffImageEmulatorProtocolGuid,
-                                          EFI_NATIVE_INTERFACE,
-                                          &mEmulatorProtocolAArch64);
+ #ifdef SUPPORTS_AARCH64_BINS
+  Status = gBS->InstallProtocolInterface (
+                  &EmuHandleAArch64,
+                  &gEdkiiPeCoffImageEmulatorProtocolGuid,
+                  EFI_NATIVE_INTERFACE,
+                  &mEmulatorProtocolAArch64
+                  );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "InstallProtocolInterface mEmulatorProtocolAArch64 failed: %r\n", Status));
     goto done;
   }
-#endif /* SUPPORTS_AARCH64_BINS */
 
-#ifndef NDEBUG
+ #endif /* SUPPORTS_AARCH64_BINS */
+
+ #ifndef NDEBUG
   Status = TestProtocolInit (ImageHandle);
-#endif
+ #endif
 
- done:
+done:
   if (EFI_ERROR (Status)) {
     if (EmuHandleX64 != NULL) {
-      gBS->UninstallProtocolInterface (EmuHandleX64,
-                                       &gEdkiiPeCoffImageEmulatorProtocolGuid,
-                                       &mEmulatorProtocolX64);
+      gBS->UninstallProtocolInterface (
+             EmuHandleX64,
+             &gEdkiiPeCoffImageEmulatorProtocolGuid,
+             &mEmulatorProtocolX64
+             );
     }
-#ifdef SUPPORTS_AARCH64_BINS
+
+ #ifdef SUPPORTS_AARCH64_BINS
     if (EmuHandleAArch64 != NULL) {
-      gBS->UninstallProtocolInterface (EmuHandleAArch64,
-                                       &gEdkiiPeCoffImageEmulatorProtocolGuid,
-                                       &mEmulatorProtocolAArch64);
+      gBS->UninstallProtocolInterface (
+             EmuHandleAArch64,
+             &gEdkiiPeCoffImageEmulatorProtocolGuid,
+             &mEmulatorProtocolAArch64
+             );
     }
-#endif /* SUPPORTS_AARCH64_BINS */
+
+ #endif /* SUPPORTS_AARCH64_BINS */
     ArchCleanup ();
     CpuCleanup ();
   }

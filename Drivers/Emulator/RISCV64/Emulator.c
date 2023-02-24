@@ -13,21 +13,21 @@
 #include "Emulator.h"
 #include <Library/CpuExceptionHandlerLib.h>
 
-#define INSN_C_ADDR_MASK (-1ULL - 1)
-#define INSN_ADDR_MASK   (-1ULL - 3)
+#define INSN_C_ADDR_MASK  (-1ULL - 1)
+#define INSN_ADDR_MASK    (-1ULL - 3)
 
-extern CONST UINT64 EmulatorThunk[];
+extern CONST UINT64  EmulatorThunk[];
 
 STATIC
 EFI_STATUS
 RecoverPcFromCall (
-  IN  ImageRecord                *ImageRecord,
-  IN  EFI_SYSTEM_CONTEXT_RISCV64 *RiscV64Context,
-  OUT EFI_PHYSICAL_ADDRESS       *ProgramCounter
+  IN  ImageRecord                 *ImageRecord,
+  IN  EFI_SYSTEM_CONTEXT_RISCV64  *RiscV64Context,
+  OUT EFI_PHYSICAL_ADDRESS        *ProgramCounter
   )
 {
-  UINT32 Insn;
-  UINT64 Ra = RiscV64Context->X1;
+  UINT32  Insn;
+  UINT64  Ra = RiscV64Context->X1;
 
   /*
    * SEPC always clears 0 and 1 as per IALIGN. Thus SEPC is always less
@@ -48,18 +48,27 @@ RecoverPcFromCall (
    */
 
   Insn = *(UINT16 *)(Ra - 2);
-  if ((Insn & 0x3) == 2 &&         // op == C2
-      (Insn & 0xf000) == 0x9000 && // funct4 == c.jalr
-      (Insn & 0xf80) != 0 &&       // rs1
-      (Insn & 0x7c) == 0) {        // rs2
-    UINTN Rs = (Insn >> 7) & 0x1F;
+  if (((Insn & 0x3) == 2) &&         // op == C2
+      ((Insn & 0xf000) == 0x9000) && // funct4 == c.jalr
+      ((Insn & 0xf80) != 0) &&       // rs1
+      ((Insn & 0x7c) == 0))          // rs2
+  {
+    UINTN  Rs = (Insn >> 7) & 0x1F;
     *ProgramCounter = (&RiscV64Context->X0)[Rs];
+
     /*
      * SEPC can be 1 bit away from PC.
      */
     if ((*ProgramCounter & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) {
-      DEBUG ((DEBUG_ERROR, "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 2 = 0x%lx\n",
-              ImageRecord->Cpu->Name, *ProgramCounter,  RiscV64Context->SEPC, Insn, Ra - 2));
+      DEBUG ((
+        DEBUG_ERROR,
+        "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 2 = 0x%lx\n",
+        ImageRecord->Cpu->Name,
+        *ProgramCounter,
+        RiscV64Context->SEPC,
+        Insn,
+        Ra - 2
+        ));
       return EFI_NOT_FOUND;
     }
 
@@ -70,33 +79,55 @@ RecoverPcFromCall (
     /*
      * It was definitely an (unknown) compressed instruction.
      */
-    DEBUG ((DEBUG_ERROR, "Unknown %a PC: unknown compressed instruction 0x%x at RA - 2 = 0x%lx\n",
-            ImageRecord->Cpu->Name, Insn, Ra - 2));
+    DEBUG ((
+      DEBUG_ERROR,
+      "Unknown %a PC: unknown compressed instruction 0x%x at RA - 2 = 0x%lx\n",
+      ImageRecord->Cpu->Name,
+      Insn,
+      Ra - 2
+      ));
     return EFI_NOT_FOUND;
   }
 
   Insn = *(UINT32 *)(Ra - 4);
-  if ((Insn & 0x7f) == 0x67  && // opcode == jalr
-      (Insn & 0xf80) == 0x80 && // rd == x1
-      (Insn & 0x3000) == 0) {   // func3
-    struct { signed int x:12; } imm12;
-    UINTN Rs = (Insn >> 15) & 0x1F;
+  if (((Insn & 0x7f) == 0x67) &&  // opcode == jalr
+      ((Insn & 0xf80) == 0x80) && // rd == x1
+      ((Insn & 0x3000) == 0))     // func3
+  {
+    struct {
+      signed int    x : 12;
+    } imm12;
+    UINTN  Rs = (Insn >> 15) & 0x1F;
 
-    imm12.x = Insn >> 20;
+    imm12.x         = Insn >> 20;
     *ProgramCounter = (&RiscV64Context->X0)[Rs] + imm12.x;
+
     /*
      * SEPC can be 2 bits away from PC.
      */
     if ((*ProgramCounter & INSN_ADDR_MASK) != RiscV64Context->SEPC) {
-      DEBUG ((DEBUG_ERROR, "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 4 = 0x%lx\n",
-              ImageRecord->Cpu->Name, *ProgramCounter,  RiscV64Context->SEPC, Insn, Ra - 4));
+      DEBUG ((
+        DEBUG_ERROR,
+        "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 4 = 0x%lx\n",
+        ImageRecord->Cpu->Name,
+        *ProgramCounter,
+        RiscV64Context->SEPC,
+        Insn,
+        Ra - 4
+        ));
       return EFI_NOT_FOUND;
     }
 
     return EFI_SUCCESS;
   }
-  DEBUG ((DEBUG_ERROR, "Unknown %a PC: unknown instruction 0x%x @ RA - 4 = 0x%lx\n",
-          ImageRecord->Cpu->Name, Insn, Ra - 4));
+
+  DEBUG ((
+    DEBUG_ERROR,
+    "Unknown %a PC: unknown instruction 0x%x @ RA - 4 = 0x%lx\n",
+    ImageRecord->Cpu->Name,
+    Insn,
+    Ra - 4
+    ));
 
   return EFI_NOT_FOUND;
 }
@@ -104,20 +135,22 @@ RecoverPcFromCall (
 VOID
 EFIAPI
 EmulatorSyncExceptionCallback (
-  IN     EFI_EXCEPTION_TYPE ExceptionType,
-  IN OUT EFI_SYSTEM_CONTEXT SystemContext
+  IN     EFI_EXCEPTION_TYPE  ExceptionType,
+  IN OUT EFI_SYSTEM_CONTEXT  SystemContext
   )
 {
-  EFI_SYSTEM_CONTEXT_RISCV64 *RiscV64Context;
-  ImageRecord                *Record;
+  EFI_SYSTEM_CONTEXT_RISCV64  *RiscV64Context;
+  ImageRecord                 *Record;
 
   RiscV64Context = SystemContext.SystemContextRiscV64;
-  Record = ImageFindByAddress (RiscV64Context->SEPC);
+  Record         = ImageFindByAddress (RiscV64Context->SEPC);
 
-  if (ExceptionType == EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT ||
-      ExceptionType == EXCEPT_RISCV_ILLEGAL_INST) {
+  if ((ExceptionType == EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT) ||
+      (ExceptionType == EXCEPT_RISCV_ILLEGAL_INST))
+  {
     if (Record != NULL) {
-      EFI_STATUS Status;
+      EFI_STATUS  Status;
+
       /*
        * SEPC always has bits 0 and 1 cleared as per
        * IALIGN. So it's good enough to validate the
@@ -126,11 +159,13 @@ EmulatorSyncExceptionCallback (
        * the address by decoding the instruction that
        * made the call.
        */
-      Status = RecoverPcFromCall (Record,
-                                  RiscV64Context,
-                                  &RiscV64Context->X5);
+      Status = RecoverPcFromCall (
+                 Record,
+                 RiscV64Context,
+                 &RiscV64Context->X5
+                 );
       if (!EFI_ERROR (Status)) {
-        RiscV64Context->X6 = (UINT64)Record;
+        RiscV64Context->X6   = (UINT64)Record;
         RiscV64Context->SEPC = (UINT64)EmulatorThunk;
         return;
       }
@@ -150,8 +185,11 @@ EmulatorSyncExceptionCallback (
      * instruction,and the instruction does an invalid operation, we get
      * here.
      */
-    DEBUG ((DEBUG_ERROR, "Exception occured due to executing %a as RISC-V code\n",
-            Record->Cpu->Name));
+    DEBUG ((
+      DEBUG_ERROR,
+      "Exception occured due to executing %a as RISC-V code\n",
+      Record->Cpu->Name
+      ));
   } else if (CpuAddrIsCodeGen (RiscV64Context->SEPC)) {
     /*
      * It looks like we crashed in the JITed code.
@@ -159,12 +197,16 @@ EmulatorSyncExceptionCallback (
      * TBD: can we lookup/decode the TB info?
      */
     DEBUG ((DEBUG_ERROR, "Exception occurred in TBs\n"));
-  } else if (RiscV64Context->SEPC >= (UINT64) gDriverImage->ImageBase &&
-             RiscV64Context->SEPC <= ((UINT64) gDriverImage->ImageBase +
-                                      gDriverImage->ImageSize - 1)) {
-    DEBUG ((DEBUG_ERROR, "Exception occured at driver PC +0x%lx, RA +0x%lx\n",
-            RiscV64Context->SEPC - (UINT64) gDriverImage->ImageBase,
-            RiscV64Context->X1 - (UINT64) gDriverImage->ImageBase));
+  } else if ((RiscV64Context->SEPC >= (UINT64)gDriverImage->ImageBase) &&
+             (RiscV64Context->SEPC <= ((UINT64)gDriverImage->ImageBase +
+                                       gDriverImage->ImageSize - 1)))
+  {
+    DEBUG ((
+      DEBUG_ERROR,
+      "Exception occured at driver PC +0x%lx, RA +0x%lx\n",
+      RiscV64Context->SEPC - (UINT64)gDriverImage->ImageBase,
+      RiscV64Context->X1 - (UINT64)gDriverImage->ImageBase
+      ));
   }
 
   EmulatorDump ();
@@ -173,23 +215,25 @@ EmulatorSyncExceptionCallback (
   CpuBreakpoint ();
 }
 
-STATIC UINTN mExceptions[] = {
+STATIC UINTN  mExceptions[] = {
   EXCEPT_RISCV_STORE_ACCESS_PAGE_FAULT,
   EXCEPT_RISCV_LOAD_ACCESS_PAGE_FAULT,
   EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT,
+
   /*
    * If CpuDxe doesn't configure MMU, then the illegal instruction
    * trap may work, but good luck!
    */
   EXCEPT_RISCV_ILLEGAL_INST,
-#ifndef NDEBUG
+ #ifndef NDEBUG
+
   /*
    * These are for debugging only. Don't take these by default to
    * avoid conflicts with other client. Useful if you suspect
    * crashes in JITted code or the driver itself.
    */
   EXCEPT_RISCV_LOAD_ACCESS_FAULT
-#endif
+ #endif
 };
 
 EFI_STATUS
@@ -197,14 +241,16 @@ ArchInit (
   VOID
   )
 {
-  INTN Index;
-  EFI_STATUS Status;
-  EFI_STATUS Status2;
+  INTN        Index;
+  EFI_STATUS  Status;
+  EFI_STATUS  Status2;
 
   for (Index = 0; Index < ARRAY_SIZE (mExceptions); Index++) {
-    Status = gCpu->RegisterInterruptHandler (gCpu,
-                                             mExceptions[Index],
-                                             &EmulatorSyncExceptionCallback);
+    Status = gCpu->RegisterInterruptHandler (
+                     gCpu,
+                     mExceptions[Index],
+                     &EmulatorSyncExceptionCallback
+                     );
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler 0x%x: %r\n", mExceptions[Index], Status));
       break;
@@ -226,8 +272,8 @@ ArchCleanup (
   VOID
   )
 {
-  INTN Index;
-  EFI_STATUS Status;
+  INTN        Index;
+  EFI_STATUS  Status;
 
   for (Index = 0; Index < ARRAY_SIZE (mExceptions); Index++) {
     Status = gCpu->RegisterInterruptHandler (gCpu, mExceptions[Index], NULL);

@@ -13,29 +13,29 @@
 #include <unicorn.h>
 #include "Emulator.h"
 
-#define EMU_STACK_SIZE         (1024 * 1024)
-#define NATIVE_STACK_SIZE      (1024 * 1024)
-#define RETURN_TO_NATIVE_MAGIC ((UINTN) &CpuReturnToNative)
-#define SYSV_X64_ABI_REDZONE   128
-#define CURRENT_FP()           ((UINTN) __builtin_frame_address(0))
+#define EMU_STACK_SIZE          (1024 * 1024)
+#define NATIVE_STACK_SIZE       (1024 * 1024)
+#define RETURN_TO_NATIVE_MAGIC  ((UINTN) &CpuReturnToNative)
+#define SYSV_X64_ABI_REDZONE    128
+#define CURRENT_FP()  ((UINTN) __builtin_frame_address(0))
 
-CpuContext CpuX64;
+CpuContext  CpuX64;
 #ifdef SUPPORTS_AARCH64_BINS
-CpuContext CpuAArch64;
+CpuContext  CpuAArch64;
 #endif /* SUPPORTS_AARCH64_BINS */
-STATIC CpuRunContext *mTopContext;
+STATIC CpuRunContext  *mTopContext;
 
 #ifndef EMU_TIMEOUT_NONE
-#define UC_EMU_EXIT_PERIOD_TB_MAX     0x100000
-#define UC_EMU_EXIT_PERIOD_TB_INITIAL 0x1000
-#define UC_EMU_EXIT_PERIOD_TB_MIN     0x100
-#define UC_EMU_EXIT_PERIOD_MS         10
+#define UC_EMU_EXIT_PERIOD_TB_MAX      0x100000
+#define UC_EMU_EXIT_PERIOD_TB_INITIAL  0x1000
+#define UC_EMU_EXIT_PERIOD_TB_MIN      0x100
+#define UC_EMU_EXIT_PERIOD_MS          10
 #endif /* EMU_TIMEOUT_NONE */
 
 #ifdef ON_PRIVATE_STACK
-STATIC BASE_LIBRARY_JUMP_BUFFER mOriginalStack;
-STATIC EFI_PHYSICAL_ADDRESS     mNativeStackStart;
-STATIC EFI_PHYSICAL_ADDRESS     mNativeStackTop;
+STATIC BASE_LIBRARY_JUMP_BUFFER  mOriginalStack;
+STATIC EFI_PHYSICAL_ADDRESS      mNativeStackStart;
+STATIC EFI_PHYSICAL_ADDRESS      mNativeStackTop;
 #endif /* ON_PRIVATE_STACK */
 
 typedef enum {
@@ -50,16 +50,17 @@ typedef enum {
  * Only the address is used by CpuIsNativeCb/CpuRunCtxInternal
  * to detect return back to native code.
  */
-STATIC VOID *CpuReturnToNative;
+STATIC VOID  *CpuReturnToNative;
 
 STATIC
 BOOLEAN
 CpuIsNativeCb (
-  IN  uc_engine *UE,
-  IN  UINT64    Address,
-  IN  VOID      *UserData)
+  IN  uc_engine  *UE,
+  IN  UINT64     Address,
+  IN  VOID       *UserData
+  )
 {
-  if (Address == RETURN_TO_NATIVE_MAGIC || EmulatorIsNativeCall (Address)) {
+  if ((Address == RETURN_TO_NATIVE_MAGIC) || EmulatorIsNativeCall (Address)) {
     return TRUE;
   }
 
@@ -70,12 +71,14 @@ CpuIsNativeCb (
 STATIC
 VOID
 CpuTimeoutCb (
-  IN  uc_engine *UE,
-  IN  UINT64    Address,
-  IN  UINT32    Size,
-  IN  VOID      *UserData)
+  IN  uc_engine  *UE,
+  IN  UINT64     Address,
+  IN  UINT32     Size,
+  IN  VOID       *UserData
+  )
 {
-  CpuContext *Cpu = UserData;
+  CpuContext  *Cpu = UserData;
+
   /*
    * GetPerformanceCounter () is a system register read, and is more expensive
    * than reading a variable. Moreover, in an emulated environment,
@@ -91,76 +94,96 @@ CpuTimeoutCb (
     uc_emu_stop (UE);
   }
 }
+
 #endif /* EMU_TIMEOUT_NONE */
 
 STATIC
 UINT32
 CpuIoReadCb (
-  IN  uc_engine *UE,
-  IN  UINT32    Port,
-  IN  UINT32    Size,
-  IN  VOID      *UserData)
+  IN  uc_engine  *UE,
+  IN  UINT32     Port,
+  IN  UINT32     Size,
+  IN  VOID       *UserData
+  )
 {
-  UINT32 Result = 0;
+  UINT32  Result = 0;
 
   switch (Size) {
-  case 1:
-    gCpuIo2->Io.Read(gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Result);
-    break;
-  case 2:
-    gCpuIo2->Io.Read(gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Result);
-    break;
-  default:
-    ASSERT (Size == 4);
-    gCpuIo2->Io.Read(gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Result);
-    break;
+    case 1:
+      gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Result);
+      break;
+    case 2:
+      gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Result);
+      break;
+    default:
+      ASSERT (Size == 4);
+      gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Result);
+      break;
   }
 
-  DEBUG ((DEBUG_VERBOSE, "PCI I/O read%u from 0x%x = 0x%x\n", Size,
-          Port, Result));
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "PCI I/O read%u from 0x%x = 0x%x\n",
+    Size,
+    Port,
+    Result
+    ));
   return Result;
 }
 
 STATIC
 VOID
 CpuIoWriteCb (
-  IN  uc_engine *UE,
-  IN  UINT32    Port,
-  IN  UINT32    Size,
-  IN  UINT32    Value,
-  IN  VOID      *UserData)
+  IN  uc_engine  *UE,
+  IN  UINT32     Port,
+  IN  UINT32     Size,
+  IN  UINT32     Value,
+  IN  VOID       *UserData
+  )
 {
-  DEBUG ((DEBUG_VERBOSE, "PCI I/O write%u to 0x%x = 0x%x\n", Size,
-          Port, Value));
+  DEBUG ((
+    DEBUG_VERBOSE,
+    "PCI I/O write%u to 0x%x = 0x%x\n",
+    Size,
+    Port,
+    Value
+    ));
 
   switch (Size) {
-  case 1:
-    gCpuIo2->Io.Write(gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Value);
-    break;
-  case 2:
-    gCpuIo2->Io.Write(gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Value);
-    break;
-  default:
-    ASSERT (Size == 4);
-    gCpuIo2->Io.Write(gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Value);
-    break;
+    case 1:
+      gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Value);
+      break;
+    case 2:
+      gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Value);
+      break;
+    default:
+      ASSERT (Size == 4);
+      gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Value);
+      break;
   }
 }
 
 STATIC
 UINT64
 CpuNullReadCb (
-  IN  uc_engine *UE,
-  IN  UINT64    Offset,
-  IN  UINT32    Size,
-  IN  VOID      *UserData)
+  IN  uc_engine  *UE,
+  IN  UINT64     Offset,
+  IN  UINT32     Size,
+  IN  VOID       *UserData
+  )
 {
-  DEBUG ((DEBUG_ERROR, "UINT%u NULL-ptr read to 0x%lx\n",
-          Size * 8, Offset));
+  DEBUG ((
+    DEBUG_ERROR,
+    "UINT%u NULL-ptr read to 0x%lx\n",
+    Size * 8,
+    Offset
+    ));
 
-  DEBUG_CODE_BEGIN (); {
+  DEBUG_CODE_BEGIN ();
+  {
     EmulatorDump ();
-  } DEBUG_CODE_END ();
+  }
+  DEBUG_CODE_END ();
 
   return 0xAFAFAFAFAFAFAFAFUL;
 }
@@ -168,27 +191,35 @@ CpuNullReadCb (
 STATIC
 VOID
 CpuNullWriteCb (
-  IN  uc_engine *UE,
-  IN  UINT64    Offset,
-  IN  UINT32    Size,
-  IN  UINT64    Value,
-  IN  VOID      *UserData)
+  IN  uc_engine  *UE,
+  IN  UINT64     Offset,
+  IN  UINT32     Size,
+  IN  UINT64     Value,
+  IN  VOID       *UserData
+  )
 {
-  DEBUG ((DEBUG_ERROR, "UINT%u NULL-ptr write to 0x%lx\n",
-          Size * 8, Offset));
+  DEBUG ((
+    DEBUG_ERROR,
+    "UINT%u NULL-ptr write to 0x%lx\n",
+    Size * 8,
+    Offset
+    ));
 
-  DEBUG_CODE_BEGIN (); {
+  DEBUG_CODE_BEGIN ();
+  {
     EmulatorDump ();
-  } DEBUG_CODE_END ();
+  }
+  DEBUG_CODE_END ();
 }
 
 STATIC
 VOID
 CpuCleanupEx (
-  IN  CpuContext *Cpu
+  IN  CpuContext  *Cpu
   )
 {
-  uc_err UcErr;
+  uc_err  UcErr;
+
   ASSERT (Cpu != NULL);
   ASSERT (Cpu->UE != NULL);
 
@@ -206,9 +237,9 @@ CpuCleanup (
   )
 {
   CpuCleanupEx (&CpuX64);
-#ifdef SUPPORTS_AARCH64_BINS
+ #ifdef SUPPORTS_AARCH64_BINS
   CpuCleanupEx (&CpuAArch64);
-#endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* SUPPORTS_AARCH64_BINS */
 }
 
 STATIC
@@ -217,62 +248,80 @@ CpuPrivateStackInit (
   VOID
   )
 {
-#ifdef ON_PRIVATE_STACK
-  EFI_STATUS Status;
+ #ifdef ON_PRIVATE_STACK
+  EFI_STATUS  Status;
 
-  Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData,
-                               EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE), &mNativeStackStart);
+  Status = gBS->AllocatePages (
+                  AllocateAnyPages,
+                  EfiBootServicesData,
+                  EFI_SIZE_TO_PAGES (NATIVE_STACK_SIZE),
+                  &mNativeStackStart
+                  );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Failed to allocate private stack: %r\n", Status));
     return Status;
   }
+
   mNativeStackTop = mNativeStackStart + NATIVE_STACK_SIZE - EFI_PAGE_SIZE;
-  Status = gCpu->SetMemoryAttributes (gCpu, mNativeStackStart, NATIVE_STACK_SIZE,
-                                      EFI_MEMORY_XP);
+  Status          = gCpu->SetMemoryAttributes (
+                            gCpu,
+                            mNativeStackStart,
+                            NATIVE_STACK_SIZE,
+                            EFI_MEMORY_XP
+                            );
   if (EFI_ERROR (Status)) {
     return Status;
   }
-  Status = gCpu->SetMemoryAttributes (gCpu, mNativeStackTop,
-                                      EFI_PAGE_SIZE,
-                                      EFI_MEMORY_RO | EFI_MEMORY_XP);
+
+  Status = gCpu->SetMemoryAttributes (
+                   gCpu,
+                   mNativeStackTop,
+                   EFI_PAGE_SIZE,
+                   EFI_MEMORY_RO | EFI_MEMORY_XP
+                   );
   if (EFI_ERROR (Status)) {
     return Status;
   }
-  Status = gCpu->SetMemoryAttributes (gCpu, mNativeStackStart,
-                                      EFI_PAGE_SIZE,
-                                      EFI_MEMORY_RO | EFI_MEMORY_XP);
+
+  Status = gCpu->SetMemoryAttributes (
+                   gCpu,
+                   mNativeStackStart,
+                   EFI_PAGE_SIZE,
+                   EFI_MEMORY_RO | EFI_MEMORY_XP
+                   );
   if (EFI_ERROR (Status)) {
     return Status;
   }
+
   DEBUG ((DEBUG_INFO, "Native stack is at 0x%lx-0x%lx\n", mNativeStackStart, mNativeStackTop));
 
-#endif /* ON_PRIVATE_STACK */
+ #endif /* ON_PRIVATE_STACK */
   return EFI_SUCCESS;
 }
 
 STATIC
 VOID
 CpuStackPushRedZone (
-  IN  CpuContext *Cpu
+  IN  CpuContext  *Cpu
   )
 {
-  UINT64 Rsp;
+  UINT64  Rsp;
 
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Rsp  = REG_READ (Cpu, Cpu->StackReg);
   Rsp -= SYSV_X64_ABI_REDZONE;
   REG_WRITE (Cpu, Cpu->StackReg, Rsp);
 }
 
 UINT64
 CpuStackPop64 (
-  IN  CpuContext *Cpu
+  IN  CpuContext  *Cpu
   )
 {
-  UINT64 Rsp;
-  UINT64 Val;
+  UINT64  Rsp;
+  UINT64  Val;
 
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
-  Val = *(UINT64 *) Rsp;
+  Rsp  = REG_READ (Cpu, Cpu->StackReg);
+  Val  = *(UINT64 *)Rsp;
   Rsp += 8;
   REG_WRITE (Cpu, Cpu->StackReg, Rsp);
   return Val;
@@ -281,30 +330,30 @@ CpuStackPop64 (
 STATIC
 VOID
 CpuStackPush64 (
-  IN  CpuContext *Cpu,
-  IN  UINT64     Val
+  IN  CpuContext  *Cpu,
+  IN  UINT64      Val
   )
 {
-  UINT64 Rsp;
+  UINT64  Rsp;
 
-  Rsp = REG_READ (Cpu, Cpu->StackReg);
+  Rsp  = REG_READ (Cpu, Cpu->StackReg);
   Rsp -= 8;
   REG_WRITE (Cpu, Cpu->StackReg, Rsp);
 
-  *(UINT64 *) Rsp = Val;
+  *(UINT64 *)Rsp = Val;
 }
 
 #ifdef SUPPORTS_AARCH64_BINS
 STATIC
 VOID
 CpuAArch64Dump (
-  IN  CpuContext *Cpu
+  IN  CpuContext  *Cpu
   )
 {
-         UINT64 Val;
+  UINT64        Val;
   UNUSED UINTN  Printed = 0;
 
-#define REGS()                                        \
+  #define REGS()                                        \
   REG(PC);                                            \
   REG(LR);                                            \
   REG(NZCV);                                          \
@@ -340,7 +389,7 @@ CpuAArch64Dump (
   REG(X27);                                           \
   REG(X28);
 
-#define REG(x) do {                                     \
+  #define REG(x)  do {                                  \
     Printed++;                                          \
     Val = REG_READ (Cpu, UC_ARM64_REG_##x);             \
     DEBUG ((DEBUG_ERROR, "%4a = 0x%016lx", #x, Val));   \
@@ -353,18 +402,18 @@ CpuAArch64Dump (
 
   REGS ();
 
-#undef REG
-#undef REGS
+  #undef REG
+  #undef REGS
 }
 
 STATIC
 VOID
 CpuAArch64EmuThunkPre (
-  IN  struct CpuContext *Cpu,
-  IN  UINT64            *Args
+  IN  struct CpuContext  *Cpu,
+  IN  UINT64             *Args
   )
 {
-  unsigned Index;
+  unsigned  Index;
 
   REG_WRITE (Cpu, UC_ARM64_REG_X0, Args[0]);
   REG_WRITE (Cpu, UC_ARM64_REG_X1, Args[1]);
@@ -391,19 +440,20 @@ CpuAArch64EmuThunkPre (
 STATIC
 VOID
 CpuAArch64EmuThunkPost (
-  IN  struct CpuContext *Cpu,
-  IN  UINT64            *Args
+  IN  struct CpuContext  *Cpu,
+  IN  UINT64             *Args
   )
 {
-  unsigned Index;
+  unsigned  Index;
 
   /*
    * Pop stack passed parameters.
    */
   for (Index = 8; Index < MAX_ARGS; Index++) {
-    UINT64 Val = CpuStackPop64 (Cpu);
+    UINT64  Val = CpuStackPop64 (Cpu);
 
-    DEBUG_CODE_BEGIN (); {
+    DEBUG_CODE_BEGIN ();
+    {
       if (Val != Args[Index]) {
         /*
          * The code doesn't know how many args were passed, so you can
@@ -411,25 +461,31 @@ CpuAArch64EmuThunkPost (
          * (not the emulated stack getting corrupted) - because it's just
          * some variable on the stack, not an actual argument.
          */
-        DEBUG ((DEBUG_ERROR,
-                "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
-                Index, Val, Args[Index]));
+        DEBUG ((
+          DEBUG_ERROR,
+          "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
+          Index,
+          Val,
+          Args[Index]
+          ));
       }
-    } DEBUG_CODE_END ();
+    }
+    DEBUG_CODE_END ();
   }
 }
+
 #endif /* SUPPORTS_AARCH64_BINS */
 
 STATIC
 VOID
 CpuX64Dump (
-  IN  CpuContext *Cpu
+  IN  CpuContext  *Cpu
   )
 {
-         UINT64 Val;
+  UINT64        Val;
   UNUSED UINTN  Printed = 0;
 
-#define REGS()                                  \
+  #define REGS()                                  \
   REG(RIP);                                     \
   REG(RFLAGS);                                  \
   REG(RDI);                                     \
@@ -449,7 +505,7 @@ CpuX64Dump (
   REG(R14);                                     \
   REG(R15);
 
-#define REG(x) do {                                     \
+  #define REG(x)  do {                                  \
     Printed++;                                          \
     Val = REG_READ (Cpu, UC_X86_REG_##x);               \
     DEBUG ((DEBUG_ERROR, "%6a = 0x%016lx", #x, Val));   \
@@ -462,18 +518,18 @@ CpuX64Dump (
 
   REGS ();
 
-#undef REG
-#undef REGS
+  #undef REG
+  #undef REGS
 }
 
 STATIC
 VOID
 CpuX64EmuThunkPre (
-  IN  struct CpuContext *Cpu,
-  IN  UINT64            *Args
+  IN  struct CpuContext  *Cpu,
+  IN  UINT64             *Args
   )
 {
-  unsigned Index;
+  unsigned  Index;
 
   REG_WRITE (Cpu, UC_X86_REG_RCX, Args[0]);
   REG_WRITE (Cpu, UC_X86_REG_RDX, Args[1]);
@@ -503,11 +559,11 @@ CpuX64EmuThunkPre (
 STATIC
 VOID
 CpuX64EmuThunkPost (
-  IN  struct CpuContext *Cpu,
-  IN  UINT64            *Args
+  IN  struct CpuContext  *Cpu,
+  IN  UINT64             *Args
   )
 {
-  unsigned Index;
+  unsigned  Index;
 
   /*
    * Pop stack passed parameters.
@@ -519,10 +575,11 @@ CpuX64EmuThunkPost (
     CpuStackPop64 (Cpu);
   }
 
-  for (; Index < MAX_ARGS; Index++) {
-    UINT64 Val = CpuStackPop64 (Cpu);
+  for ( ; Index < MAX_ARGS; Index++) {
+    UINT64  Val = CpuStackPop64 (Cpu);
 
-    DEBUG_CODE_BEGIN (); {
+    DEBUG_CODE_BEGIN ();
+    {
       if (Val != Args[Index]) {
         /*
          * The code doesn't know how many args were passed, so you can
@@ -530,56 +587,62 @@ CpuX64EmuThunkPost (
          * (not the emulated stack getting corrupted) - because it's just
          * some variable on the stack, not an actual argument.
          */
-        DEBUG ((DEBUG_ERROR,
-                "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
-                Index, Val, Args[Index]));
+        DEBUG ((
+          DEBUG_ERROR,
+          "Possible Arg%u mismatch (got 0x%lx instead of 0x%lx)\n",
+          Index,
+          Val,
+          Args[Index]
+          ));
       }
-    } DEBUG_CODE_END ();
+    }
+    DEBUG_CODE_END ();
   }
 }
 
 STATIC
 EFI_STATUS
 CpuInitEx (
-  IN  uc_arch    Arch,
-  OUT CpuContext *Cpu
+  IN  uc_arch     Arch,
+  OUT CpuContext  *Cpu
   )
 {
-  uc_err     UcErr;
-  EFI_STATUS Status;
-  uc_hook    IoReadHook;
-  uc_hook    IoWriteHook;
-#ifndef EMU_TIMEOUT_NONE
-  uc_hook    TimeoutHook;
-#endif /* EMU_TIMEOUT_NONE */
-  uc_hook    IsNativeHook;
-  size_t     UnicornCodeGenSize;
-  uc_mode    UcMode;
+  uc_err      UcErr;
+  EFI_STATUS  Status;
+  uc_hook     IoReadHook;
+  uc_hook     IoWriteHook;
+
+ #ifndef EMU_TIMEOUT_NONE
+  uc_hook  TimeoutHook;
+ #endif /* EMU_TIMEOUT_NONE */
+  uc_hook  IsNativeHook;
+  size_t   UnicornCodeGenSize;
+  uc_mode  UcMode;
 
   if (Arch == UC_ARCH_X86) {
-    UcMode = UC_MODE_64;
-    Cpu->EmuMachineType = EFI_IMAGE_MACHINE_X64;
-    Cpu->Name = "x64";
-    Cpu->StackReg = UC_X86_REG_RSP;
+    UcMode                 = UC_MODE_64;
+    Cpu->EmuMachineType    = EFI_IMAGE_MACHINE_X64;
+    Cpu->Name              = "x64";
+    Cpu->StackReg          = UC_X86_REG_RSP;
     Cpu->ProgramCounterReg = UC_X86_REG_RIP;
-    Cpu->ReturnValueReg = UC_X86_REG_RAX;
-    Cpu->Dump = CpuX64Dump;
-    Cpu->EmuThunkPre = CpuX64EmuThunkPre;
-    Cpu->EmuThunkPost = CpuX64EmuThunkPost;
-    Cpu->NativeThunk = NativeThunkX64;
-#ifdef SUPPORTS_AARCH64_BINS
+    Cpu->ReturnValueReg    = UC_X86_REG_RAX;
+    Cpu->Dump              = CpuX64Dump;
+    Cpu->EmuThunkPre       = CpuX64EmuThunkPre;
+    Cpu->EmuThunkPost      = CpuX64EmuThunkPost;
+    Cpu->NativeThunk       = NativeThunkX64;
+ #ifdef SUPPORTS_AARCH64_BINS
   } else if (Arch == UC_ARCH_ARM64) {
-    Cpu->EmuMachineType = EFI_IMAGE_MACHINE_AARCH64;
-    UcMode = UC_MODE_ARM;
-    Cpu->Name = "AArch64";
-    Cpu->StackReg = UC_ARM64_REG_SP;
+    Cpu->EmuMachineType    = EFI_IMAGE_MACHINE_AARCH64;
+    UcMode                 = UC_MODE_ARM;
+    Cpu->Name              = "AArch64";
+    Cpu->StackReg          = UC_ARM64_REG_SP;
     Cpu->ProgramCounterReg = UC_ARM64_REG_PC;
-    Cpu->ReturnValueReg = UC_ARM64_REG_X0;
-    Cpu->Dump = CpuAArch64Dump;
-    Cpu->EmuThunkPre = CpuAArch64EmuThunkPre;
-    Cpu->EmuThunkPost = CpuAArch64EmuThunkPost;
-    Cpu->NativeThunk = NativeThunkAArch64;
-#endif /* SUPPORTS_AARCH64_BINS */
+    Cpu->ReturnValueReg    = UC_ARM64_REG_X0;
+    Cpu->Dump              = CpuAArch64Dump;
+    Cpu->EmuThunkPre       = CpuAArch64EmuThunkPre;
+    Cpu->EmuThunkPost      = CpuAArch64EmuThunkPost;
+    Cpu->NativeThunk       = NativeThunkAArch64;
+ #endif /* SUPPORTS_AARCH64_BINS */
   } else {
     return EFI_UNSUPPORTED;
   }
@@ -590,17 +653,19 @@ CpuInitEx (
    * stack values (...by manipulating ESP in 64-bit code!).
    */
   Cpu->EmuStackStart = SIZE_4GB - 1;
-  Status = gBS->AllocatePages (AllocateMaxAddress, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &Cpu->EmuStackStart);
+  Status             = gBS->AllocatePages (AllocateMaxAddress, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &Cpu->EmuStackStart);
   if (EFI_ERROR (Status)) {
     Status = gBS->AllocatePages (AllocateAnyPages, EfiBootServicesData, EFI_SIZE_TO_PAGES (EMU_STACK_SIZE), &Cpu->EmuStackStart);
   }
+
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "Failed to allocate emulated stack: %r\n", Status));
     return Status;
   }
+
   Cpu->EmuStackTop = Cpu->EmuStackStart + EMU_STACK_SIZE;
 
-  UcErr = uc_open(Arch, UcMode, &Cpu->UE);
+  UcErr = uc_open (Arch, UcMode, &Cpu->UE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_open failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -612,7 +677,8 @@ CpuInitEx (
    * loop (polling on some memory updated by an event) will cause
    * a hard hang.
    */
-#ifndef EMU_TIMEOUT_NONE
+ #ifndef EMU_TIMEOUT_NONE
+
   /*
    * Use a block hook to check for timeouts. We must run UC with timer
    * off because it's not reentrant enough, so we need to bail out
@@ -623,19 +689,34 @@ CpuInitEx (
    * Eventually this could be optimized within unicorn by generating
    * the minimum code to read TSC, compare and exit emu on a match.
    */
-  UcErr = uc_hook_add (Cpu->UE, &TimeoutHook, UC_HOOK_BLOCK, CpuTimeoutCb,
-                       Cpu, 1, 0);
+  UcErr = uc_hook_add (
+            Cpu->UE,
+            &TimeoutHook,
+            UC_HOOK_BLOCK,
+            CpuTimeoutCb,
+            Cpu,
+            1,
+            0
+            );
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "Timeout hook failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
-#endif /* EMU_TIMEOUT_NONE */
+
+ #endif /* EMU_TIMEOUT_NONE */
 
   /*
    * Use a UC_HOOK_TB_FIND_FAILURE hook to detect native code execution.
    */
-  UcErr = uc_hook_add (Cpu->UE, &IsNativeHook, UC_HOOK_TB_FIND_FAILURE,
-                       CpuIsNativeCb, NULL, 1, 0);
+  UcErr = uc_hook_add (
+            Cpu->UE,
+            &IsNativeHook,
+            UC_HOOK_TB_FIND_FAILURE,
+            CpuIsNativeCb,
+            NULL,
+            1,
+            0
+            );
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "IsNative hook failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -646,15 +727,31 @@ CpuInitEx (
      * Port I/O hooks.
      */
     if (gCpuIo2 != NULL) {
-      UcErr = uc_hook_add (Cpu->UE, &IoReadHook, UC_HOOK_INSN, CpuIoReadCb,
-                           NULL, 1, 0, UC_X86_INS_IN);
+      UcErr = uc_hook_add (
+                Cpu->UE,
+                &IoReadHook,
+                UC_HOOK_INSN,
+                CpuIoReadCb,
+                NULL,
+                1,
+                0,
+                UC_X86_INS_IN
+                );
       if (UcErr != UC_ERR_OK) {
         DEBUG ((DEBUG_ERROR, "PIO read hook failed: %a\n", uc_strerror (UcErr)));
         return EFI_UNSUPPORTED;
       }
 
-      UcErr = uc_hook_add (Cpu->UE, &IoWriteHook, UC_HOOK_INSN, CpuIoWriteCb,
-                           NULL, 1, 0, UC_X86_INS_OUT);
+      UcErr = uc_hook_add (
+                Cpu->UE,
+                &IoWriteHook,
+                UC_HOOK_INSN,
+                CpuIoWriteCb,
+                NULL,
+                1,
+                0,
+                UC_X86_INS_OUT
+                );
       if (UcErr != UC_ERR_OK) {
         DEBUG ((DEBUG_ERROR, "PIO write hook failed: %a\n", uc_strerror (UcErr)));
         return EFI_UNSUPPORTED;
@@ -665,9 +762,15 @@ CpuInitEx (
   /*
    * Read/Write accesses that result from NULL pointer accesses.
    */
-  UcErr = uc_mmio_map (Cpu->UE, 0, EFI_PAGE_SIZE,
-                       CpuNullReadCb, NULL,
-                       CpuNullWriteCb, NULL);
+  UcErr = uc_mmio_map (
+            Cpu->UE,
+            0,
+            EFI_PAGE_SIZE,
+            CpuNullReadCb,
+            NULL,
+            CpuNullWriteCb,
+            NULL
+            );
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mmio_map failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -677,10 +780,13 @@ CpuInitEx (
    * Map all memory but the zero page R/W. Some portions are made
    * executable later (e.g. via CpuRegisterCodeRange).
    */
-  UcErr = uc_mem_map_ptr (Cpu->UE, EFI_PAGE_SIZE,
-                          (1UL << 48) - EFI_PAGE_SIZE,
-                          UC_PROT_READ | UC_PROT_WRITE,
-                          (VOID *) EFI_PAGE_SIZE);
+  UcErr = uc_mem_map_ptr (
+            Cpu->UE,
+            EFI_PAGE_SIZE,
+            (1UL << 48) - EFI_PAGE_SIZE,
+            UC_PROT_READ | UC_PROT_WRITE,
+            (VOID *)EFI_PAGE_SIZE
+            );
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_map_ptr failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
@@ -692,17 +798,21 @@ CpuInitEx (
    * parameter to uc_emu_start, which (given it's 0 value) also avoids
    * an unexpected UC_ERR_OK return on a NULL fn pointer call.
    */
-  UcErr = uc_ctl_exits_enable(Cpu->UE);
+  UcErr = uc_ctl_exits_enable (Cpu->UE);
   ASSERT (UcErr == UC_ERR_OK);
 
   REG_WRITE (Cpu, Cpu->StackReg, Cpu->EmuStackTop);
 
-  UcErr = uc_get_code_gen_buf (Cpu->UE, (void **) &Cpu->UnicornCodeGenBuf,
-                               &UnicornCodeGenSize);
+  UcErr = uc_get_code_gen_buf (
+            Cpu->UE,
+            (void **)&Cpu->UnicornCodeGenBuf,
+            &UnicornCodeGenSize
+            );
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_get_code_gen_buf failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
   }
+
   Cpu->UnicornCodeGenBufEnd = Cpu->UnicornCodeGenBuf + UnicornCodeGenSize;
 
   UcErr = uc_context_alloc (Cpu->UE, &Cpu->InitialState);
@@ -716,17 +826,17 @@ CpuInitEx (
 
   mTopContext = NULL;
 
-#ifndef EMU_TIMEOUT_NONE
-  Cpu->TbCount = 0;
-  Cpu->ExitPeriodTbs = UC_EMU_EXIT_PERIOD_TB_INITIAL;
+ #ifndef EMU_TIMEOUT_NONE
+  Cpu->TbCount         = 0;
+  Cpu->ExitPeriodTbs   = UC_EMU_EXIT_PERIOD_TB_INITIAL;
   Cpu->ExitPeriodTicks = DivU64x32 (
-    MultU64x64 (
-      UC_EMU_EXIT_PERIOD_MS,
-      GetPerformanceCounterProperties (NULL, NULL)
-      ),
-    1000u
-    );
-#endif /* EMU_TIMEOUT_NONE */
+                           MultU64x64 (
+                             UC_EMU_EXIT_PERIOD_MS,
+                             GetPerformanceCounterProperties (NULL, NULL)
+                             ),
+                           1000u
+                           );
+ #endif /* EMU_TIMEOUT_NONE */
 
   return EFI_SUCCESS;
 }
@@ -736,7 +846,7 @@ CpuInit (
   VOID
   )
 {
-  EFI_STATUS Status;
+  EFI_STATUS  Status;
 
   Status = CpuPrivateStackInit ();
   if (EFI_ERROR (Status)) {
@@ -748,24 +858,24 @@ CpuInit (
     return Status;
   }
 
-#ifdef SUPPORTS_AARCH64_BINS
+ #ifdef SUPPORTS_AARCH64_BINS
   Status = CpuInitEx (UC_ARCH_ARM64, &CpuAArch64);
   if (EFI_ERROR (Status)) {
     return Status;
   }
-#endif /* SUPPORTS_AARCH64_BINS */
+
+ #endif /* SUPPORTS_AARCH64_BINS */
 
   return EFI_SUCCESS;
 }
 
-
 STATIC
 VOID
 CpuEnterCritical (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
-  Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context->Tpl         = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context->PrevContext = mTopContext;
 
   mTopContext = Context;
@@ -775,7 +885,7 @@ CpuEnterCritical (
 STATIC
 VOID
 CpuLeaveCritical (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
   Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
@@ -792,8 +902,8 @@ CpuDump (
   VOID
   )
 {
-  UINT64     Val;
-  CpuContext *Cpu;
+  UINT64      Val;
+  CpuContext  *Cpu;
 
   if (mTopContext == NULL) {
     /*
@@ -810,7 +920,7 @@ CpuDump (
   }
 
   Val = REG_READ (Cpu, Cpu->StackReg);
-  if (!(Val >= Cpu->EmuStackStart && Val < Cpu->EmuStackTop)) {
+  if (!((Val >= Cpu->EmuStackStart) && (Val < Cpu->EmuStackTop))) {
     /*
      * It's not completely invalid for a binary to move it's
      * stack pointer elsewhere, but it is highly unusual and
@@ -818,32 +928,49 @@ CpuDump (
      * stack pointer by manipulating ESP instead of RSP
      * (which clears the high bits of RSP).
      */
-    DEBUG ((DEBUG_ERROR, "Emulated stack is outside 0x%lx-0x%lx\n",
-            Cpu->EmuStackStart, Cpu->EmuStackTop));
+    DEBUG ((
+      DEBUG_ERROR,
+      "Emulated stack is outside 0x%lx-0x%lx\n",
+      Cpu->EmuStackStart,
+      Cpu->EmuStackTop
+      ));
   }
 }
 
 STATIC
 UINT64
 CpuRunCtxInternal (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
-  uc_err        UcErr;
-  CpuExitReason ExitReason;
-  UINT64        *Args = Context->Args;
-  UINT64        ProgramCounter = Context->ProgramCounter;
-  CpuContext    *Cpu = Context->Cpu;
+  uc_err         UcErr;
+  CpuExitReason  ExitReason;
+  UINT64         *Args          = Context->Args;
+  UINT64         ProgramCounter = Context->ProgramCounter;
+  CpuContext     *Cpu           = Context->Cpu;
 
-  DEBUG ((DEBUG_INFO, "XXX %a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-          Cpu->Name, ProgramCounter, Args[0], Args[1], Args[2], Args[3], Args[4],
-          Args[5], Args[6], Args[7], Args[8]));
+  DEBUG ((
+    DEBUG_INFO,
+    "XXX %a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+    Cpu->Name,
+    ProgramCounter,
+    Args[0],
+    Args[1],
+    Args[2],
+    Args[3],
+    Args[4],
+    Args[5],
+    Args[6],
+    Args[7],
+    Args[8]
+    ));
 
   ASSERT (Cpu->EmuThunkPre != NULL);
   Cpu->EmuThunkPre (Cpu, Args);
 
-  for (;;) {
+  for ( ; ;) {
     ExitReason = CPU_REASON_INVALID;
+
     /*
      * Unfortunately UC is not reentrant enough, so we can't use uc_set_native_thunks
      * (native code could call emulated code!) and we can't take any asynchronous emu code
@@ -852,18 +979,19 @@ CpuRunCtxInternal (
      *
      * Prefer masking interrupts to manipulating TPL due to overhead of the later.
      */
-    DisableInterrupts (); {
-#ifndef EMU_TIMEOUT_NONE
-      UINT64 TimeoutAbsTicks;
+    DisableInterrupts ();
+    {
+ #ifndef EMU_TIMEOUT_NONE
+      UINT64  TimeoutAbsTicks;
       TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
-#endif /* EMU_TIMEOUT_NONE */
+ #endif /* EMU_TIMEOUT_NONE */
 
       UcErr = uc_emu_start (Cpu->UE, ProgramCounter, 0, 0, 0);
 
-#ifndef EMU_TIMEOUT_NONE
+ #ifndef EMU_TIMEOUT_NONE
       if (Cpu->StoppedOnTimeout) {
         Cpu->StoppedOnTimeout = FALSE;
-        UINT64 Ticks = GetPerformanceCounter ();
+        UINT64  Ticks = GetPerformanceCounter ();
 
         if (Ticks > TimeoutAbsTicks) {
           if (Cpu->ExitPeriodTbs > UC_EMU_EXIT_PERIOD_TB_MIN) {
@@ -875,8 +1003,10 @@ CpuRunCtxInternal (
           }
         }
       }
-#endif /* EMU_TIMEOUT_NONE */
-    } EnableInterrupts ();
+
+ #endif /* EMU_TIMEOUT_NONE */
+    }
+    EnableInterrupts ();
 
     ProgramCounter = REG_READ (Cpu, Cpu->ProgramCounterReg);
 
@@ -895,6 +1025,7 @@ CpuRunCtxInternal (
        * to uc_ctl_exits_enable.
        */
       ASSERT (ProgramCounter != 0);
+
       /*
        * This could be due to CpuTimeoutCb firing, or
        * this could be a 'hlt' as well, but no easy way
@@ -928,12 +1059,12 @@ CpuRunCtxInternal (
 
 VOID
 CpuUnregisterCodeRange (
-  IN  CpuContext           *Cpu,
-  IN  EFI_PHYSICAL_ADDRESS ImageBase,
-  IN  UINT64               ImageSize
+  IN  CpuContext            *Cpu,
+  IN  EFI_PHYSICAL_ADDRESS  ImageBase,
+  IN  UINT64                ImageSize
   )
 {
-  uc_err UcErr;
+  uc_err  UcErr;
 
   UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
   if (UcErr != UC_ERR_OK) {
@@ -944,17 +1075,17 @@ CpuUnregisterCodeRange (
    * Because images can be loaded into a previously used range,
    * stale TBs can lead to "strange" crashes.
    */
-  uc_ctl_remove_cache(Cpu->UE, ImageBase, ImageBase + ImageSize);
+  uc_ctl_remove_cache (Cpu->UE, ImageBase, ImageBase + ImageSize);
 }
 
 VOID
 CpuRegisterCodeRange (
-  IN  CpuContext           *Cpu,
-  IN  EFI_PHYSICAL_ADDRESS ImageBase,
-  IN  UINT64               ImageSize
+  IN  CpuContext            *Cpu,
+  IN  EFI_PHYSICAL_ADDRESS  ImageBase,
+  IN  UINT64                ImageSize
   )
 {
-  uc_err UcErr;
+  uc_err  UcErr;
 
   UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_ALL);
   if (UcErr != UC_ERR_OK) {
@@ -968,11 +1099,14 @@ CpuAllocContext (
   VOID
   )
 {
-  EFI_STATUS    Status;
-  CpuRunContext *Context;
+  EFI_STATUS     Status;
+  CpuRunContext  *Context;
 
-  Status = gBS->AllocatePool (EfiBootServicesData,
-    sizeof (*Context), (VOID **) &Context);
+  Status = gBS->AllocatePool (
+                  EfiBootServicesData,
+                  sizeof (*Context),
+                  (VOID **)&Context
+                  );
   if (EFI_ERROR (Status)) {
     return NULL;
   }
@@ -984,11 +1118,11 @@ CpuAllocContext (
 STATIC
 VOID
 CpuFreeContext (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
   if (Context->PrevUcContext != NULL) {
-    uc_err UcErr;
+    uc_err  UcErr;
     UcErr = uc_context_free (Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
   }
@@ -997,6 +1131,7 @@ CpuFreeContext (
 }
 
 #ifdef CHECK_ORPHAN_CONTEXTS
+
 /*
  * Every time the emulator executes emulated code on behalf
  * of the caller, a new context is allocated and inserted
@@ -1025,14 +1160,13 @@ CpuFreeContext (
  * emulator. But CHECK_ORPHAN_CONTEXTS allows checking for such
  * behavior.
  */
-
 STATIC
 CpuRunContext *
 CpuDetectOrphanContexts (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
-  CpuRunContext *Orphan = NULL;
+  CpuRunContext  *Orphan = NULL;
 
   /*
    * This is different from how CpuCompressLeakedContexts is used
@@ -1062,19 +1196,21 @@ CpuDetectOrphanContexts (
    */
 
   Context->LeakCookie = CURRENT_FP ();
+
   /*
    * Stack grows downward, thus the new context leak cookie
    * should be smaller than the previous context leak cookie.
    */
 
   while (Context->PrevContext != NULL &&
-         Context->LeakCookie >= Context->PrevContext->LeakCookie) {
+         Context->LeakCookie >= Context->PrevContext->LeakCookie)
+  {
     /*
      * Contexts could have different Context->Cpu, if say an Arm binary invoked
      * an x86 protocol. Important to do the following operations in the context
      * of the right CpuContext.
      */
-    CpuContext *Cpu = Context->Cpu;
+    CpuContext  *Cpu = Context->Cpu;
 
     if (Orphan == NULL) {
       Orphan = Context->PrevContext;
@@ -1086,8 +1222,9 @@ CpuDetectOrphanContexts (
   }
 
   if (Orphan != NULL) {
-    CpuRunContext *Iter;
+    CpuRunContext  *Iter;
     Iter = Orphan;
+
     /*
      * Context->PrevContext will be NULL or the first context
      * with a LeakCookie that doesn't look like a clearly leaked
@@ -1106,36 +1243,37 @@ CpuDetectOrphanContexts (
 STATIC
 VOID
 CpuFreeOrphanContexts (
-  IN CpuRunContext *Context
+  IN CpuRunContext  *Context
   )
 {
   while (Context != NULL) {
-    CpuRunContext *ThisContext = Context;
+    CpuRunContext  *ThisContext = Context;
     Context = Context->PrevContext;
 
     DEBUG ((DEBUG_ERROR, "\nDetected orphan context %p\n\n", ThisContext));
     CpuFreeContext (ThisContext);
   }
 }
+
 #endif /* CHECK_ORPHAN_CONTEXTS */
 
 VOID
 CpuRunCtxOnPrivateStack (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
-  uc_err     UcErr;
-  CpuContext *Cpu = Context->Cpu;
+  uc_err      UcErr;
+  CpuContext  *Cpu = Context->Cpu;
 
-#ifdef CHECK_ORPHAN_CONTEXTS
-  CpuRunContext *OrphanContexts = CpuDetectOrphanContexts (Context);
-#endif /* CHECK_ORPHAN_CONTEXTS */
+ #ifdef CHECK_ORPHAN_CONTEXTS
+  CpuRunContext  *OrphanContexts = CpuDetectOrphanContexts (Context);
+ #endif /* CHECK_ORPHAN_CONTEXTS */
 
   gBS->RestoreTPL (Context->Tpl);
 
-#ifdef CHECK_ORPHAN_CONTEXTS
+ #ifdef CHECK_ORPHAN_CONTEXTS
   CpuFreeOrphanContexts (OrphanContexts);
-#endif /* CHECK_ORPHAN_CONTEXTS */
+ #endif /* CHECK_ORPHAN_CONTEXTS */
 
   if (Cpu->Contexts > 1) {
     UcErr = uc_context_alloc (Cpu->UE, &Context->PrevUcContext);
@@ -1166,35 +1304,42 @@ CpuRunCtxOnPrivateStack (
   }
 
 out:
+
   /*
    * Critical section ends when code no longer modifies emulated state,
    * including registers.
    */
   CpuLeaveCritical (Context);
 
-#ifdef ON_PRIVATE_STACK
+ #ifdef ON_PRIVATE_STACK
   if (Context->PrevUcContext == NULL) {
     LongJump (&mOriginalStack, -1);
   }
-#endif /* ON_PRIVATE_STACK */
+
+ #endif /* ON_PRIVATE_STACK */
 }
 
 UINT64
 CpuRunCtx (
-  IN  CpuRunContext *Context
+  IN  CpuRunContext  *Context
   )
 {
   CpuEnterCritical (Context);
 
-#ifdef ON_PRIVATE_STACK
-  if (!(CURRENT_FP () >= mNativeStackStart &&
-        CURRENT_FP () < mNativeStackTop)) {
+ #ifdef ON_PRIVATE_STACK
+  if (!((CURRENT_FP () >= mNativeStackStart) &&
+        (CURRENT_FP () < mNativeStackTop)))
+  {
     if (SetJump (&mOriginalStack) == 0) {
-      SwitchStack ((VOID *) CpuRunCtxOnPrivateStack,
-                   Context, NULL, (VOID *) mNativeStackTop);
+      SwitchStack (
+        (VOID *)CpuRunCtxOnPrivateStack,
+        Context,
+        NULL,
+        (VOID *)mNativeStackTop
+        );
     }
   } else
-#endif /* ON_PRIVATE_STACK */
+ #endif /* ON_PRIVATE_STACK */
   {
     CpuRunCtxOnPrivateStack (Context);
   }
@@ -1210,13 +1355,13 @@ CpuRunCtx (
 
 UINT64
 CpuRunFunc (
-  IN  CpuContext          *Cpu,
-  IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
-  IN  UINT64              *Args
+  IN  CpuContext           *Cpu,
+  IN  EFI_VIRTUAL_ADDRESS  ProgramCounter,
+  IN  UINT64               *Args
   )
 {
-  UINT64 Ret;
-  CpuRunContext *Context;
+  UINT64         Ret;
+  CpuRunContext  *Context;
 
   ASSERT (Cpu != NULL);
 
@@ -1226,9 +1371,9 @@ CpuRunFunc (
     return EFI_OUT_OF_RESOURCES;
   }
 
-  Context->Cpu = Cpu;
+  Context->Cpu            = Cpu;
   Context->ProgramCounter = ProgramCounter;
-  Context->Args = Args;
+  Context->Args           = Args;
 
   Ret = CpuRunCtx (Context);
 
@@ -1246,14 +1391,14 @@ CpuGetTopContext (
 
 VOID
 CpuCompressLeakedContexts (
-  IN  CpuRunContext *CurrentContext,
+  IN  CpuRunContext  *CurrentContext,
   IN  BOOLEAN        OnImageExit
   )
 {
-  EFI_TPL       Tpl;
-  CpuRunContext *Context;
-  CpuRunContext *FromContext;
-  CpuRunContext *ToContext;
+  EFI_TPL        Tpl;
+  CpuRunContext  *Context;
+  CpuRunContext  *FromContext;
+  CpuRunContext  *ToContext;
 
   /*
    * CpuCompressLeakedContexts deals with situations where
@@ -1272,18 +1417,19 @@ CpuCompressLeakedContexts (
    * CurrentContext -> [ live context ]
    */
 
-  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  Context = FromContext = mTopContext;
+  Tpl       = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context   = FromContext = mTopContext;
   ToContext = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
 
   while (Context != ToContext) {
-    uc_err UcErr;
+    uc_err  UcErr;
+
     /*
      * Contexts could have different Context->Cpu, if say an Arm binary invoked
      * an x86 protocol. Important to do the following operations in the context
      * of the right CpuContext.
      */
-    CpuContext *Cpu = Context->Cpu;
+    CpuContext  *Cpu = Context->Cpu;
 
     Cpu->Contexts--;
     ASSERT (Cpu->Contexts >= 0);
@@ -1293,12 +1439,12 @@ CpuCompressLeakedContexts (
     }
 
     Context = Context->PrevContext;
-
   }
+
   gBS->RestoreTPL (Tpl);
 
   while (FromContext != ToContext) {
-    Context = FromContext;
+    Context     = FromContext;
     FromContext = Context->PrevContext;
 
     CpuFreeContext (Context);
@@ -1308,15 +1454,15 @@ CpuCompressLeakedContexts (
 EFI_STATUS
 EFIAPI
 CpuRunImage (
-  IN  EFI_HANDLE       ImageHandle,
-  IN  EFI_SYSTEM_TABLE *SystemTable
+  IN  EFI_HANDLE        ImageHandle,
+  IN  EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_STATUS                Status;
-  CpuRunContext             *Context;
-  ImageRecord               *Record;
-  EFI_LOADED_IMAGE_PROTOCOL *LoadedImage;
-  UINT64                    Args[2] = { (UINT64) ImageHandle, (UINT64) SystemTable };
+  EFI_STATUS                 Status;
+  CpuRunContext              *Context;
+  ImageRecord                *Record;
+  EFI_LOADED_IMAGE_PROTOCOL  *LoadedImage;
+  UINT64                     Args[2] = { (UINT64)ImageHandle, (UINT64)SystemTable };
 
   Context = CpuAllocContext ();
   if (Context == NULL) {
@@ -1324,27 +1470,30 @@ CpuRunImage (
     return EFI_OUT_OF_RESOURCES;
   }
 
-  Status = gBS->HandleProtocol (ImageHandle,
-                                &gEfiLoadedImageProtocolGuid,
-                                (VOID **)&LoadedImage);
+  Status = gBS->HandleProtocol (
+                  ImageHandle,
+                  &gEfiLoadedImageProtocolGuid,
+                  (VOID **)&LoadedImage
+                  );
   if (EFI_ERROR (Status)) {
-    DEBUG((DEBUG_ERROR, "Can't get emulated image entry point: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "Can't get emulated image entry point: %r\n", Status));
     return Status;
   }
 
-  Record = ImageFindByAddress ((UINT64) LoadedImage->ImageBase);
+  Record = ImageFindByAddress ((UINT64)LoadedImage->ImageBase);
   ASSERT (Record != NULL);
   ASSERT (Record->Cpu != NULL);
 
-  Context->Cpu = Record->Cpu;
+  Context->Cpu        = Record->Cpu;
   Record->ImageHandle = ImageHandle;
 
-  Context->ImageRecord = Record;
+  Context->ImageRecord    = Record;
   Context->ProgramCounter = Record->ImageEntry;
-  Context->Args = Args;
+  Context->Args           = Args;
 
   if (SetJump (&Record->ImageExitJumpBuffer) == 0) {
     Status = CpuRunCtx (Context);
+
     /*
      * Image just returned.
      */
@@ -1356,10 +1505,12 @@ CpuRunImage (
    * Image exited via gBS->Exit.
    */
   CpuCompressLeakedContexts (Context, TRUE);
-  Status = gBS->Exit (Record->ImageHandle,
-                      Record->ImageExitStatus,
-                      Record->ImageExitDataSize,
-                      Record->ImageExitData);
+  Status = gBS->Exit (
+                  Record->ImageHandle,
+                  Record->ImageExitStatus,
+                  Record->ImageExitDataSize,
+                  Record->ImageExitData
+                  );
 
   ASSERT_EFI_ERROR (Status);
   return Status;
@@ -1367,24 +1518,25 @@ CpuRunImage (
 
 EFI_STATUS
 CpuExitImage (
-  IN  UINT64     OriginalProgramCounter,
-  IN  UINT64     ReturnAddress,
-  IN  UINT64     *Args
+  IN  UINT64  OriginalProgramCounter,
+  IN  UINT64  ReturnAddress,
+  IN  UINT64  *Args
   )
 {
-  EFI_TPL       Tpl;
-  CpuRunContext *Context;
-  ImageRecord   *CurrentImageRecord;
-  EFI_HANDLE    Handle =  (VOID *) Args[0];
+  EFI_TPL        Tpl;
+  CpuRunContext  *Context;
+  ImageRecord    *CurrentImageRecord;
+  EFI_HANDLE     Handle =  (VOID *)Args[0];
 
   CurrentImageRecord = ImageFindByHandle (Handle);
   if (CurrentImageRecord == NULL) {
-    DEBUG((DEBUG_ERROR, "CpuExitImage: bad Handle argument 0x%lx\n", Handle));
+    DEBUG ((DEBUG_ERROR, "CpuExitImage: bad Handle argument 0x%lx\n", Handle));
     return EFI_INVALID_PARAMETER;
   }
+
   ASSERT (CurrentImageRecord->ImageHandle == Handle);
 
-  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Tpl     = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context = mTopContext;
   while (Context != NULL && Context->ImageRecord == NULL) {
     Context = Context->PrevContext;
@@ -1398,16 +1550,17 @@ CpuExitImage (
      */
     Context = NULL;
   }
+
   gBS->RestoreTPL (Tpl);
 
   if (Context == NULL) {
-    DEBUG((DEBUG_ERROR, "Context->ImageRecord != CurrentImageRecord\n"));
+    DEBUG ((DEBUG_ERROR, "Context->ImageRecord != CurrentImageRecord\n"));
     return EFI_INVALID_PARAMETER;
   }
 
-  CurrentImageRecord->ImageExitStatus = Args[1];
+  CurrentImageRecord->ImageExitStatus   = Args[1];
   CurrentImageRecord->ImageExitDataSize = Args[2];
-  CurrentImageRecord->ImageExitData = (VOID *) Args[3];
+  CurrentImageRecord->ImageExitData     = (VOID *)Args[3];
   LongJump (&CurrentImageRecord->ImageExitJumpBuffer, -1);
 
   UNREACHABLE ();
@@ -1415,20 +1568,23 @@ CpuExitImage (
 
 BOOLEAN
 CpuAddrIsCodeGen (
-  IN  EFI_PHYSICAL_ADDRESS Address
+  IN  EFI_PHYSICAL_ADDRESS  Address
   )
 {
-  if (Address >= CpuX64.UnicornCodeGenBuf &&
-      Address < CpuX64.UnicornCodeGenBufEnd) {
+  if ((Address >= CpuX64.UnicornCodeGenBuf) &&
+      (Address < CpuX64.UnicornCodeGenBufEnd))
+  {
     return TRUE;
   }
 
-#ifdef SUPPORTS_AARCH64_BINS
-  if (Address >= CpuAArch64.UnicornCodeGenBuf &&
-      Address < CpuAArch64.UnicornCodeGenBufEnd) {
+ #ifdef SUPPORTS_AARCH64_BINS
+  if ((Address >= CpuAArch64.UnicornCodeGenBuf) &&
+      (Address < CpuAArch64.UnicornCodeGenBufEnd))
+  {
     return TRUE;
   }
-#endif /* SUPPORTS_AARCH64_BINS */
+
+ #endif /* SUPPORTS_AARCH64_BINS */
 
   return FALSE;
 }
@@ -1437,17 +1593,17 @@ CpuAddrIsCodeGen (
 EFI_STATUS
 EFIAPI
 CpuGetDebugState (
-  OUT EMU_TEST_DEBUG_STATE *DebugState
+  OUT EMU_TEST_DEBUG_STATE  *DebugState
   )
 {
-  EFI_TPL       Tpl;
-  CpuRunContext *Context;
+  EFI_TPL        Tpl;
+  CpuRunContext  *Context;
 
   ASSERT (DebugState != NULL);
 
   ZeroMem (DebugState, sizeof (*DebugState));
 
-  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Tpl     = gBS->RaiseTPL (TPL_HIGH_LEVEL);
   Context = mTopContext;
 
   DebugState->HostMachineType = HOST_MACHINE_TYPE;
@@ -1463,21 +1619,22 @@ CpuGetDebugState (
     Context = Context->PrevContext;
   }
 
-#ifndef EMU_TIMEOUT_NONE
-  DebugState->ExitPeriodMs = UC_EMU_EXIT_PERIOD_MS;
+ #ifndef EMU_TIMEOUT_NONE
+  DebugState->ExitPeriodMs       = UC_EMU_EXIT_PERIOD_MS;
   DebugState->X64ExitPeriodTicks = CpuX64.ExitPeriodTicks;
-  DebugState->X64ExitPeriodTbs = CpuX64.ExitPeriodTbs;
-#ifdef SUPPORTS_AARCH64_BINS
+  DebugState->X64ExitPeriodTbs   = CpuX64.ExitPeriodTbs;
+ #ifdef SUPPORTS_AARCH64_BINS
   DebugState->AArch64ExitPeriodTicks = CpuAArch64.ExitPeriodTicks;
-  DebugState->AArch64ExitPeriodTbs = CpuAArch64.ExitPeriodTbs;
-#endif /* SUPPORTS_AARCH64_BINS */
-#endif /* EMU_TIMEOUT_NONE */
+  DebugState->AArch64ExitPeriodTbs   = CpuAArch64.ExitPeriodTbs;
+ #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* EMU_TIMEOUT_NONE */
   DebugState->X64ContextCount = CpuX64.Contexts;
-#ifdef SUPPORTS_AARCH64_BINS
+ #ifdef SUPPORTS_AARCH64_BINS
   DebugState->AArch64ContextCount = CpuAArch64.Contexts;
-#endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* SUPPORTS_AARCH64_BINS */
   gBS->RestoreTPL (Tpl);
 
   return EFI_SUCCESS;
 }
+
 #endif

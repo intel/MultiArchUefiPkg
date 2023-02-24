@@ -13,18 +13,18 @@
 #include "Emulator.h"
 #include <Library/DefaultExceptionHandlerLib.h>
 
-extern CONST UINT64 EmulatorThunk[];
+extern CONST UINT64  EmulatorThunk[];
 
 VOID
 EFIAPI
 EmulatorSyncExceptionCallback (
-  IN     EFI_EXCEPTION_TYPE ExceptionType,
-  IN OUT EFI_SYSTEM_CONTEXT SystemContext
+  IN     EFI_EXCEPTION_TYPE  ExceptionType,
+  IN OUT EFI_SYSTEM_CONTEXT  SystemContext
   )
 {
-  EFI_SYSTEM_CONTEXT_AARCH64 *AArch64Context;
-  ImageRecord                *Record;
-  UINTN                      Ec;
+  EFI_SYSTEM_CONTEXT_AARCH64  *AArch64Context;
+  ImageRecord                 *Record;
+  UINTN                       Ec;
 
   AArch64Context = SystemContext.SystemContextAArch64;
 
@@ -33,7 +33,7 @@ EmulatorSyncExceptionCallback (
    * us to emulated code.
    */
   Ec = AArch64Context->ESR >> 26;
-  if ((Ec == 0x21 && (AArch64Context->ESR & 0x3c) == 0xc) || Ec == 0x22) {
+  if (((Ec == 0x21) && ((AArch64Context->ESR & 0x3c) == 0xc)) || (Ec == 0x22)) {
     Record = ImageFindByAddress (AArch64Context->ELR);
     if (Record != NULL) {
       AArch64Context->X16 = AArch64Context->ELR;
@@ -57,12 +57,16 @@ EmulatorSyncExceptionCallback (
     DEBUG ((DEBUG_ERROR, "Exception occurred in TBs\n"));
   }
 
-  if (AArch64Context->ELR >= (UINT64) gDriverImage->ImageBase &&
-      AArch64Context->ELR <= ((UINT64) gDriverImage->ImageBase +
-                              gDriverImage->ImageSize - 1)) {
-    DEBUG ((DEBUG_ERROR, "Exception occured at driver PC +0x%lx, LR +0x%lx\n",
-            AArch64Context->ELR - (UINT64) gDriverImage->ImageBase,
-            AArch64Context->LR - (UINT64) gDriverImage->ImageBase));
+  if ((AArch64Context->ELR >= (UINT64)gDriverImage->ImageBase) &&
+      (AArch64Context->ELR <= ((UINT64)gDriverImage->ImageBase +
+                               gDriverImage->ImageSize - 1)))
+  {
+    DEBUG ((
+      DEBUG_ERROR,
+      "Exception occured at driver PC +0x%lx, LR +0x%lx\n",
+      AArch64Context->ELR - (UINT64)gDriverImage->ImageBase,
+      AArch64Context->LR - (UINT64)gDriverImage->ImageBase
+      ));
   }
 
   EmulatorDump ();
@@ -74,11 +78,13 @@ ArchInit (
   VOID
   )
 {
-  EFI_STATUS Status;
+  EFI_STATUS  Status;
 
-  Status = gCpu->RegisterInterruptHandler (gCpu,
-                                           EXCEPT_AARCH64_SYNCHRONOUS_EXCEPTIONS,
-                                           &EmulatorSyncExceptionCallback);
+  Status = gCpu->RegisterInterruptHandler (
+                   gCpu,
+                   EXCEPT_AARCH64_SYNCHRONOUS_EXCEPTIONS,
+                   &EmulatorSyncExceptionCallback
+                   );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "RegisterInterruptHandler failed: %r\n", Status));
   }
@@ -91,9 +97,12 @@ ArchCleanup (
   VOID
   )
 {
-  EFI_STATUS Status;
-  Status = gCpu->RegisterInterruptHandler (gCpu,
-                                           EXCEPT_AARCH64_SYNCHRONOUS_EXCEPTIONS,
-                                           NULL);
+  EFI_STATUS  Status;
+
+  Status = gCpu->RegisterInterruptHandler (
+                   gCpu,
+                   EXCEPT_AARCH64_SYNCHRONOUS_EXCEPTIONS,
+                   NULL
+                   );
   ASSERT (!EFI_ERROR (Status));
 }

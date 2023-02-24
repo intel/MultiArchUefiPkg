@@ -12,85 +12,92 @@
 
 #include "Emulator.h"
 
-STATIC LIST_ENTRY mImageList = INITIALIZE_LIST_HEAD_VARIABLE (mImageList);
+STATIC LIST_ENTRY  mImageList = INITIALIZE_LIST_HEAD_VARIABLE (mImageList);
 
 VOID
 ImageDump (
   VOID
   )
 {
-  LIST_ENTRY  *Entry;
-  ImageRecord *Record;
+  LIST_ENTRY   *Entry;
+  ImageRecord  *Record;
 
   DEBUG ((DEBUG_ERROR, "Emulated images:\n"));
   for (Entry = GetFirstNode (&mImageList);
        !IsNull (&mImageList, Entry);
-       Entry = GetNextNode (&mImageList, Entry)) {
-
+       Entry = GetNextNode (&mImageList, Entry))
+  {
     Record = BASE_CR (Entry, ImageRecord, Link);
 
-    DEBUG ((DEBUG_ERROR, "\t%7a Image 0x%lx-0x%lx (Entry 0x%lx)\n",
-            Record->Cpu->Name, Record->ImageBase,
-            Record->ImageBase + Record->ImageSize - 1,
-            Record->ImageEntry));
+    DEBUG ((
+      DEBUG_ERROR,
+      "\t%7a Image 0x%lx-0x%lx (Entry 0x%lx)\n",
+      Record->Cpu->Name,
+      Record->ImageBase,
+      Record->ImageBase + Record->ImageSize - 1,
+      Record->ImageEntry
+      ));
   }
 }
 
 ImageRecord *
 ImageFindByAddress (
-  IN  EFI_PHYSICAL_ADDRESS Address
+  IN  EFI_PHYSICAL_ADDRESS  Address
   )
 {
-  LIST_ENTRY  *Entry;
-  ImageRecord *Record;
+  LIST_ENTRY   *Entry;
+  ImageRecord  *Record;
 
   for (Entry = GetFirstNode (&mImageList);
        !IsNull (&mImageList, Entry);
-       Entry = GetNextNode (&mImageList, Entry)) {
-
+       Entry = GetNextNode (&mImageList, Entry))
+  {
     Record = BASE_CR (Entry, ImageRecord, Link);
 
-    if (Address >= Record->ImageBase &&
-        Address < Record->ImageBase + Record->ImageSize) {
+    if ((Address >= Record->ImageBase) &&
+        (Address < Record->ImageBase + Record->ImageSize))
+    {
       return Record;
     }
   }
+
   return NULL;
 }
 
 ImageRecord *
 ImageFindByHandle (
-  IN  EFI_HANDLE Handle
+  IN  EFI_HANDLE  Handle
   )
 {
-  LIST_ENTRY  *Entry;
-  ImageRecord *Record;
+  LIST_ENTRY   *Entry;
+  ImageRecord  *Record;
 
   for (Entry = GetFirstNode (&mImageList);
        !IsNull (&mImageList, Entry);
-       Entry = GetNextNode (&mImageList, Entry)) {
-
+       Entry = GetNextNode (&mImageList, Entry))
+  {
     Record = BASE_CR (Entry, ImageRecord, Link);
 
     if (Handle == Record->ImageHandle) {
       return Record;
     }
   }
+
   return NULL;
 }
 
 EFI_STATUS
 EFIAPI
 ImageProtocolRegister (
-  IN      EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
-  IN      EFI_PHYSICAL_ADDRESS                 ImageBase,
-  IN      UINT64                               ImageSize,
-  IN  OUT EFI_IMAGE_ENTRY_POINT                *EntryPoint
+  IN      EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  *This,
+  IN      EFI_PHYSICAL_ADDRESS                  ImageBase,
+  IN      UINT64                                ImageSize,
+  IN  OUT EFI_IMAGE_ENTRY_POINT                 *EntryPoint
   )
 {
-  EFI_STATUS                   Status;
-  ImageRecord                  *Record;
-  PE_COFF_LOADER_IMAGE_CONTEXT ImageContext;
+  EFI_STATUS                    Status;
+  ImageRecord                   *Record;
+  PE_COFF_LOADER_IMAGE_CONTEXT  ImageContext;
 
   ZeroMem (&ImageContext, sizeof (ImageContext));
 
@@ -99,12 +106,14 @@ ImageProtocolRegister (
 
   Status = PeCoffLoaderGetImageInfo (&ImageContext);
   if (EFI_ERROR (Status)) {
-    DEBUG((DEBUG_ERROR, "PeCoffLoaderGetImageInfo failed: %r\n", Status));
+    DEBUG ((DEBUG_ERROR, "PeCoffLoaderGetImageInfo failed: %r\n", Status));
     return Status;
   }
 
-  ASSERT (ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_APPLICATION ||
-          ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER);
+  ASSERT (
+    ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_APPLICATION ||
+    ImageContext.ImageType == EFI_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER
+    );
 
   Record = AllocatePool (sizeof (*Record));
   if (Record == NULL) {
@@ -113,18 +122,18 @@ ImageProtocolRegister (
 
   if (ImageContext.Machine == EFI_IMAGE_MACHINE_X64) {
     Record->Cpu = &CpuX64;
-#ifdef SUPPORTS_AARCH64_BINS
+ #ifdef SUPPORTS_AARCH64_BINS
   } else if (ImageContext.Machine == EFI_IMAGE_MACHINE_AARCH64) {
     Record->Cpu = &CpuAArch64;
-#endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* SUPPORTS_AARCH64_BINS */
   } else {
     Record->Cpu = NULL;
   }
 
   ASSERT (Record->Cpu != NULL);
-  Record->ImageBase = ImageBase;
-  Record->ImageEntry = (UINT64) *EntryPoint;
-  Record->ImageSize = ImageSize;
+  Record->ImageBase  = ImageBase;
+  Record->ImageEntry = (UINT64)*EntryPoint;
+  Record->ImageSize  = ImageSize;
 
   CpuRegisterCodeRange (Record->Cpu, ImageBase, ImageSize);
 
@@ -162,12 +171,12 @@ ImageProtocolRegister (
 EFI_STATUS
 EFIAPI
 ImageProtocolUnregister (
-  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
-  IN  EFI_PHYSICAL_ADDRESS                 ImageBase
+  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  *This,
+  IN  EFI_PHYSICAL_ADDRESS                  ImageBase
   )
 {
-  ImageRecord *Record;
-  EFI_STATUS  Status;
+  ImageRecord  *Record;
+  EFI_STATUS   Status;
 
   Record = ImageFindByAddress (ImageBase);
   if (Record == NULL) {
@@ -179,8 +188,12 @@ ImageProtocolUnregister (
   /*
    * Remove non-exec protection installed by RegisterImage.
    */
-  Status = gCpu->SetMemoryAttributes (gCpu, Record->ImageBase,
-                                      Record->ImageSize, 0);
+  Status = gCpu->SetMemoryAttributes (
+                   gCpu,
+                   Record->ImageBase,
+                   Record->ImageSize,
+                   0
+                   );
 
   RemoveEntryList (&Record->Link);
   FreePool (Record);
@@ -191,13 +204,14 @@ ImageProtocolUnregister (
 BOOLEAN
 EFIAPI
 ImageProtocolSupported (
-  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
-  IN  UINT16                               ImageType,
-  IN  EFI_DEVICE_PATH_PROTOCOL             *DevicePath OPTIONAL
+  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  *This,
+  IN  UINT16                                ImageType,
+  IN  EFI_DEVICE_PATH_PROTOCOL              *DevicePath OPTIONAL
   )
 {
-  if (ImageType != EFI_IMAGE_SUBSYSTEM_EFI_APPLICATION &&
-      ImageType != EFI_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER) {
+  if ((ImageType != EFI_IMAGE_SUBSYSTEM_EFI_APPLICATION) &&
+      (ImageType != EFI_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER))
+  {
     return FALSE;
   }
 

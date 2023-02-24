@@ -15,8 +15,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
-STATIC EFI_SYSTEM_TABLE *mRealST;
-STATIC EFI_SYSTEM_TABLE *mCachedST;
+STATIC EFI_SYSTEM_TABLE  *mRealST;
+STATIC EFI_SYSTEM_TABLE  *mCachedST;
 
 /**
   Unloads an image from memory.
@@ -107,34 +107,49 @@ _ModuleEntryPoint (
 
   mRealST = SystemTable;
 
-  Status = mRealST->BootServices->AllocatePool (EfiRuntimeServicesData,
-    sizeof (*mCachedST), (VOID **) &mCachedST);
+  Status = mRealST->BootServices->AllocatePool (
+                                    EfiRuntimeServicesData,
+                                    sizeof (*mCachedST),
+                                    (VOID **)&mCachedST
+                                    );
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
   mRealST->BootServices->CopyMem (mCachedST, mRealST, sizeof (*mCachedST));
 
-  Status = mRealST->BootServices->AllocatePool (EfiBootServicesData,
-    sizeof (EFI_BOOT_SERVICES), (VOID **) &(mCachedST->BootServices));
+  Status = mRealST->BootServices->AllocatePool (
+                                    EfiBootServicesData,
+                                    sizeof (EFI_BOOT_SERVICES),
+                                    (VOID **)&(mCachedST->BootServices)
+                                    );
   if (EFI_ERROR (Status)) {
     mRealST->BootServices->FreePool (mCachedST);
     return Status;
   }
 
-  mRealST->BootServices->CopyMem (mCachedST->BootServices,
-    mRealST->BootServices, sizeof (EFI_BOOT_SERVICES));
+  mRealST->BootServices->CopyMem (
+                           mCachedST->BootServices,
+                           mRealST->BootServices,
+                           sizeof (EFI_BOOT_SERVICES)
+                           );
 
-  Status = mRealST->BootServices->AllocatePool (EfiRuntimeServicesData,
-    sizeof (EFI_RUNTIME_SERVICES), (VOID **) &(mCachedST->RuntimeServices));
+  Status = mRealST->BootServices->AllocatePool (
+                                    EfiRuntimeServicesData,
+                                    sizeof (EFI_RUNTIME_SERVICES),
+                                    (VOID **)&(mCachedST->RuntimeServices)
+                                    );
   if (EFI_ERROR (Status)) {
     mRealST->BootServices->FreePool (mCachedST->BootServices);
     mRealST->BootServices->FreePool (mCachedST);
     return Status;
   }
 
-  mRealST->BootServices->CopyMem (mCachedST->RuntimeServices,
-    mRealST->RuntimeServices, sizeof (EFI_RUNTIME_SERVICES));
+  mRealST->BootServices->CopyMem (
+                           mCachedST->RuntimeServices,
+                           mRealST->RuntimeServices,
+                           sizeof (EFI_RUNTIME_SERVICES)
+                           );
 
   //
   // Call constructor for all libraries

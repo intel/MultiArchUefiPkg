@@ -33,28 +33,29 @@
 /*
  * Maximum # of arguments thunked between native and emulated code.
  */
-#define MAX_ARGS              16
+#define MAX_ARGS  16
 
 #ifdef MDE_CPU_AARCH64
-#define NATIVE_INSN_ALIGNMENT 4
+#define NATIVE_INSN_ALIGNMENT  4
 #elif defined (MDE_CPU_RISCV64)
+
 /*
  * Built with compressed instructions, possibly.
  */
-#define NATIVE_INSN_ALIGNMENT 2
+#define NATIVE_INSN_ALIGNMENT  2
 #endif
 
 #ifdef MDE_CPU_AARCH64
-#define HOST_MACHINE_TYPE EFI_IMAGE_MACHINE_AARCH64
+#define HOST_MACHINE_TYPE  EFI_IMAGE_MACHINE_AARCH64
 #elif defined (MDE_CPU_RISCV64)
-#define HOST_MACHINE_TYPE EFI_IMAGE_MACHINE_RISCV64
+#define HOST_MACHINE_TYPE  EFI_IMAGE_MACHINE_RISCV64
 #else
-#error
+  #error
 #endif
 
-#define UNUSED __attribute__((unused))
+#define UNUSED  __attribute__((unused))
 
-#define REG_READ(CpuContext, x) ({                              \
+#define REG_READ(CpuContext, x)  ({                             \
       UINT64 Reg;                                               \
       UNUSED uc_err UcErr;                                      \
       UcErr = uc_reg_read ((CpuContext)->UE, x, &Reg);          \
@@ -62,101 +63,115 @@
       Reg;                                                      \
     })
 
-#define REG_WRITE(CpuContext, x, Val) ({                          \
+#define REG_WRITE(CpuContext, x, Val)  ({                         \
       UNUSED uc_err UcErr;                                        \
       UINT64 Temp = Val;                                          \
       UcErr = uc_reg_write ((CpuContext)->UE, x, &Temp);          \
       ASSERT (UcErr == UC_ERR_OK);                                \
     })
 
-typedef struct uc_struct uc_engine;
-typedef struct uc_context uc_context;
+typedef struct uc_struct   uc_engine;
+typedef struct uc_context  uc_context;
 
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuContext {
-  UINT16               EmuMachineType;
-  const char           *Name;
-  int                  StackReg;
-  int                  ProgramCounterReg;
-  int                  ReturnValueReg;
-  int                  Contexts;
-  VOID                 (*Dump) (struct CpuContext *);
-  VOID                 (*EmuThunkPre) (struct CpuContext *, UINT64 *Args);
-  VOID                 (*EmuThunkPost) (struct CpuContext *, UINT64 *Args);
-  UINT64               (*NativeThunk) (struct CpuRunContext *, UINT64 ProgramCounter);
-  uc_engine            *UE;
-  EFI_PHYSICAL_ADDRESS UnicornCodeGenBuf;
-  EFI_PHYSICAL_ADDRESS UnicornCodeGenBufEnd;
-  EFI_PHYSICAL_ADDRESS EmuStackStart;
-  EFI_PHYSICAL_ADDRESS EmuStackTop;
-  uc_context           *InitialState;
-#ifndef EMU_TIMEOUT_NONE
-  UINT64               TbCount;
-  UINT64               ExitPeriodTbs;
-  UINT64               ExitPeriodTicks;
-  BOOLEAN              StoppedOnTimeout;
-#endif /* EMU_TIMEOUT_NONE */
+  UINT16        EmuMachineType;
+  const char    *Name;
+  int           StackReg;
+  int           ProgramCounterReg;
+  int           ReturnValueReg;
+  int           Contexts;
+  VOID                 (*Dump)(
+    struct CpuContext *
+    );
+  VOID                 (*EmuThunkPre)(
+    struct CpuContext *,
+    UINT64  *Args
+    );
+  VOID                 (*EmuThunkPost)(
+    struct CpuContext *,
+    UINT64  *Args
+    );
+  UINT64               (*NativeThunk)(
+    struct CpuRunContext *,
+    UINT64  ProgramCounter
+    );
+  uc_engine               *UE;
+  EFI_PHYSICAL_ADDRESS    UnicornCodeGenBuf;
+  EFI_PHYSICAL_ADDRESS    UnicornCodeGenBufEnd;
+  EFI_PHYSICAL_ADDRESS    EmuStackStart;
+  EFI_PHYSICAL_ADDRESS    EmuStackTop;
+  uc_context              *InitialState;
+ #ifndef EMU_TIMEOUT_NONE
+  UINT64                  TbCount;
+  UINT64                  ExitPeriodTbs;
+  UINT64                  ExitPeriodTicks;
+  BOOLEAN                 StoppedOnTimeout;
+ #endif /* EMU_TIMEOUT_NONE */
 } CpuContext;
 
 typedef struct {
-  LIST_ENTRY               Link;
-  EFI_PHYSICAL_ADDRESS     ImageBase;
-  EFI_PHYSICAL_ADDRESS     ImageEntry;
-  UINT64                   ImageSize;
-  EFI_HANDLE               ImageHandle;
+  LIST_ENTRY                  Link;
+  EFI_PHYSICAL_ADDRESS        ImageBase;
+  EFI_PHYSICAL_ADDRESS        ImageEntry;
+  UINT64                      ImageSize;
+  EFI_HANDLE                  ImageHandle;
+
   /*
    * ISA-specific.
    */
-  CpuContext               *Cpu;
+  CpuContext                  *Cpu;
+
   /*
    * To support the Exit() boot service.
    */
-  BASE_LIBRARY_JUMP_BUFFER ImageExitJumpBuffer;
-  EFI_STATUS               ImageExitStatus;
-  UINTN                    ImageExitDataSize;
-  CHAR16                   *ImageExitData;
+  BASE_LIBRARY_JUMP_BUFFER    ImageExitJumpBuffer;
+  EFI_STATUS                  ImageExitStatus;
+  UINTN                       ImageExitDataSize;
+  CHAR16                      *ImageExitData;
 } ImageRecord;
 
 typedef struct CpuRunContext {
-  CpuContext           *Cpu;
-  EFI_VIRTUAL_ADDRESS  ProgramCounter;
-#ifdef CHECK_ORPHAN_CONTEXTS
-  UINT64               LeakCookie;
-#endif /* CHECK_ORPHAN_CONTEXTS */
-  UINT64               *Args;
-  UINT64               Ret;
-  EFI_TPL              Tpl;
+  CpuContext              *Cpu;
+  EFI_VIRTUAL_ADDRESS     ProgramCounter;
+ #ifdef CHECK_ORPHAN_CONTEXTS
+  UINT64                  LeakCookie;
+ #endif /* CHECK_ORPHAN_CONTEXTS */
+  UINT64                  *Args;
+  UINT64                  Ret;
+  EFI_TPL                 Tpl;
 
-  uc_context           *PrevUcContext;
-  struct CpuRunContext *PrevContext;
+  uc_context              *PrevUcContext;
+  struct CpuRunContext    *PrevContext;
+
   /*
    * Only set when we're invoking the entry point of an image.
    */
-  ImageRecord          *ImageRecord;
+  ImageRecord             *ImageRecord;
 } CpuRunContext;
 
-extern CpuContext                CpuX64;
+extern CpuContext  CpuX64;
 #ifdef SUPPORTS_AARCH64_BINS
-extern CpuContext                CpuAArch64;
+extern CpuContext  CpuAArch64;
 #endif /* SUPPORTS_AARCH64_BINS */
-extern EFI_CPU_ARCH_PROTOCOL     *gCpu;
-extern EFI_CPU_IO2_PROTOCOL      *gCpuIo2;
-extern EFI_LOADED_IMAGE_PROTOCOL *gDriverImage;
+extern EFI_CPU_ARCH_PROTOCOL      *gCpu;
+extern EFI_CPU_IO2_PROTOCOL       *gCpuIo2;
+extern EFI_LOADED_IMAGE_PROTOCOL  *gDriverImage;
 
 VOID
-EmulatorDump (
-  VOID
-  );
+  EmulatorDump (
+                VOID
+                );
 
 ImageRecord *
 ImageFindByAddress (
-  IN  EFI_PHYSICAL_ADDRESS Address
+  IN  EFI_PHYSICAL_ADDRESS  Address
   );
 
 ImageRecord *
 ImageFindByHandle (
-  IN  EFI_HANDLE Handle
+  IN  EFI_HANDLE  Handle
   );
 
 VOID
@@ -167,30 +182,30 @@ ImageDump (
 BOOLEAN
 EFIAPI
 ImageProtocolSupported (
-  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
-  IN  UINT16                               ImageType,
-  IN  EFI_DEVICE_PATH_PROTOCOL             *DevicePath OPTIONAL
+  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  *This,
+  IN  UINT16                                ImageType,
+  IN  EFI_DEVICE_PATH_PROTOCOL              *DevicePath OPTIONAL
   );
 
 EFI_STATUS
 EFIAPI
 ImageProtocolUnregister (
-  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
-  IN  EFI_PHYSICAL_ADDRESS                 ImageBase
+  IN  EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  *This,
+  IN  EFI_PHYSICAL_ADDRESS                  ImageBase
   );
 
 EFI_STATUS
 EFIAPI
 ImageProtocolRegister (
-  IN      EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL *This,
-  IN      EFI_PHYSICAL_ADDRESS                 ImageBase,
-  IN      UINT64                               ImageSize,
-  IN  OUT EFI_IMAGE_ENTRY_POINT                *EntryPoint
+  IN      EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  *This,
+  IN      EFI_PHYSICAL_ADDRESS                  ImageBase,
+  IN      UINT64                                ImageSize,
+  IN  OUT EFI_IMAGE_ENTRY_POINT                 *EntryPoint
   );
 
 UINT64
 CpuStackPop64 (
-  IN  CpuContext *Cpu
+  IN  CpuContext  *Cpu
   );
 
 VOID
@@ -210,26 +225,26 @@ CpuInit (
 
 BOOLEAN
 EmulatorIsNativeCall (
-  IN  UINT64 ProgramCounter
+  IN  UINT64  ProgramCounter
   );
 
 EFI_STATUS
 CpuRunImage (
-  IN  EFI_HANDLE       ImageHandle,
-  IN  EFI_SYSTEM_TABLE *SystemTable
+  IN  EFI_HANDLE        ImageHandle,
+  IN  EFI_SYSTEM_TABLE  *SystemTable
   );
 
 VOID
 CpuCompressLeakedContexts (
-  IN  CpuRunContext *CurrentContext,
-  IN  BOOLEAN       OnImageExit
+  IN  CpuRunContext  *CurrentContext,
+  IN  BOOLEAN        OnImageExit
   );
 
 EFI_STATUS
 CpuExitImage (
-  IN  UINT64     OriginalProgramCounter,
-  IN  UINT64     ReturnAddress,
-  IN  UINT64     *Args
+  IN  UINT64  OriginalProgramCounter,
+  IN  UINT64  ReturnAddress,
+  IN  UINT64  *Args
   );
 
 CpuRunContext *
@@ -239,63 +254,65 @@ CpuGetTopContext (
 
 UINT64
 CpuRunFunc (
-  IN  CpuContext          *Cpu,
-  IN  EFI_VIRTUAL_ADDRESS ProgramCounter,
-  IN  UINT64              *Args
+  IN  CpuContext           *Cpu,
+  IN  EFI_VIRTUAL_ADDRESS  ProgramCounter,
+  IN  UINT64               *Args
   );
 
 #ifndef NDEBUG
 EFI_STATUS
 EFIAPI
 CpuGetDebugState (
-  OUT EMU_TEST_DEBUG_STATE *DebugState
+  OUT EMU_TEST_DEBUG_STATE  *DebugState
   );
+
 #endif
 
 VOID
 CpuUnregisterCodeRange (
-  IN  CpuContext           *Cpu,
-  IN  EFI_PHYSICAL_ADDRESS ImageBase,
-  IN  UINT64               ImageSize
+  IN  CpuContext            *Cpu,
+  IN  EFI_PHYSICAL_ADDRESS  ImageBase,
+  IN  UINT64                ImageSize
   );
 
 VOID
 CpuRegisterCodeRange (
-  IN  CpuContext           *Cpu,
-  IN  EFI_PHYSICAL_ADDRESS ImageBase,
-  IN  UINT64               ImageSize
+  IN  CpuContext            *Cpu,
+  IN  EFI_PHYSICAL_ADDRESS  ImageBase,
+  IN  UINT64                ImageSize
   );
 
 BOOLEAN
 CpuAddrIsCodeGen (
-  IN  EFI_PHYSICAL_ADDRESS Address
+  IN  EFI_PHYSICAL_ADDRESS  Address
   );
 
 UINT64
 NativeThunkX64 (
-  IN  CpuRunContext *Context,
-  IN  UINT64        ProgramCounter
+  IN  CpuRunContext  *Context,
+  IN  UINT64         ProgramCounter
   );
 
 #ifdef SUPPORTS_AARCH64_BINS
 UINT64
 NativeThunkAArch64 (
-  IN  CpuRunContext *Context,
-  IN  UINT64        ProgramCounter
+  IN  CpuRunContext  *Context,
+  IN  UINT64         ProgramCounter
   );
+
 #endif /* SUPPORTS_AARCH64_BINS */
 
 EFI_STATUS
 EFIAPI
 NativeUnsupported (
-  IN  UINT64     OriginalProgramCounter,
-  IN  UINT64     ReturnAddress,
-  IN  UINT64     *Args
+  IN  UINT64  OriginalProgramCounter,
+  IN  UINT64  ReturnAddress,
+  IN  UINT64  *Args
   );
 
 EFI_STATUS
 TestProtocolInit (
-  IN  EFI_HANDLE ImageHandle
+  IN  EFI_HANDLE  ImageHandle
   );
 
 EFI_STATUS
@@ -315,7 +332,7 @@ EfiWrappersInit (
 
 UINT64
 EfiWrappersOverride (
-  IN  UINT64 ProgramCounter
+  IN  UINT64  ProgramCounter
   );
 
 VOID

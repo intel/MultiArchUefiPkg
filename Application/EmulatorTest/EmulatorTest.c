@@ -17,74 +17,80 @@
 #include <Library/UefiApplicationEntryPoint.h>
 #include "TestProtocol.h"
 
-#define NO_INLINE __attribute__((noinline))
+#define NO_INLINE  __attribute__((noinline))
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
-STATIC EFI_GUID mEmuTestProtocolGuid = EMU_TEST_PROTOCOL_GUID;
-STATIC UINT64 TestArray[EFI_PAGE_SIZE / sizeof (UINT64)];
-STATIC EMU_TEST_DEBUG_STATE mBeginDebugState;
-STATIC EMU_TEST_PROTOCOL *mTest = NULL;
+STATIC EFI_GUID              mEmuTestProtocolGuid = EMU_TEST_PROTOCOL_GUID;
+STATIC UINT64                TestArray[EFI_PAGE_SIZE / sizeof (UINT64)];
+STATIC EMU_TEST_DEBUG_STATE  mBeginDebugState;
+STATIC EMU_TEST_PROTOCOL     *mTest = NULL;
 
 STATIC VOID
 LogResult (
-  IN  CONST CHAR8   *String,
-  IN        BOOLEAN Result
+  IN  CONST CHAR8    *String,
+  IN        BOOLEAN  Result
   )
 {
-  STATIC UINT32 Index = 0;
+  STATIC UINT32  Index = 0;
 
-  DEBUG ((Result ? DEBUG_INFO : DEBUG_ERROR, "Test %03u:\t%a: %a\n",
-          Index++, Result ? "PASS" : "FAIL", String));
+  DEBUG ((
+    Result ? DEBUG_INFO : DEBUG_ERROR,
+    "Test %03u:\t%a: %a\n",
+    Index++,
+    Result ? "PASS" : "FAIL",
+    String
+    ));
 }
 
 UINT64
 EFIAPI
 TestExit (
- VOID
- )
+  VOID
+  )
 {
   ProcessLibraryDestructorList (gImageHandle, gST);
-  return gBS->Exit(gImageHandle, EFI_SUCCESS, 0, NULL);
+  return gBS->Exit (gImageHandle, EFI_SUCCESS, 0, NULL);
 }
 
 STATIC
 UINT64
 EFIAPI
 TestCbArgs (
-  IN  UINT64 Arg1,
-  IN  UINT64 Arg2,
-  IN  UINT64 Arg3,
-  IN  UINT64 Arg4,
-  IN  UINT64 Arg5,
-  IN  UINT64 Arg6,
-  IN  UINT64 Arg7,
-  IN  UINT64 Arg8,
-  IN  UINT64 Arg9,
-  IN  UINT64 Arg10,
-  IN  UINT64 Arg11,
-  IN  UINT64 Arg12,
-  IN  UINT64 Arg13,
-  IN  UINT64 Arg14,
-  IN  UINT64 Arg15,
-  IN  UINT64 Arg16
+  IN  UINT64  Arg1,
+  IN  UINT64  Arg2,
+  IN  UINT64  Arg3,
+  IN  UINT64  Arg4,
+  IN  UINT64  Arg5,
+  IN  UINT64  Arg6,
+  IN  UINT64  Arg7,
+  IN  UINT64  Arg8,
+  IN  UINT64  Arg9,
+  IN  UINT64  Arg10,
+  IN  UINT64  Arg11,
+  IN  UINT64  Arg12,
+  IN  UINT64  Arg13,
+  IN  UINT64  Arg14,
+  IN  UINT64  Arg15,
+  IN  UINT64  Arg16
   )
 {
-  if (Arg1 == ARG_VAL(1) &&
-      Arg2 == ARG_VAL(2) &&
-      Arg3 == ARG_VAL(3) &&
-      Arg4 == ARG_VAL(4) &&
-      Arg5 == ARG_VAL(5) &&
-      Arg6 == ARG_VAL(6) &&
-      Arg7 == ARG_VAL(7) &&
-      Arg8 == ARG_VAL(8) &&
-      Arg9 == ARG_VAL(9) &&
-      Arg10 == ARG_VAL(10) &&
-      Arg11 == ARG_VAL(11) &&
-      Arg12 == ARG_VAL(12) &&
-      Arg13 == ARG_VAL(13) &&
-      Arg14 == ARG_VAL(14) &&
-      Arg15 == ARG_VAL(15) &&
-      Arg16 == ARG_VAL(16)) {
+  if ((Arg1 == ARG_VAL (1)) &&
+      (Arg2 == ARG_VAL (2)) &&
+      (Arg3 == ARG_VAL (3)) &&
+      (Arg4 == ARG_VAL (4)) &&
+      (Arg5 == ARG_VAL (5)) &&
+      (Arg6 == ARG_VAL (6)) &&
+      (Arg7 == ARG_VAL (7)) &&
+      (Arg8 == ARG_VAL (8)) &&
+      (Arg9 == ARG_VAL (9)) &&
+      (Arg10 == ARG_VAL (10)) &&
+      (Arg11 == ARG_VAL (11)) &&
+      (Arg12 == ARG_VAL (12)) &&
+      (Arg13 == ARG_VAL (13)) &&
+      (Arg14 == ARG_VAL (14)) &&
+      (Arg15 == ARG_VAL (15)) &&
+      (Arg16 == ARG_VAL (16)))
+  {
     return EFI_SUCCESS;
   }
 
@@ -95,7 +101,7 @@ STATIC
 VOID
 EFIAPI
 TestCbLj (
-  IN  VOID *Buffer
+  IN  VOID  *Buffer
   )
 {
   DEBUG ((DEBUG_INFO, "Now calling TestLj\n"));
@@ -107,39 +113,39 @@ TestCbLj (
 STATIC
 VOID
 DoTestProtocolTests (
-  IN  EMU_TEST_PROTOCOL *Test
+  IN  EMU_TEST_PROTOCOL  *Test
   )
 {
-  UINT64 Ret;
-  char *hostType = "unknown";
-  char *myType = "unknown";
+  UINT64  Ret;
+  char    *hostType = "unknown";
+  char    *myType   = "unknown";
 
   switch (mBeginDebugState.HostMachineType) {
-  case EFI_IMAGE_MACHINE_AARCH64:
-    hostType = "AArch64";
-    break;
-  case EFI_IMAGE_MACHINE_RISCV64:
-    hostType = "RiscV64";
-    break;
-  case EFI_IMAGE_MACHINE_X64:
-    hostType = "X64";
-    break;
-  default:
-    hostType = "unknown";
+    case EFI_IMAGE_MACHINE_AARCH64:
+      hostType = "AArch64";
+      break;
+    case EFI_IMAGE_MACHINE_RISCV64:
+      hostType = "RiscV64";
+      break;
+    case EFI_IMAGE_MACHINE_X64:
+      hostType = "X64";
+      break;
+    default:
+      hostType = "unknown";
   }
 
   switch (mBeginDebugState.CallerMachineType) {
-  case EFI_IMAGE_MACHINE_AARCH64:
-    myType = "AArch64";
-    break;
-  case EFI_IMAGE_MACHINE_RISCV64:
-    myType = "RiscV64";
-    break;
-  case EFI_IMAGE_MACHINE_X64:
-    myType = "X64";
-    break;
-  default:
-    myType = "unknown";
+    case EFI_IMAGE_MACHINE_AARCH64:
+      myType = "AArch64";
+      break;
+    case EFI_IMAGE_MACHINE_RISCV64:
+      myType = "RiscV64";
+      break;
+    case EFI_IMAGE_MACHINE_X64:
+      myType = "X64";
+      break;
+    default:
+      myType = "unknown";
   }
 
   DEBUG ((DEBUG_INFO, "%a tester running on %a host\n", myType, hostType));
@@ -147,13 +153,27 @@ DoTestProtocolTests (
   Ret = Test->TestRet ();
   LogResult ("Value return", Ret == RET_VAL);
 
-  Ret = Test->TestArgs (ARG_VAL(1), ARG_VAL(2), ARG_VAL(3), ARG_VAL(4),
-                        ARG_VAL(5), ARG_VAL(6), ARG_VAL(7), ARG_VAL(8),
-                        ARG_VAL(9), ARG_VAL(10), ARG_VAL(11), ARG_VAL(12),
-                        ARG_VAL(13), ARG_VAL(14), ARG_VAL(15), ARG_VAL(16));
+  Ret = Test->TestArgs (
+                ARG_VAL (1),
+                ARG_VAL (2),
+                ARG_VAL (3),
+                ARG_VAL (4),
+                ARG_VAL (5),
+                ARG_VAL (6),
+                ARG_VAL (7),
+                ARG_VAL (8),
+                ARG_VAL (9),
+                ARG_VAL (10),
+                ARG_VAL (11),
+                ARG_VAL (12),
+                ARG_VAL (13),
+                ARG_VAL (14),
+                ARG_VAL (15),
+                ARG_VAL (16)
+                );
   LogResult ("Argument passing", Ret == EFI_SUCCESS);
 
-  Ret = Test->TestCbArgs(TestCbArgs);
+  Ret = Test->TestCbArgs (TestCbArgs);
   LogResult ("Callback args passing", Ret == EFI_SUCCESS);
 
   Ret = Test->TestSj (TestCbLj);
@@ -167,8 +187,10 @@ TestNullCall (
   VOID
   )
 {
-  UINT64 Ret;
-  UINT64 EFIAPI (*Call)(VOID) = (VOID *) 8;
+  UINT64         Ret;
+  UINT64 EFIAPI  (*Call)(
+    VOID
+    ) = (VOID *)8;
 
   Ret = Call ();
   LogResult ("NULL(0x8) call", Ret == EFI_UNSUPPORTED);
@@ -181,8 +203,10 @@ TestNullCall2 (
   VOID
   )
 {
-  UINT64 Ret;
-  UINT64 EFIAPI (*Call)(VOID) = (VOID *) 0;
+  UINT64         Ret;
+  UINT64 EFIAPI  (*Call)(
+    VOID
+    ) = (VOID *)0;
 
   /*
    * Different from TestNullCall to catch edge case behavior
@@ -200,12 +224,12 @@ TestNullDeref (
   VOID
   )
 {
-  volatile UINT64 *Ptr = (UINT64 *) 0x8;
+  volatile UINT64  *Ptr = (UINT64 *)0x8;
 
   LogResult ("NULL read", *Ptr == 0xAFAFAFAFAFAFAFAFUL);
 
-  *Ptr = (UINT64) Ptr;
-  asm volatile("" : : : "memory");
+  *Ptr = (UINT64)Ptr;
+  asm volatile ("" : : : "memory");
   LogResult ("NULL write", TRUE);
 }
 
@@ -228,7 +252,7 @@ TestTimerHandler (
   IN VOID       *Context
   )
 {
-  BOOLEAN *IsDone = Context;
+  BOOLEAN  *IsDone = Context;
 
   *IsDone = TRUE;
 }
@@ -247,10 +271,10 @@ STATIC
 NO_INLINE
 UINT64
 TestPerfEmpty (
-  IN  volatile BOOLEAN *IsDone
+  IN  volatile BOOLEAN  *IsDone
   )
 {
-  UINT64 Result;
+  UINT64  Result;
 
   /*
    * Test empty loops.
@@ -268,10 +292,10 @@ STATIC
 NO_INLINE
 UINT64
 TestPerfMyCall (
-  IN  volatile BOOLEAN *IsDone
+  IN  volatile BOOLEAN  *IsDone
   )
 {
-  UINT64 Result;
+  UINT64  Result;
 
   /*
    * Test emulated function call loops.
@@ -289,10 +313,10 @@ STATIC
 NO_INLINE
 UINT64
 TestPerfNativeCall (
-  IN  volatile BOOLEAN *IsDone
+  IN  volatile BOOLEAN  *IsDone
   )
 {
-  UINT64 Result;
+  UINT64  Result;
 
   /*
    * Test emulated function call loops.
@@ -365,25 +389,25 @@ TestPerf (
   VOID
   )
 {
-  UINT64 Result;
-  EFI_STATUS Status;
-  EFI_EVENT OneShotTimer;
-  volatile BOOLEAN IsDone;
-  UINTN Index;
+  UINT64            Result;
+  EFI_STATUS        Status;
+  EFI_EVENT         OneShotTimer;
+  volatile BOOLEAN  IsDone;
+  UINTN             Index;
 
   DEBUG ((DEBUG_INFO, "Doing perf tests...\n"));
 
   Status = gBS->CreateEventEx (
-    EVT_TIMER | EVT_NOTIFY_SIGNAL, // Type
-    TPL_CALLBACK,                  // NotifyTpl
-    TestTimerHandler,              // NotifyFunction
-    (VOID *)&IsDone,               // NotifyContext
-    NULL,                          // No group
-    &OneShotTimer                  // Event
-    );
+                  EVT_TIMER | EVT_NOTIFY_SIGNAL, // Type
+                  TPL_CALLBACK,                  // NotifyTpl
+                  TestTimerHandler,              // NotifyFunction
+                  (VOID *)&IsDone,               // NotifyContext
+                  NULL,                          // No group
+                  &OneShotTimer                  // Event
+                  );
   ASSERT_EFI_ERROR (Status);
 
-#define PREP() do {                             \
+  #define PREP()  do {                          \
     IsDone = 0;                                 \
     Status = gBS->SetTimer (                    \
       OneShotTimer,                             \
@@ -393,7 +417,7 @@ TestPerf (
     ASSERT_EFI_ERROR (Status);                  \
   } while (0)
 
-#define PTEST(x) do {                           \
+  #define PTEST(x)  do {                        \
     PREP();                                     \
     DEBUG ((DEBUG_INFO, #x " loops %u\n",       \
             TestPerf##x (&IsDone)));            \
@@ -407,8 +431,8 @@ TestPerf (
     TestArray[Index] = 1;
   }
 
-#undef PTEST
-#define PTEST(x) do {                                                   \
+  #undef PTEST
+  #define PTEST(x)  do {                                                \
     PREP();                                                             \
     DEBUG ((DEBUG_INFO, #x " loops %u\n",                               \
             TestPerf##x (TestArray, ARRAY_SIZE (TestArray), &IsDone))); \
@@ -424,7 +448,7 @@ TestPerf (
   PTEST (Store16);
   PTEST (Store8);
 
-#undef PTEST
+  #undef PTEST
 
   LogResult ("TestPerf", TRUE);
   gBS->CloseEvent (OneShotTimer);
@@ -434,27 +458,27 @@ STATIC
 NO_INLINE
 VOID
 TestTimer (
-  BOOLEAN WithCpuSleep
+  BOOLEAN  WithCpuSleep
   )
 {
-  EFI_STATUS Status;
-  EFI_EVENT OneShotTimer;
-  volatile BOOLEAN IsDone = FALSE;
+  EFI_STATUS        Status;
+  EFI_EVENT         OneShotTimer;
+  volatile BOOLEAN  IsDone = FALSE;
 
   Status = gBS->CreateEvent (
-    EVT_TIMER | EVT_NOTIFY_SIGNAL, // Type
-    TPL_CALLBACK,                  // NotifyTpl
-    TestTimerHandler,              // NotifyFunction
-    (VOID *)&IsDone,               // NotifyContext
-    &OneShotTimer                  // Event
-    );
+                  EVT_TIMER | EVT_NOTIFY_SIGNAL, // Type
+                  TPL_CALLBACK,                  // NotifyTpl
+                  TestTimerHandler,              // NotifyFunction
+                  (VOID *)&IsDone,               // NotifyContext
+                  &OneShotTimer                  // Event
+                  );
   ASSERT_EFI_ERROR (Status);
 
   Status = gBS->SetTimer (
-    OneShotTimer,
-    TimerRelative,
-    EFI_TIMER_PERIOD_SECONDS (1)
-    );
+                  OneShotTimer,
+                  TimerRelative,
+                  EFI_TIMER_PERIOD_SECONDS (1)
+                  );
   ASSERT_EFI_ERROR (Status);
 
   while (!IsDone) {
@@ -468,6 +492,7 @@ TestTimer (
   } else {
     LogResult ("Tight loop + timer", TRUE);
   }
+
   gBS->CloseEvent (OneShotTimer);
 }
 
@@ -477,12 +502,14 @@ NO_INLINE
 UINT64
 EFIAPI
 SelfModCodeFn (
-  IN  UINTN Input
+  IN  UINTN  Input
   )
 {
-  static UINTN Value = 0;
+  static UINTN  Value = 0;
+
   return Value++;
 }
+
 #endif /* MDE_CPU_X64 */
 
 STATIC
@@ -492,28 +519,30 @@ TestSelfModCode (
   VOID
   )
 {
-#ifdef MDE_CPU_X64
-  UINTN Index;
+ #ifdef MDE_CPU_X64
+  UINTN  Index;
+
   /*
    *  mov    rax,rcx; ret
    */
-  static UINT8 Patch1[] = { 0x48, 0x89, 0xC8, 0xC3 };
+  static UINT8  Patch1[] = { 0x48, 0x89, 0xC8, 0xC3 };
+
   /*
    *  mov    rax,0xfeed; ret
    */
-  static UINT8 Patch2[] = { 0x48, 0xC7, 0xC0, 0xED, 0xFE, 0x00, 0x00, 0xC3 };
+  static UINT8  Patch2[] = { 0x48, 0xC7, 0xC0, 0xED, 0xFE, 0x00, 0x00, 0xC3 };
 
   LogResult ("Self-modifying code test before", SelfModCodeFn (0x1337) == 0);
 
   for (Index = 0; Index < sizeof (Patch1); Index++) {
-    ((UINT8 *) SelfModCodeFn)[Index] = Patch1[Index];
+    ((UINT8 *)SelfModCodeFn)[Index] = Patch1[Index];
     asm volatile ("" : : : "memory");
   }
 
   LogResult ("Self-modifying code test after 1", SelfModCodeFn (0xf00d) == 0xf00d);
 
   for (Index = 0; Index < sizeof (Patch2); Index++) {
-    ((UINT8 *) SelfModCodeFn)[Index] = Patch2[Index];
+    ((UINT8 *)SelfModCodeFn)[Index] = Patch2[Index];
     asm volatile ("" : : : "memory");
   }
 
@@ -526,17 +555,17 @@ TestSelfModCode (
    * - test running code from a BootServiceCode pool alloc.
    * - add AArch64 and RISC-V variants.
    */
-#endif /* MDE_CPU_X64 */
+ #endif /* MDE_CPU_X64 */
 }
 
 EFI_STATUS
 EFIAPI
 EmulatorTestEntryPoint (
-  IN  EFI_HANDLE       ImageHandle,
-  IN  EFI_SYSTEM_TABLE *SystemTable
+  IN  EFI_HANDLE        ImageHandle,
+  IN  EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  gBS->LocateProtocol (&mEmuTestProtocolGuid, NULL, (VOID **) &mTest);
+  gBS->LocateProtocol (&mEmuTestProtocolGuid, NULL, (VOID **)&mTest);
   if (mTest == NULL) {
     DEBUG ((DEBUG_ERROR, "EMU_TEST_PROTOCOL is missing\n"));
   } else {
@@ -545,7 +574,8 @@ EmulatorTestEntryPoint (
     DoTestProtocolTests (mTest);
 
     if (mBeginDebugState.HostMachineType !=
-        mBeginDebugState.CallerMachineType) {
+        mBeginDebugState.CallerMachineType)
+    {
       /*
        * Only run these tests if we know we are being emulated.
        */
@@ -563,23 +593,39 @@ EmulatorTestEntryPoint (
   DEBUG ((DEBUG_INFO, "Tests completed!\n"));
 
   if (mTest != NULL) {
-    EMU_TEST_DEBUG_STATE DebugState;
+    EMU_TEST_DEBUG_STATE  DebugState;
     mTest->TestGetDebugState (&DebugState);
 
-    DEBUG ((DEBUG_INFO, "Contexts total %lu = X64 %lu + AArch64 %lu\n",
-            DebugState.ContextCount, DebugState.X64ContextCount,
-            DebugState.AArch64ContextCount));
-    ASSERT ((DebugState.ContextCount == (DebugState.X64ContextCount +
-                                         DebugState.AArch64ContextCount)));
-    DEBUG ((DEBUG_INFO, "Emu timeout period %lu ms\n",
-            DebugState.ExitPeriodMs));
-    DEBUG ((DEBUG_INFO, "X64 timeout period %lu ticks 0x%lx tbs\n",
-            DebugState.X64ExitPeriodTicks, DebugState.X64ExitPeriodTbs));
-    DEBUG ((DEBUG_INFO, "AArch64 timeout period %lu ticks 0x%lu tbs\n",
-            DebugState.AArch64ExitPeriodTicks,
-            DebugState.AArch64ExitPeriodTbs));
+    DEBUG ((
+      DEBUG_INFO,
+      "Contexts total %lu = X64 %lu + AArch64 %lu\n",
+      DebugState.ContextCount,
+      DebugState.X64ContextCount,
+      DebugState.AArch64ContextCount
+      ));
+    ASSERT (
+      (DebugState.ContextCount == (DebugState.X64ContextCount +
+                                   DebugState.AArch64ContextCount))
+      );
+    DEBUG ((
+      DEBUG_INFO,
+      "Emu timeout period %lu ms\n",
+      DebugState.ExitPeriodMs
+      ));
+    DEBUG ((
+      DEBUG_INFO,
+      "X64 timeout period %lu ticks 0x%lx tbs\n",
+      DebugState.X64ExitPeriodTicks,
+      DebugState.X64ExitPeriodTbs
+      ));
+    DEBUG ((
+      DEBUG_INFO,
+      "AArch64 timeout period %lu ticks 0x%lu tbs\n",
+      DebugState.AArch64ExitPeriodTicks,
+      DebugState.AArch64ExitPeriodTbs
+      ));
 
-    mTest->TestCbArgs((VOID *) TestExit);
+    mTest->TestCbArgs ((VOID *)TestExit);
     return EFI_ABORTED;
   }
 
