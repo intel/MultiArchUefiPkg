@@ -31,9 +31,9 @@ no FP/SIMD, no returning large values, etc. E.g. calls like:
 ...with up to 16 arguments are supported both emulated -> native
 and native -> emulated, which covers all UEFI needs.
 
-The emulator presents an x64 UEFI Boot Services environment,
-appropriate for running Boot Servces drivers (e.g. OpRom drivers
-such as SNP, GOP) and EFI applications (that aren't OS loaders).
+The emulator presents an x64 and/or AArch64 UEFI Boot Services
+environment, appropriate for running Boot Servces drivers (e.g. OpRom
+drivers such as SNP, GOP) and EFI applications (that aren't OS loaders).
 Certain Boot, Runtime and DXE services are filtered or disabled.
 
 ## Quick Start
