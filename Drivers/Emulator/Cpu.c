@@ -1181,7 +1181,7 @@ CpuDetectOrphanContexts (
    *                             to returned code ]
    *
    * Let's call such contexts /orphaned/ contexts. Unlike leaked
-   * contexts handled by the gBS->ExitWrapper or NativeThunk,
+   * contexts handled by the gBS->Exit wrapper or NativeThunk,
    * these have no useful state, they just need to be cleaned up.
    *
    * Note: this function must be called before dropping to Context->Tpl,
