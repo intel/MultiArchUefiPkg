@@ -1,4 +1,4 @@
-# UCX86EmulatorPkg
+# MultiArchUefiPkg
 
 This code implements a DXE driver for EDK2/Tianocore that allows
 non-native UEFI boot service drivers and applications to be executed
@@ -43,29 +43,29 @@ To quickly compile for AArch64:
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
         $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
-        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
         $ export GCC5_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
-        $ build -a AARCH64 -t GCC5 -p UCX86EmulatorPkg/Emulator.dsc -b RELEASE
+        $ build -a AARCH64 -t GCC5 -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/UCX86Emulator/RELEASE_GCC5/AARCH64/EmulatorDxe.efi
+This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/AARCH64/EmulatorDxe.efi
 
 To quickly compile for RISCV64:
 
         $ git clone https://github.com/tianocore/edk2-staging.git
         $ cd edk2-staging
         $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
-        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply the patches under UCX86EmulatorPkg/edk2-staging-patches, except for
-        0006-ArmVirtPkg-bundle-UCX86EmulatorPkg-driver.patch. These patches will also
+        Apply the patches under MultiArchUefiPkg/edk2-staging-patches, except for
+        0006-ArmVirtPkg-bundle-MultiArchUefiPkg-driver.patch. These patches will also
         need to be applied to the UEFI firmware used for testing.
 
         $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
-        $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/Emulator.dsc -b RELEASE
+        $ build -a RISCV64 -t GCC5 -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/UCX86Emulator/RELEASE_GCC5/RISCV64/EmulatorDxe.efi
+This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/RISCV64/EmulatorDxe.efi
 
 ## ArmVirtPkg firmware with the bundled emulator
 
@@ -74,10 +74,10 @@ To quickly compile an ArmVirtPkg version that contains the emulator, run:
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
         $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
-        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply edk2-staging-patches/0006-ArmVirtPkg-bundle-UCX86EmulatorPkg-driver.patch
+        Apply edk2-staging-patches/0006-ArmVirtPkg-bundle-MultiArchUefiPkg-driver.patch
 
         Be sure to comment out "INF OvmfPkg/VirtioNetDxe/VirtioNet.inf" in ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
         if you want to test with the x86_64 virtio iPXE OpRom.
@@ -100,11 +100,11 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
         $ git submodule add https://github.com/intel-sandbox/unicorn-for-efi.git
-        $ git submodule add https://github.com/intel-sandbox/UCX86EmulatorPkg.git
+        $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply the patches under UCX86EmulatorPkg/edk2-staging-patches, except for
-        0006-ArmVirtPkg-bundle-UCX86EmulatorPkg-driver.patch.
+        Apply the patches under MultiArchUefiPkg/edk2-staging-patches, except for
+        0006-ArmVirtPkg-bundle-MultiArchUefiPkg-driver.patch.
 
         $ make -C BaseTools
         $ . edksetup.sh
@@ -124,9 +124,9 @@ This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
 There's a small test application:
 
         $ export GCC5_X64_PREFIX=... (if you are on a non-X64 system)
-        $ build -a X64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
-        $ build -a AARCH64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
-        $ build -a RISCV64 -t GCC5 -p UCX86EmulatorPkg/EmulatorTest.dsc
+        $ build -a X64 -t GCC5 -p MultiArchUefiPkg/EmulatorTest.dsc
+        $ build -a AARCH64 -t GCC5 -p MultiArchUefiPkg/EmulatorTest.dsc
+        $ build -a RISCV64 -t GCC5 -p MultiArchUefiPkg/EmulatorTest.dsc
 
 When run against a DEBUG build of EmulatorDxe, will run further sanity tests.
 The application can be run in a native environment for overhead comparison
@@ -135,7 +135,7 @@ RISCV64 environment).
 
 ## Special builds
 
-UCX86EmulatorPkg uses a port of Project Unicorn to UEFI which is not
+MultiArchUefiPkg uses a port of Project Unicorn to UEFI which is not
 yet upstreamed. Beyond UEFI support, the unicorn-for-efi repo also
 contains critical fixes to the operation of emulator. Beyond fixes, there
 are additional improvements that rely on additional new Unicorn APIs being

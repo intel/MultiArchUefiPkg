@@ -41,7 +41,7 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
-  UCX86EmulatorPkg/UCX86EmulatorPkg.dec
+  MultiArchUefiPkg/MultiArchUefiPkg.dec
   unicorn/efi/UnicornPkg.dec
 
 [Packages.AARCH64]

@@ -15,7 +15,7 @@
   PLATFORM_GUID                  = 62ad1d2c-27bf-4021-b32d-268d0e71c032
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
-  OUTPUT_DIRECTORY               = Build/UCX86Emulator
+  OUTPUT_DIRECTORY               = Build/MultiArchUefiPkg
   SUPPORTED_ARCHITECTURES        = AARCH64|RISCV64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
@@ -109,7 +109,7 @@
   # The emulator needs to protect itself from emulated apps/drivers that modify boot/runtime
   # services the emulator uses. A great example of this is the Shell replacing ST->ConOut.
   #
-  UefiDriverEntryPoint|UCX86EmulatorPkg/Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf
+  UefiDriverEntryPoint|MultiArchUefiPkg/Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf
 
 [LibraryClasses.AARCH64]
   ArmDisassemblerLib|ArmPkg/Library/ArmDisassemblerLib/ArmDisassemblerLib.inf
@@ -144,4 +144,4 @@
 !endif
 
 [Components]
-  UCX86EmulatorPkg/Drivers/Emulator/Emulator.inf
+  MultiArchUefiPkg/Drivers/Emulator/Emulator.inf

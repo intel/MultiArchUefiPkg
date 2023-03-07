@@ -14,7 +14,7 @@
   PLATFORM_GUID                  = 62ad1d2c-27bf-4021-b32d-268d0e71c1234
   PLATFORM_VERSION               = 0.98
   DSC_SPECIFICATION              = 0x00010005
-  OUTPUT_DIRECTORY               = Build/UCX86EmulatorTest
+  OUTPUT_DIRECTORY               = Build/MultiArchUefiPkg
   SUPPORTED_ARCHITECTURES        = X64|AARCH64|RISCV64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
@@ -76,4 +76,4 @@
 [BuildOptions]
 
 [Components]
-  UCX86EmulatorPkg/Application/EmulatorTest/EmulatorTest.inf
+  MultiArchUefiPkg/Application/EmulatorTest/EmulatorTest.inf
