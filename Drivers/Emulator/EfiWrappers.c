@@ -197,11 +197,6 @@ EfiWrappersOverride (
   IN  UINT64  ProgramCounter
   )
 {
-  /*
-   * TODO: catch/filter SetMemoryAttributes to ignore any
-   * attempts to change attributes for the emulated image itself?
-   */
-
  #ifdef WRAPPED_ENTRY_POINTS
   if (ProgramCounter == (UINT64)gBS->CreateEvent) {
     return (UINT64)EfiWrapperCreateEventCommon;
@@ -218,7 +213,19 @@ EfiWrappersOverride (
       "Unsupported emulated ExitBootServices\n"
       ));
     return (UINT64)&NativeUnsupported;
-  } else if (ProgramCounter == (UINTN)gCpu->RegisterInterruptHandler) {
+  } else if (ProgramCounter == (UINTN)gCpu->RegisterInterruptHandler ||
+             ProgramCounter == (UINTN)gCpu->GetInterruptState ||
+             ProgramCounter == (UINTN)gCpu->EnableInterrupt ||
+             ProgramCounter == (UINTN)gCpu->DisableInterrupt ||
+             ProgramCounter == (UINTN)gCpu->Init) {
+    /*
+     * TODO: catch/filter gCpu->SetMemoryAttributes to ignore any
+     * attempts to change attributes for the emulated image itself?
+     */
+    /*
+     * TODO: this is an awful and high overhead way to trap a
+     * protocol. Instead, trap HandleProtocol etc.
+     */
     DEBUG ((
       DEBUG_ERROR,
       "Unsupported emulated RegisterInterruptHandler\n"
