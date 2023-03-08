@@ -1462,7 +1462,7 @@ CpuRunImage (
   CpuRunContext              *Context;
   ImageRecord                *Record;
   EFI_LOADED_IMAGE_PROTOCOL  *LoadedImage;
-  UINT64                     Args[2] = { (UINT64)ImageHandle, (UINT64)SystemTable };
+  UINT64                     Args[MAX_ARGS] = { (UINT64)ImageHandle, (UINT64)SystemTable };
 
   Context = CpuAllocContext ();
   if (Context == NULL) {
@@ -1543,7 +1543,8 @@ CpuExitImage (
   }
 
   ASSERT (Context);
-  if (Context->ImageRecord != CurrentImageRecord) {
+
+  if (Context != NULL && Context->ImageRecord != CurrentImageRecord) {
     /*
      * The image with this handle is *not* the last image
      * invoked.
