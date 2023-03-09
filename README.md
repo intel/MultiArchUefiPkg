@@ -57,9 +57,7 @@ To quickly compile for RISCV64:
         $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply the patches under MultiArchUefiPkg/edk2-staging-patches, except for
-        0006-ArmVirtPkg-bundle-MultiArchUefiPkg-driver.patch. These patches will also
-        need to be applied to the UEFI firmware used for testing.
+        Apply any patches under MultiArchUefiPkg/edk2-staging-patches.
 
         $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
         $ build -a RISCV64 -t GCC5 -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
@@ -76,10 +74,12 @@ To quickly compile an ArmVirtPkg version that contains the emulator, run:
         $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply edk2-staging-patches/0006-ArmVirtPkg-bundle-MultiArchUefiPkg-driver.patch
 
-        Be sure to comment out "INF OvmfPkg/VirtioNetDxe/VirtioNet.inf" in ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
-        if you want to test with the x86_64 virtio iPXE OpRom.
+        Apply any patches under MultiArchUefiPkg/edk2-staging-patches.
+
+        Be sure to comment out "INF OvmfPkg/VirtioNetDxe/VirtioNet.inf" in
+        ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc if you want to test with the
+        x86_64 virtio iPXE OpRom.
 
         $ make -C BaseTools
         $ . edksetup.sh
@@ -102,8 +102,7 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
         $ git submodule add https://github.com/intel-sandbox/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply the patches under MultiArchUefiPkg/edk2-staging-patches, except for
-        0006-ArmVirtPkg-bundle-MultiArchUefiPkg-driver.patch.
+        Apply any patches under MultiArchUefiPkg/edk2-staging-patches.
 
         $ make -C BaseTools
         $ . edksetup.sh
