@@ -1,4 +1,4 @@
-# MultiArchUefiPkg
+# MultiArchUefiPkg - Multi-Architecture UEFI Environment Driver
 
 This code implements a DXE driver for EDK2/Tianocore that allows
 non-native UEFI boot service drivers and applications to be executed
