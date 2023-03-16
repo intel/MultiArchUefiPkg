@@ -44,7 +44,7 @@ STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  mEmulatorProtocolX64 = {
   EFI_IMAGE_MACHINE_X64
 };
 
-#ifdef SUPPORTS_AARCH64_BINS
+#ifdef MAU_SUPPORTS_AARCH64_BINS
 STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  mEmulatorProtocolAArch64 = {
   ImageProtocolSupported,
   ImageProtocolRegister,
@@ -52,7 +52,7 @@ STATIC EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL  mEmulatorProtocolAArch64 = {
   EDKII_PECOFF_IMAGE_EMULATOR_VERSION,
   EFI_IMAGE_MACHINE_AARCH64
 };
-#endif /* SUPPORTS_AARCH64_BINS */
+#endif /* MAU_SUPPORTS_AARCH64_BINS */
 
 UINT64
 EmulatorVmEntry (
@@ -85,9 +85,9 @@ EmulatorDxeEntryPoint (
   EFI_STATUS  Status;
   EFI_HANDLE  EmuHandleX64 = NULL;
 
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   EFI_HANDLE  EmuHandleAArch64 = NULL;
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
   Status = gBS->HandleProtocol (
                   ImageHandle,
@@ -138,7 +138,7 @@ EmulatorDxeEntryPoint (
     goto done;
   }
 
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   Status = gBS->InstallProtocolInterface (
                   &EmuHandleAArch64,
                   &gEdkiiPeCoffImageEmulatorProtocolGuid,
@@ -150,7 +150,7 @@ EmulatorDxeEntryPoint (
     goto done;
   }
 
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
  #ifndef NDEBUG
   Status = TestProtocolInit (ImageHandle);
@@ -166,7 +166,7 @@ done:
              );
     }
 
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
     if (EmuHandleAArch64 != NULL) {
       gBS->UninstallProtocolInterface (
              EmuHandleAArch64,
@@ -175,7 +175,7 @@ done:
              );
     }
 
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
     ArchCleanup ();
     CpuCleanup ();
   }

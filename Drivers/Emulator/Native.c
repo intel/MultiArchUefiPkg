@@ -105,7 +105,7 @@ NativeThunkCheckLeakedContexts (
   }
 }
 
-#ifdef SUPPORTS_AARCH64_BINS
+#ifdef MAU_SUPPORTS_AARCH64_BINS
 UINT64
 NativeThunkAArch64 (
   IN  CpuRunContext  *Context,
@@ -200,7 +200,7 @@ NativeThunkAArch64 (
   return REG_READ (Cpu, UC_ARM64_REG_LR);
 }
 
-#endif /* SUPPORTS_AARCH64_BINS */
+#endif /* MAU_SUPPORTS_AARCH64_BINS */
 
 UINT64
 NativeThunkX64 (

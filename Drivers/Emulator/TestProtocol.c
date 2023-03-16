@@ -33,7 +33,7 @@ typedef UINT64 EFIAPI (*CbFn)(
   UINT64
   );
 
-  #ifdef WRAPPED_ENTRY_POINTS
+  #ifdef MAU_WRAPPED_ENTRY_POINTS
 STATIC
 UINT64
 TestWrappedCb (
@@ -92,7 +92,7 @@ TestWrappedCb (
   }
 }
 
-  #endif /* WRAPPED_ENTRY_POINTS */
+  #endif /* MAU_WRAPPED_ENTRY_POINTS */
 
 STATIC
 UINT64
@@ -148,7 +148,7 @@ TestCbArgs (
   IN  CbFn  Cb
   )
 {
- #ifdef WRAPPED_ENTRY_POINTS
+ #ifdef MAU_WRAPPED_ENTRY_POINTS
   return TestWrappedCb (
            Cb,
            ARG_VAL (1),
@@ -187,7 +187,7 @@ TestCbArgs (
            ARG_VAL (15),
            ARG_VAL (16)
            );
- #endif /* WRAPPED_ENTRY_POINTS */
+ #endif /* MAU_WRAPPED_ENTRY_POINTS */
 }
 
 STATIC
@@ -199,7 +199,7 @@ TestSj (
   BASE_LIBRARY_JUMP_BUFFER  JumpBuffer;
 
   if (SetJump (&JumpBuffer) == 0) {
- #ifdef WRAPPED_ENTRY_POINTS
+ #ifdef MAU_WRAPPED_ENTRY_POINTS
     TestWrappedCb (
       (CbFn)Cb,
       (UINT64)&JumpBuffer,
@@ -221,7 +221,7 @@ TestSj (
       );
  #else
     Cb (&JumpBuffer);
- #endif /* WRAPPED_ENTRY_POINTS */
+ #endif /* MAU_WRAPPED_ENTRY_POINTS */
 
     /*
      * Shouldn't happen.

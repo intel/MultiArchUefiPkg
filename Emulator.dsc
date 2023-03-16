@@ -126,20 +126,20 @@
 [BuildOptions]
   *_*_*_CC_FLAGS                       = -DDISABLE_NEW_DEPRECATED_INTERFACES
 !if $(ON_PRIVATE_STACK) == YES
-  *_*_*_CC_FLAGS                       = -DON_PRIVATE_STACK
+  *_*_*_CC_FLAGS                       = -DMAU_ON_PRIVATE_STACK
 !endif
 !if $(WRAPPED_ENTRY_POINTS) == YES
-  *_*_*_CC_FLAGS                       = -DWRAPPED_ENTRY_POINTS
+  *_*_*_CC_FLAGS                       = -DMAU_WRAPPED_ENTRY_POINTS
 !endif
 !if $(CHECK_ORPHAN_CONTEXTS) == YES
-  *_*_*_CC_FLAGS                       = -DCHECK_ORPHAN_CONTEXTS
+  *_*_*_CC_FLAGS                       = -DMAU_CHECK_ORPHAN_CONTEXTS
 !endif
 !if $(EMU_TIMEOUT_NONE) == YES
-  *_*_*_CC_FLAGS                       = -DEMU_TIMEOUT_NONE
+  *_*_*_CC_FLAGS                       = -DMAU_EMU_TIMEOUT_NONE
 !endif
 !if $(ARCH) != AARCH64
 !if $(SUPPORTS_AARCH64_BINS) == YES
-  *_*_*_CC_FLAGS                       = -DSUPPORTS_AARCH64_BINS
+  *_*_*_CC_FLAGS                       = -DMAU_SUPPORTS_AARCH64_BINS
 !endif
 !endif
 

@@ -20,23 +20,23 @@
 #define CURRENT_FP()  ((UINTN) __builtin_frame_address(0))
 
 CpuContext  CpuX64;
-#ifdef SUPPORTS_AARCH64_BINS
+#ifdef MAU_SUPPORTS_AARCH64_BINS
 CpuContext  CpuAArch64;
-#endif /* SUPPORTS_AARCH64_BINS */
+#endif /* MAU_SUPPORTS_AARCH64_BINS */
 STATIC CpuRunContext  *mTopContext;
 
-#ifndef EMU_TIMEOUT_NONE
+#ifndef MAU_EMU_TIMEOUT_NONE
 #define UC_EMU_EXIT_PERIOD_TB_MAX      0x100000
 #define UC_EMU_EXIT_PERIOD_TB_INITIAL  0x1000
 #define UC_EMU_EXIT_PERIOD_TB_MIN      0x100
 #define UC_EMU_EXIT_PERIOD_MS          10
-#endif /* EMU_TIMEOUT_NONE */
+#endif /* MAU_EMU_TIMEOUT_NONE */
 
-#ifdef ON_PRIVATE_STACK
+#ifdef MAU_ON_PRIVATE_STACK
 STATIC BASE_LIBRARY_JUMP_BUFFER  mOriginalStack;
 STATIC EFI_PHYSICAL_ADDRESS      mNativeStackStart;
 STATIC EFI_PHYSICAL_ADDRESS      mNativeStackTop;
-#endif /* ON_PRIVATE_STACK */
+#endif /* MAU_ON_PRIVATE_STACK */
 
 typedef enum {
   CPU_REASON_INVALID,
@@ -67,7 +67,7 @@ CpuIsNativeCb (
   return FALSE;
 }
 
-#ifndef EMU_TIMEOUT_NONE
+#ifndef MAU_EMU_TIMEOUT_NONE
 STATIC
 VOID
 CpuTimeoutCb (
@@ -95,7 +95,7 @@ CpuTimeoutCb (
   }
 }
 
-#endif /* EMU_TIMEOUT_NONE */
+#endif /* MAU_EMU_TIMEOUT_NONE */
 
 STATIC
 UINT32
@@ -237,9 +237,9 @@ CpuCleanup (
   )
 {
   CpuCleanupEx (&CpuX64);
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   CpuCleanupEx (&CpuAArch64);
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
 }
 
 STATIC
@@ -248,7 +248,7 @@ CpuPrivateStackInit (
   VOID
   )
 {
- #ifdef ON_PRIVATE_STACK
+ #ifdef MAU_ON_PRIVATE_STACK
   EFI_STATUS  Status;
 
   Status = gBS->AllocatePages (
@@ -295,7 +295,7 @@ CpuPrivateStackInit (
 
   DEBUG ((DEBUG_INFO, "Native stack is at 0x%lx-0x%lx\n", mNativeStackStart, mNativeStackTop));
 
- #endif /* ON_PRIVATE_STACK */
+ #endif /* MAU_ON_PRIVATE_STACK */
   return EFI_SUCCESS;
 }
 
@@ -343,7 +343,7 @@ CpuStackPush64 (
   *(UINT64 *)Rsp = Val;
 }
 
-#ifdef SUPPORTS_AARCH64_BINS
+#ifdef MAU_SUPPORTS_AARCH64_BINS
 STATIC
 VOID
 CpuAArch64Dump (
@@ -474,7 +474,7 @@ CpuAArch64EmuThunkPost (
   }
 }
 
-#endif /* SUPPORTS_AARCH64_BINS */
+#endif /* MAU_SUPPORTS_AARCH64_BINS */
 
 STATIC
 VOID
@@ -612,9 +612,9 @@ CpuInitEx (
   uc_hook     IoReadHook;
   uc_hook     IoWriteHook;
 
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
   uc_hook  TimeoutHook;
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
   uc_hook  IsNativeHook;
   size_t   UnicornCodeGenSize;
   uc_mode  UcMode;
@@ -630,7 +630,7 @@ CpuInitEx (
     Cpu->EmuThunkPre       = CpuX64EmuThunkPre;
     Cpu->EmuThunkPost      = CpuX64EmuThunkPost;
     Cpu->NativeThunk       = NativeThunkX64;
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   } else if (Arch == UC_ARCH_ARM64) {
     Cpu->EmuMachineType    = EFI_IMAGE_MACHINE_AARCH64;
     UcMode                 = UC_MODE_ARM;
@@ -642,7 +642,7 @@ CpuInitEx (
     Cpu->EmuThunkPre       = CpuAArch64EmuThunkPre;
     Cpu->EmuThunkPost      = CpuAArch64EmuThunkPost;
     Cpu->NativeThunk       = NativeThunkAArch64;
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
   } else {
     return EFI_UNSUPPORTED;
   }
@@ -672,12 +672,12 @@ CpuInitEx (
   }
 
   /*
-   * You get better performance, but building with EMU_TIMEOUT_NONE
+   * You get better performance, but building with MAU_EMU_TIMEOUT_NONE
    * is highly discouraged - any emulated code that does a tight
    * loop (polling on some memory updated by an event) will cause
    * a hard hang.
    */
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
 
   /*
    * Use a block hook to check for timeouts. We must run UC with timer
@@ -703,7 +703,7 @@ CpuInitEx (
     return EFI_UNSUPPORTED;
   }
 
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
 
   /*
    * Use a UC_HOOK_TB_FIND_FAILURE hook to detect native code execution.
@@ -826,7 +826,7 @@ CpuInitEx (
 
   mTopContext = NULL;
 
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
   Cpu->TbCount         = 0;
   Cpu->ExitPeriodTbs   = UC_EMU_EXIT_PERIOD_TB_INITIAL;
   Cpu->ExitPeriodTicks = DivU64x32 (
@@ -836,7 +836,7 @@ CpuInitEx (
                              ),
                            1000u
                            );
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
 
   return EFI_SUCCESS;
 }
@@ -858,13 +858,13 @@ CpuInit (
     return Status;
   }
 
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   Status = CpuInitEx (UC_ARCH_ARM64, &CpuAArch64);
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
   return EFI_SUCCESS;
 }
@@ -981,14 +981,14 @@ CpuRunCtxInternal (
      */
     DisableInterrupts ();
     {
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
       UINT64  TimeoutAbsTicks;
       TimeoutAbsTicks = Cpu->ExitPeriodTicks + GetPerformanceCounter ();
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
 
       UcErr = uc_emu_start (Cpu->UE, ProgramCounter, 0, 0, 0);
 
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
       if (Cpu->StoppedOnTimeout) {
         Cpu->StoppedOnTimeout = FALSE;
         UINT64  Ticks = GetPerformanceCounter ();
@@ -1004,7 +1004,7 @@ CpuRunCtxInternal (
         }
       }
 
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
     }
     EnableInterrupts ();
 
@@ -1130,7 +1130,7 @@ CpuFreeContext (
   gBS->FreePool (Context);
 }
 
-#ifdef CHECK_ORPHAN_CONTEXTS
+#ifdef MAU_CHECK_ORPHAN_CONTEXTS
 
 /*
  * Every time the emulator executes emulated code on behalf
@@ -1157,7 +1157,7 @@ CpuFreeContext (
  *
  * Anyway, this is not normal, and not expected to be done
  * by any kind of application or driver executed via this emulated
- * emulator. But CHECK_ORPHAN_CONTEXTS allows checking for such
+ * emulator. But MAU_CHECK_ORPHAN_CONTEXTS allows checking for such
  * behavior.
  */
 STATIC
@@ -1255,7 +1255,7 @@ CpuFreeOrphanContexts (
   }
 }
 
-#endif /* CHECK_ORPHAN_CONTEXTS */
+#endif /* MAU_CHECK_ORPHAN_CONTEXTS */
 
 VOID
 CpuRunCtxOnPrivateStack (
@@ -1265,15 +1265,15 @@ CpuRunCtxOnPrivateStack (
   uc_err      UcErr;
   CpuContext  *Cpu = Context->Cpu;
 
- #ifdef CHECK_ORPHAN_CONTEXTS
+ #ifdef MAU_CHECK_ORPHAN_CONTEXTS
   CpuRunContext  *OrphanContexts = CpuDetectOrphanContexts (Context);
- #endif /* CHECK_ORPHAN_CONTEXTS */
+ #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
 
   gBS->RestoreTPL (Context->Tpl);
 
- #ifdef CHECK_ORPHAN_CONTEXTS
+ #ifdef MAU_CHECK_ORPHAN_CONTEXTS
   CpuFreeOrphanContexts (OrphanContexts);
- #endif /* CHECK_ORPHAN_CONTEXTS */
+ #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
 
   if (Cpu->Contexts > 1) {
     UcErr = uc_context_alloc (Cpu->UE, &Context->PrevUcContext);
@@ -1311,12 +1311,12 @@ out:
    */
   CpuLeaveCritical (Context);
 
- #ifdef ON_PRIVATE_STACK
+ #ifdef MAU_ON_PRIVATE_STACK
   if (Context->PrevUcContext == NULL) {
     LongJump (&mOriginalStack, -1);
   }
 
- #endif /* ON_PRIVATE_STACK */
+ #endif /* MAU_ON_PRIVATE_STACK */
 }
 
 UINT64
@@ -1326,7 +1326,7 @@ CpuRunCtx (
 {
   CpuEnterCritical (Context);
 
- #ifdef ON_PRIVATE_STACK
+ #ifdef MAU_ON_PRIVATE_STACK
   if (!((CURRENT_FP () >= mNativeStackStart) &&
         (CURRENT_FP () < mNativeStackTop)))
   {
@@ -1339,7 +1339,7 @@ CpuRunCtx (
         );
     }
   } else
- #endif /* ON_PRIVATE_STACK */
+ #endif /* MAU_ON_PRIVATE_STACK */
   {
     CpuRunCtxOnPrivateStack (Context);
   }
@@ -1578,14 +1578,14 @@ CpuAddrIsCodeGen (
     return TRUE;
   }
 
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   if ((Address >= CpuAArch64.UnicornCodeGenBuf) &&
       (Address < CpuAArch64.UnicornCodeGenBufEnd))
   {
     return TRUE;
   }
 
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
   return FALSE;
 }
@@ -1620,19 +1620,19 @@ CpuGetDebugState (
     Context = Context->PrevContext;
   }
 
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
   DebugState->ExitPeriodMs       = UC_EMU_EXIT_PERIOD_MS;
   DebugState->X64ExitPeriodTicks = CpuX64.ExitPeriodTicks;
   DebugState->X64ExitPeriodTbs   = CpuX64.ExitPeriodTbs;
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   DebugState->AArch64ExitPeriodTicks = CpuAArch64.ExitPeriodTicks;
   DebugState->AArch64ExitPeriodTbs   = CpuAArch64.ExitPeriodTbs;
- #endif /* SUPPORTS_AARCH64_BINS */
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
   DebugState->X64ContextCount = CpuX64.Contexts;
- #ifdef SUPPORTS_AARCH64_BINS
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
   DebugState->AArch64ContextCount = CpuAArch64.Contexts;
- #endif /* SUPPORTS_AARCH64_BINS */
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
   gBS->RestoreTPL (Tpl);
 
   return EFI_SUCCESS;

@@ -103,12 +103,12 @@ typedef struct CpuContext {
   EFI_PHYSICAL_ADDRESS    EmuStackStart;
   EFI_PHYSICAL_ADDRESS    EmuStackTop;
   uc_context              *InitialState;
- #ifndef EMU_TIMEOUT_NONE
+ #ifndef MAU_EMU_TIMEOUT_NONE
   UINT64                  TbCount;
   UINT64                  ExitPeriodTbs;
   UINT64                  ExitPeriodTicks;
   BOOLEAN                 StoppedOnTimeout;
- #endif /* EMU_TIMEOUT_NONE */
+ #endif /* MAU_EMU_TIMEOUT_NONE */
 } CpuContext;
 
 typedef struct {
@@ -135,9 +135,9 @@ typedef struct {
 typedef struct CpuRunContext {
   CpuContext              *Cpu;
   EFI_VIRTUAL_ADDRESS     ProgramCounter;
- #ifdef CHECK_ORPHAN_CONTEXTS
+ #ifdef MAU_CHECK_ORPHAN_CONTEXTS
   UINT64                  LeakCookie;
- #endif /* CHECK_ORPHAN_CONTEXTS */
+ #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
   UINT64                  *Args;
   UINT64                  Ret;
   EFI_TPL                 Tpl;
@@ -152,9 +152,9 @@ typedef struct CpuRunContext {
 } CpuRunContext;
 
 extern CpuContext  CpuX64;
-#ifdef SUPPORTS_AARCH64_BINS
+#ifdef MAU_SUPPORTS_AARCH64_BINS
 extern CpuContext  CpuAArch64;
-#endif /* SUPPORTS_AARCH64_BINS */
+#endif /* MAU_SUPPORTS_AARCH64_BINS */
 extern EFI_CPU_ARCH_PROTOCOL      *gCpu;
 extern EFI_CPU_IO2_PROTOCOL       *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL  *gDriverImage;
@@ -293,14 +293,14 @@ NativeThunkX64 (
   IN  UINT64         ProgramCounter
   );
 
-#ifdef SUPPORTS_AARCH64_BINS
+#ifdef MAU_SUPPORTS_AARCH64_BINS
 UINT64
 NativeThunkAArch64 (
   IN  CpuRunContext  *Context,
   IN  UINT64         ProgramCounter
   );
 
-#endif /* SUPPORTS_AARCH64_BINS */
+#endif /* MAU_SUPPORTS_AARCH64_BINS */
 
 EFI_STATUS
 EFIAPI

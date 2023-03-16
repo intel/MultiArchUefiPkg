@@ -12,7 +12,7 @@
 #include <unicorn.h>
 #include "Emulator.h"
 
-#ifdef WRAPPED_ENTRY_POINTS
+#ifdef MAU_WRAPPED_ENTRY_POINTS
 STATIC LIST_ENTRY  mEventList;
 
 typedef struct {
@@ -190,14 +190,14 @@ EfiWrapperCreateEventCommon (
   return EFI_SUCCESS;
 }
 
-#endif /* WRAPPED_ENTRY_POINTS */
+#endif /* MAU_WRAPPED_ENTRY_POINTS */
 
 UINT64
 EfiWrappersOverride (
   IN  UINT64  ProgramCounter
   )
 {
- #ifdef WRAPPED_ENTRY_POINTS
+ #ifdef MAU_WRAPPED_ENTRY_POINTS
   if (ProgramCounter == (UINT64)gBS->CreateEvent) {
     return (UINT64)EfiWrapperCreateEventCommon;
   } else if (ProgramCounter == (UINT64)gBS->CreateEventEx) {
@@ -206,7 +206,7 @@ EfiWrappersOverride (
     return (UINT64)EfiWrapperCloseEvent;
   }
 
- #endif /* WRAPPED_ENTRY_POINTS */
+ #endif /* MAU_WRAPPED_ENTRY_POINTS */
   if (ProgramCounter == (UINTN)gBS->ExitBootServices) {
     DEBUG ((
       DEBUG_ERROR,
@@ -243,9 +243,9 @@ EfiWrappersInit (
   VOID
   )
 {
- #ifdef WRAPPED_ENTRY_POINTS
+ #ifdef MAU_WRAPPED_ENTRY_POINTS
   InitializeListHead (&mEventList);
- #endif /* WRAPPED_ENTRY_POINTS */
+ #endif /* MAU_WRAPPED_ENTRY_POINTS */
 }
 
 VOID
@@ -253,7 +253,7 @@ EfiWrappersDump (
   VOID
   )
 {
- #ifdef WRAPPED_ENTRY_POINTS
+ #ifdef MAU_WRAPPED_ENTRY_POINTS
   EfiWrappersDumpEvents ();
- #endif /* WRAPPED_ENTRY_POINTS */
+ #endif /* MAU_WRAPPED_ENTRY_POINTS */
 }
