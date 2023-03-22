@@ -1,10 +1,12 @@
 ## @file
-# Module entry point library for UEFI driver, DXE driver and SMM driver.
 #
-# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+#  An entry point library for EFI/DXE drivers. Caches the SystemTable so
+#  that any future changes made to the table do not affect the driver
+#  linking to it.
+#
+#  Copyright (c) 2007 - 2023, Intel Corporation. All rights reserved.<BR>
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
-#
 #
 ##
 

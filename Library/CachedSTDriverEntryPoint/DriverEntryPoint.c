@@ -1,8 +1,12 @@
 /** @file
-  Entry point to a EFI/DXE driver.
 
-Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
-SPDX-License-Identifier: BSD-2-Clause-Patent
+  An entry point library for EFI/DXE drivers. Caches the SystemTable so
+  that any future changes made to the table do not affect the driver
+  linking to it.
+
+  Copyright (c) 2006 - 2023, Intel Corporation. All rights reserved.<BR>
+
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 

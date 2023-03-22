@@ -1,16 +1,16 @@
 // /** @file
-// Module entry point library for UEFI driver, DXE driver and SMM driver.
 //
-// Module entry point library for UEFI driver, DXE driver and SMM driver.
+// An entry point library for EFI/DXE drivers. Caches the SystemTable so
+// that any future changes made to the table do not affect the driver
+// linking to it.
 //
-// Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2007 - 2023, Intel Corporation. All rights reserved.<BR>
 //
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 // **/
 
+#string STR_MODULE_ABSTRACT             #language en-US "Cached ST module entry point library for UEFI/DXE"
 
-#string STR_MODULE_ABSTRACT             #language en-US "Module entry point library for UEFI driver, DXE driver and SMM driver"
-
-#string STR_MODULE_DESCRIPTION          #language en-US "Module entry point library for UEFI driver, DXE driver and SMM driver."
+#string STR_MODULE_DESCRIPTION          #language en-US "Cached ST module entry point library for UEFI/DXE"
 
