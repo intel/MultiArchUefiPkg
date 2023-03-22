@@ -1544,7 +1544,7 @@ CpuExitImage (
 
   ASSERT (Context);
 
-  if (Context != NULL && Context->ImageRecord != CurrentImageRecord) {
+  if ((Context != NULL) && (Context->ImageRecord != CurrentImageRecord)) {
     /*
      * The image with this handle is *not* the last image
      * invoked.

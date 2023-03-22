@@ -213,11 +213,12 @@ EfiWrappersOverride (
       "Unsupported emulated ExitBootServices\n"
       ));
     return (UINT64)&NativeUnsupported;
-  } else if (ProgramCounter == (UINTN)gCpu->RegisterInterruptHandler ||
-             ProgramCounter == (UINTN)gCpu->GetInterruptState ||
-             ProgramCounter == (UINTN)gCpu->EnableInterrupt ||
-             ProgramCounter == (UINTN)gCpu->DisableInterrupt ||
-             ProgramCounter == (UINTN)gCpu->Init) {
+  } else if ((ProgramCounter == (UINTN)gCpu->RegisterInterruptHandler) ||
+             (ProgramCounter == (UINTN)gCpu->GetInterruptState) ||
+             (ProgramCounter == (UINTN)gCpu->EnableInterrupt) ||
+             (ProgramCounter == (UINTN)gCpu->DisableInterrupt) ||
+             (ProgramCounter == (UINTN)gCpu->Init))
+  {
     /*
      * TODO: catch/filter gCpu->SetMemoryAttributes to ignore any
      * attempts to change attributes for the emulated image itself?
