@@ -23,7 +23,9 @@ MultiArchUefiPkg has competitive performance, portability and size
 a regression test suite, and improved (but not perfect) correctness in
 modeling the emulated UEFI Boot Service environment.
 
-## Theory of Operation
+[See a demo](https://youtu.be/ntZ177E3lRY).
+
+## Theory Of Operation
 
 UEFI code uses a pretty narrowly-defined ABI, which makes it
 easy to thunk x64/AArch64 client code making EFIAPI calls to
@@ -77,13 +79,19 @@ and UEFI applications that aren't OS loaders.
 
 The details are described by [a separate document](Docs/EmulatedEnvironment.md).
 
-License
--------
+# License
 
-MultiArchUefiPkg is approved for release under GPLv2 and LGPLv2.1+ for the respective components under those licenses.
+MultiArchUefiPkg is approved for release under GPLv2 and LGPLv2.1+ for the respective components under those licenses. EmulatorDxe itself is covered by the [LGPL v2.1+](LICENSE), but it is statically linked to the [Unicorn Engine](https://www.unicorn-engine.org/) library, which has a mix of LGPL and GPLv2 code.
 
-Contribute
-----------
+# Security Policy
+
+Intel is committed to rapidly addressing security vulnerabilities affecting our customers and providing clear guidance on the solution, impact, severity and mitigation. 
+
+## Reporting A Vulnerability
+Please report any security vulnerabilities in this project utilizing the guidelines [here](https://www.intel.com/content/www/us/en/security-center/vulnerability-handling-guidelines.html).
+
+# Contribute
 
 Contributions are welcome. Please raise issues and pull requests.
 
+Please see the [policy on contributions](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).

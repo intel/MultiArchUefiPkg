@@ -22,9 +22,9 @@ x86-64 application).
 
 Use of SetJump and LongJump is discouraged, as this may incur a slow
 leak for the lifetime of the client application / driver. Tracked in
-https://github.com/intel-sandbox/MultiArchUefiPkg/issues/10.
+https://github.com/intel/MultiArchUefiPkg/issues/13.
 
-Reliance on architecture-specific functionality is discouragedm, including but
+Reliance on architecture-specific functionality is discouraged, including but
 not limited to:
 - access to model ID registers (e.g. cpuid)
 - raw access to the local timer / TSC instead of using UEFI services
@@ -35,7 +35,7 @@ Some client code may not be entirely 64-bit clean, making assumptions
 about stack being located below 4GiB or allocated memory being below
 4GiB (without explicitly requesting such mmemory). Such code will
 quickly malfunction on systems where there no or little memory below
-the 4GiB line.
+the 4GiB line. See https://github.com/intel/MultiArchUefiPkg/issues/16.
 
 ## Supported Boot Services (BS)
 
@@ -159,7 +159,7 @@ list of tracked client memory ranges and will not enforce no-execute
 protection on such ranges. Attempts to peform control transfers to such
 ranges will cause a crash, as such ranges will be treated as native code.
 
-Tracked in https://github.com/intel-sandbox/MultiArchUefiPkg/issues/7.
+Tracked in https://github.com/intel/MultiArchUefiPkg/issues/5.
 
 ## Notes on Memory Attributes
 
@@ -169,7 +169,7 @@ SetMemoryAttributes service may be used to by a client program to strip
 EFI_MEMORY_XP to client ranges, causing erroneous handling, such
 as breaking control transfers from native to emulated client code.
 
-Tracked in https://github.com/intel-sandbox/MultiArchUefiPkg/issues/7.
+Tracked in https://github.com/intel/MultiArchUefiPkg/issues/5.
 
 ## Notes on Self-Modifying Code
 
@@ -178,4 +178,4 @@ ranges and invalidating JITted blocks for the affected memory. What is not
 supported is self-modifying code relying on native services to perform
 the modifications. Today this includes the CopyMem and SetMem boot service.
 
-Tracked in https://github.com/intel-sandbox/MultiArchUefiPkg/issues/19.
+Tracked in https://github.com/intel/MultiArchUefiPkg/issues/7.
