@@ -117,6 +117,13 @@ mechanism for invoking certain emulated client code from native code. It's a mor
 efficient mechanism than relying on no-executable protection and CPU traps, but it
 only works for interfaces that EmulatorDxe is aware of.
 
+#### UEFI Interfaces Supported
+
+| Service | Comments |
+| :-: | ------------ |
+| EFI Events | Events with callbacks created via CreateEvent and CreateEventEx Boot Services |
+| EMU_TEST_PROTOCOL | Emulated callbacks for the internal EmulatorDxe interface used by EmulatorTest |
+
 #### RISC-V Notes
 
 As of March 21st 2023, RISC-V builds still default to WRAPPED_ENTRY_POINTS=YES. This is
