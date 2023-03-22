@@ -48,7 +48,7 @@ range non-executable.
 MultiArchUefiPkg won't work with any UEFI implementations, but only
 with implementations that provide the EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL
 interface, which is the magic that enables loading foreign ISA binaries.
-Today this means you must use TianoCore EDK2 or a derived implemenetation.
+Today this means you must use TianoCore EDK2 or a derived implementation.
 
 The emulator presents an x64 and/or AArch64 UEFI Boot Services
 environment appropriate for running Boot Service drivers (e.g. OpRom
