@@ -92,6 +92,8 @@ Please report any security vulnerabilities in this project utilizing the guideli
 
 # Contribute
 
+This is a [RISE Project](https://riseproject.dev) under the Firmware WG.
+
 Contributions are welcome. Please raise issues and pull requests.
 
 Please see the [policy on contributions](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md).
