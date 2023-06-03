@@ -6,7 +6,7 @@
 
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
-        $ git submodule add https://github.com/intel/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
         $ export GCC5_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
@@ -18,7 +18,7 @@ This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/AARCH64/EmulatorDxe.efi
 
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
-        $ git submodule add https://github.com/intel/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
         $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
@@ -34,7 +34,7 @@ To quickly compile an ArmVirtPkg version that contains the emulator, run:
 
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
-        $ git submodule add https://github.com/intel/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
 
@@ -61,7 +61,7 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
 
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
-        $ git submodule add https://github.com/intel/unicorn-for-efi.git
+        $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
 
