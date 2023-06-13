@@ -25,6 +25,12 @@ modeling the emulated UEFI Boot Service environment.
 
 [See a demo](https://youtu.be/ntZ177E3lRY).
 
+## Updates
+
+- June  2023: Presented at the RISC-V Summit Europe, Barcelona. See the [extended abstract](Docs/RviSummitMarch2023/2023-06-08-Andrei-WARKENTIN-abstract.pdf), [poster](Docs/RviSummitMarch2023/multi_isa_uefi_compat_poster.pdf) and [presentation slides](Docs/RviSummitMarch2023/multi_isa_uefi_compat.pdf).
+- May   2023: Project reported to RISE Board as active priority.
+- March 2023: Released to GitHub
+
 ## Theory Of Operation
 
 UEFI code uses a pretty narrowly-defined ABI, which makes it
