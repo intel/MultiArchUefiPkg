@@ -10,7 +10,7 @@ and using them with UEFI for OS boot.
 
 Today, AArch64 and RISC-V are supported as host environments.
 In AArch64 environments, EmulatorDxe supports X64 (aka x86_64, AMD64)
-UEFI binaries. On RISCV64, EmulatorDxe can be build with X64 and AARCH64
+UEFI binaries. On RISCV64, EmulatorDxe can be built with X64 and AARCH64
 UEFI binary support.
 
 It's derived from [X86EmulatorPkg](https://github.com/ardbiesheuvel/X86EmulatorPkg),
