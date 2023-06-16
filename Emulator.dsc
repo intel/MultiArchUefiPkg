@@ -48,6 +48,10 @@
   # build.
   #
   SUPPORTS_AARCH64_BINS          = NO
+  #
+  # Seems to work well even when building on small machines.
+  #
+  UC_LTO_JOBS                    = auto
 
 !include unicorn/efi/UnicornPkg.dsc.inc
 
