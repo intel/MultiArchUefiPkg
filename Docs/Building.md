@@ -11,6 +11,7 @@ Here's a rough idea of what's supposed to work. File bugs if MultiArchUefiPkg do
 ### RISC-V
 
 - gcc version 9.4.0 (Ubuntu 9.4.0-1ubuntu1~20.04)
+- gcc version 11.3.0 (Ubuntu 11.3.0-1ubuntu1~22.04.1)
 - gcc version 12.2.0 (g2ee5e430018, from https://github.com/riscv-collab/riscv-gnu-toolchain)
 
 ### X64
