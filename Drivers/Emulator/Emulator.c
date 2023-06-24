@@ -107,6 +107,7 @@ EmulatorDxeEntryPoint (
     return Status;
   }
 
+ #ifndef MAU_EMU_X64_RAZ_WI_PIO
   Status = gBS->LocateProtocol (
                   &gEfiCpuIo2ProtocolGuid,
                   NULL,
@@ -115,6 +116,8 @@ EmulatorDxeEntryPoint (
   if (Status != EFI_SUCCESS) {
     DEBUG ((DEBUG_WARN, "EFI_CPU_IO2_PROTOCOL is missing\n"));
   }
+
+ #endif /* MAU_EMU_X64_RAZ_WI_PIO */
 
   Status = CpuInit ();
   if (EFI_ERROR (Status)) {
