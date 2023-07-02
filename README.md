@@ -67,7 +67,7 @@ To quickly build a RISC-V version:
 
         $ git clone https://github.com/tianocore/edk2.git
         $ cd edk2
-        $ git submodule https://github.com/intel/unicorn-for-efi.git unicorn
+        $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
         $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
