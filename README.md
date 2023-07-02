@@ -70,10 +70,10 @@ To quickly build a RISC-V version:
         $ git submodule https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
-        $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
-        $ build -a RISCV64 -t GCC5 -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
+        $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
+        $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/RISCV64/EmulatorDxe.efi
+This will produce Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi
 
 Also see the [document on building](Docs/Building.md).
 

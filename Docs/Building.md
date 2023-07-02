@@ -27,10 +27,10 @@ Here's a rough idea of what's supposed to work. File bugs if MultiArchUefiPkg do
         $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
-        $ export GCC5_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
-        $ build -a AARCH64 -t GCC5 -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
+        $ export GCC_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
+        $ build -a AARCH64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/AARCH64/EmulatorDxe.efi
+This will produce Build/MultiArchUefiPkg/RELEASE_GCC/AARCH64/EmulatorDxe.efi
 
 ### For RISCV64
 
@@ -39,10 +39,10 @@ This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/AARCH64/EmulatorDxe.efi
         $ git submodule add https://github.com/intel/unicorn-for-efi.git unicorn
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
-        $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
-        $ build -a RISCV64 -t GCC5 -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
+        $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
+        $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/MultiArchUefiPkg/RELEASE_GCC5/RISCV64/EmulatorDxe.efi
+This will produce Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi
 
 ## Bundled Firmware Builds
 
@@ -64,12 +64,12 @@ To quickly compile an ArmVirtPkg version that contains the emulator, run:
 
         $ make -C BaseTools
         $ . edksetup.sh
-        $ export GCC5_AARCH64_PREFIX=... (if you are on a non-aarch64 system)
-        $ build -a AARCH64 -t GCC5 -p ArmVirtPkg/ArmVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
+        $ export GCC_AARCH64_PREFIX=... (if you are on a non-aarch64 system)
+        $ build -a AARCH64 -t GCC -p ArmVirtPkg/ArmVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
 
 You can then use QEMU to execute it:
 
-        $ qemu-system-aarch64 -M virt -cpu cortex-a57 -m 2G -nographic -bios ./Build/ArmVirtQemu-AARCH64/RELEASE_GCC5/FV/QEMU_EFI.fd
+        $ qemu-system-aarch64 -M virt -cpu cortex-a57 -m 2G -nographic -bios ./Build/ArmVirtQemu-AARCH64/RELEASE_GCC/FV/QEMU_EFI.fd
 
 If you see dots on your screen, that is the x86_64 virtio iPXE OpRom in action!
 
@@ -87,10 +87,10 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
 
         $ make -C BaseTools
         $ . edksetup.sh
-        $ export GCC5_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
-        $ build -a RISCV64 -t GCC5 -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
+        $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
+        $ build -a RISCV64 -t GCC -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
         $ dd if=/dev/zero of=flash1.img bs=1M count=32
-        $ dd if=Build/RiscVVirtQemu/RELEASE_GCC5/FV/RISCV_VIRT.fd of=flash1.img conv=notrunc
+        $ dd if=Build/RiscVVirtQemu/RELEASE_GCC/FV/RISCV_VIRT.fd of=flash1.img conv=notrunc
 
 You can then use QEMU to execute it:
 
@@ -102,10 +102,10 @@ This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
 
 There's a small test application:
 
-        $ export GCC5_X64_PREFIX=... (if you are on a non-X64 system)
-        $ build -a X64 -t GCC5 -p MultiArchUefiPkg/EmulatorTest.dsc
-        $ build -a AARCH64 -t GCC5 -p MultiArchUefiPkg/EmulatorTest.dsc
-        $ build -a RISCV64 -t GCC5 -p MultiArchUefiPkg/EmulatorTest.dsc
+        $ export GCC_X64_PREFIX=... (if you are on a non-X64 system)
+        $ build -a X64 -t GCC -p MultiArchUefiPkg/EmulatorTest.dsc
+        $ build -a AARCH64 -t GCC -p MultiArchUefiPkg/EmulatorTest.dsc
+        $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/EmulatorTest.dsc
 
 When run against a DEBUG build of EmulatorDxe, will run further sanity tests.
 The application can be run in a native environment for overhead comparison
