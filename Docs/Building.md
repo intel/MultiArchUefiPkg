@@ -83,20 +83,7 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
         $ git submodule add https://github.com/intel/MultiArchUefiPkg.git
         $ git submodule update --init
 
-        Apply any patches under MultiArchUefiPkg/edk2-staging-patches.
-
-        $ make -C BaseTools
-        $ . edksetup.sh
-        $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
-        $ build -a RISCV64 -t GCC -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc -b RELEASE (-b DEBUG for debug build)
-        $ dd if=/dev/zero of=flash1.img bs=1M count=32
-        $ dd if=Build/RiscVVirtQemu/RELEASE_GCC/FV/RISCV_VIRT.fd of=flash1.img conv=notrunc
-
-You can then use QEMU to execute it:
-
-        $ qemu-system-riscv64 -drive file=flash1.img,if=pflash,format=raw,unit=1 -machine virt,aia=aplic,acpi=on -m 1G -smp 2 -nographic
-
-This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
+Apply any patches under MultiArchUefiPkg/edk2-staging-patches. Follow further build and run instructions under OvmfPkg/RiscVVirt/README.md. This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
 
 ## Further Testing
 
@@ -107,17 +94,11 @@ There's a small test application:
         $ build -a AARCH64 -t GCC -p MultiArchUefiPkg/EmulatorTest.dsc
         $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/EmulatorTest.dsc
 
-When run against a DEBUG build of EmulatorDxe, will run further sanity tests.
-The application can be run in a native environment for overhead comparison
-purposes (e.g. a RISCV64 EmulatorTest vs an AARCH64 EmulatorTest in a
-RISCV64 environment).
+When run against a DEBUG build of EmulatorDxe, will run further sanity tests. The application can be run in a native environment for overhead comparison purposes (e.g. a RISCV64 EmulatorTest vs an AARCH64 EmulatorTest in a RISCV64 environment).
 
 ## Unicorn Engine Dependency
 
-MultiArchUefiPkg uses a port of Project Unicorn to UEFI which is not
-yet upstreamed. Beyond UEFI support, the [unicorn-for-efi](https://github.com/intel/unicorn-for-efi) repo also contains critical fixes to the operation of emulator. Beyond fixes, there
-are additional improvements that rely on additional new Unicorn APIs being
-made available.
+MultiArchUefiPkg uses a port of Project Unicorn to UEFI which is not yet upstreamed. Beyond UEFI support, the [unicorn-for-efi](https://github.com/intel/unicorn-for-efi) repo also contains critical fixes to the operation of emulator. Beyond fixes, there are additional improvements that rely on additional new Unicorn APIs being made available.
 
 ## Special Builds
 
