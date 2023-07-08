@@ -165,6 +165,16 @@ can also try building with EMU_TIMEOUT_NONE for maximum performance.
 
 Note 1: EmulatorTest will _not_ correctly work with EMU_TIMEOUT_NONE.
 
+### Building With EMU_X64_RAZ_WI_PIO=YES
+
+If you run a DEBUG build of a UEFI implementation that uses the
+BaseIoLibIntrinsic (IoLibNoIo.c) implementation instead of a more
+advanced variant forwarding I/O accesses to PCIe, you may see UEFI
+assertions with emulated x64 drivers that attempt port I/O.
+
+Building with EMU_X64_RAZ_WI_PIO=YES will ignore all port I/O writes
+and return zeroes for all port I/O reads.
+
 ### Building Without Any Logging
 
 Finally, you can choose to build with BaseDebugLibNull. By default

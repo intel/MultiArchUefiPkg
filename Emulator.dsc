@@ -49,6 +49,14 @@
   #
   SUPPORTS_AARCH64_BINS          = NO
   #
+  # Say YES if you want to ignore all port I/O writes (reads
+  # returning zero), instead of forwarding to EFI_CPU_IO2_PROTOCOL.
+  #
+  # Useful for testing on UEFI DEBUG builds that use the
+  # BaseIoLibIntrinsic (IoLibNoIo.c) implementation.
+  #
+  EMU_X64_RAZ_WI_PIO             = NO
+  #
   # Seems to work well even when building on small machines.
   #
   UC_LTO_JOBS                    = auto
@@ -145,6 +153,9 @@
 !if $(SUPPORTS_AARCH64_BINS) == YES
   *_*_*_CC_FLAGS                       = -DMAU_SUPPORTS_AARCH64_BINS
 !endif
+!endif
+!if $(EMU_X64_RAZ_WI_PIO) == YES
+  *_*_*_CC_FLAGS                       = -DMAU_EMU_X64_RAZ_WI_PIO
 !endif
 
 [Components]

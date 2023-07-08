@@ -108,22 +108,25 @@ CpuIoReadCb (
 {
   UINT32  Result = 0;
 
-  switch (Size) {
-    case 1:
-      gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Result);
-      break;
-    case 2:
-      gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Result);
-      break;
-    default:
-      ASSERT (Size == 4);
-      gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Result);
-      break;
+  if (gCpuIo2 != NULL) {
+    switch (Size) {
+      case 1:
+        gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Result);
+        break;
+      case 2:
+        gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Result);
+        break;
+      default:
+        ASSERT (Size == 4);
+        gCpuIo2->Io.Read (gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Result);
+        break;
+    }
   }
 
   DEBUG ((
     DEBUG_VERBOSE,
-    "PCI I/O read%u from 0x%x = 0x%x\n",
+    "%aPCI I/O read%u from 0x%x = 0x%x\n",
+    gCpuIo2 == NULL ? "Ignored " : "",
     Size,
     Port,
     Result
@@ -143,23 +146,26 @@ CpuIoWriteCb (
 {
   DEBUG ((
     DEBUG_VERBOSE,
-    "PCI I/O write%u to 0x%x = 0x%x\n",
+    "%aPCI I/O write%u to 0x%x = 0x%x\n",
+    gCpuIo2 == NULL ? "Ignoring " : "",
     Size,
     Port,
     Value
     ));
 
-  switch (Size) {
-    case 1:
-      gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Value);
-      break;
-    case 2:
-      gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Value);
-      break;
-    default:
-      ASSERT (Size == 4);
-      gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Value);
-      break;
+  if (gCpuIo2 != NULL) {
+    switch (Size) {
+      case 1:
+        gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint8, Port, 1, &Value);
+        break;
+      case 2:
+        gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint16, Port, 1, &Value);
+        break;
+      default:
+        ASSERT (Size == 4);
+        gCpuIo2->Io.Write (gCpuIo2, EfiCpuIoWidthUint32, Port, 1, &Value);
+        break;
+    }
   }
 }
 
@@ -726,36 +732,34 @@ CpuInitEx (
     /*
      * Port I/O hooks.
      */
-    if (gCpuIo2 != NULL) {
-      UcErr = uc_hook_add (
-                Cpu->UE,
-                &IoReadHook,
-                UC_HOOK_INSN,
-                CpuIoReadCb,
-                NULL,
-                1,
-                0,
-                UC_X86_INS_IN
-                );
-      if (UcErr != UC_ERR_OK) {
-        DEBUG ((DEBUG_ERROR, "PIO read hook failed: %a\n", uc_strerror (UcErr)));
-        return EFI_UNSUPPORTED;
-      }
+    UcErr = uc_hook_add (
+              Cpu->UE,
+              &IoReadHook,
+              UC_HOOK_INSN,
+              CpuIoReadCb,
+              NULL,
+              1,
+              0,
+              UC_X86_INS_IN
+              );
+    if (UcErr != UC_ERR_OK) {
+      DEBUG ((DEBUG_ERROR, "PIO read hook failed: %a\n", uc_strerror (UcErr)));
+      return EFI_UNSUPPORTED;
+    }
 
-      UcErr = uc_hook_add (
-                Cpu->UE,
-                &IoWriteHook,
-                UC_HOOK_INSN,
-                CpuIoWriteCb,
-                NULL,
-                1,
-                0,
-                UC_X86_INS_OUT
-                );
-      if (UcErr != UC_ERR_OK) {
-        DEBUG ((DEBUG_ERROR, "PIO write hook failed: %a\n", uc_strerror (UcErr)));
-        return EFI_UNSUPPORTED;
-      }
+    UcErr = uc_hook_add (
+              Cpu->UE,
+              &IoWriteHook,
+              UC_HOOK_INSN,
+              CpuIoWriteCb,
+              NULL,
+              1,
+              0,
+              UC_X86_INS_OUT
+              );
+    if (UcErr != UC_ERR_OK) {
+      DEBUG ((DEBUG_ERROR, "PIO write hook failed: %a\n", uc_strerror (UcErr)));
+      return EFI_UNSUPPORTED;
     }
   }
 
