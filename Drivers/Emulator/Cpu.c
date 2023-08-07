@@ -953,22 +953,6 @@ CpuRunCtxInternal (
   UINT64         ProgramCounter = Context->ProgramCounter;
   CpuContext     *Cpu           = Context->Cpu;
 
-  DEBUG ((
-    DEBUG_INFO,
-    "XXX %a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-    Cpu->Name,
-    ProgramCounter,
-    Args[0],
-    Args[1],
-    Args[2],
-    Args[3],
-    Args[4],
-    Args[5],
-    Args[6],
-    Args[7],
-    Args[8]
-    ));
-
   ASSERT (Cpu->EmuThunkPre != NULL);
   Cpu->EmuThunkPre (Cpu, Args);
 
