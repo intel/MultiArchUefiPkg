@@ -954,8 +954,8 @@ CpuRunCtxInternal (
   CpuContext     *Cpu           = Context->Cpu;
 
   DEBUG ((
-    DEBUG_INFO,
-    "XXX %a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
+    DEBUG_VERBOSE,
+    "%a fn %lx(%lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx, %lx)\n",
     Cpu->Name,
     ProgramCounter,
     Args[0],
