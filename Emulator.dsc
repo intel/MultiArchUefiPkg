@@ -136,9 +136,6 @@
   CpuExceptionHandlerLib|UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
 
 [BuildOptions]
-!if $(ARCH) == RISCV64
-  *_*_*_CC_FLAGS                       = -Os -mrelax
-!endif
   *_*_*_CC_FLAGS                       = -DDISABLE_NEW_DEPRECATED_INTERFACES
 !if $(ON_PRIVATE_STACK) == YES
   *_*_*_CC_FLAGS                       = -DMAU_ON_PRIVATE_STACK

@@ -19,10 +19,9 @@ of the [Unicorn Engine](https://www.unicorn-engine.org/) - a flexible
 CPU emulator framework.
 
 MultiArchUefiPkg has competitive performance, portability and size
-(2/3rds the binary size on AArch64, even smaller for RISCV64!),
-support for multiple emulated ISAs, a regression test suite, and
-improved (but not perfect) correctness in modeling the emulated
-UEFI Boot Service environment.
+(2/3rds the binary size on AArch64), support for multiple emulated ISAs,
+a regression test suite, and improved (but not perfect) correctness in
+modeling the emulated UEFI Boot Service environment.
 
 [See a demo](https://youtu.be/ntZ177E3lRY).
 
