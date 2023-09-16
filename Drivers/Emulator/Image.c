@@ -120,15 +120,19 @@ ImageProtocolRegister (
     return EFI_OUT_OF_RESOURCES;
   }
 
-  if (ImageContext.Machine == EFI_IMAGE_MACHINE_X64) {
+  Record->Cpu = NULL;
+ #ifdef MAU_SUPPORTS_X64_BINS
+  if ((Record->Cpu == NULL) && (ImageContext.Machine == EFI_IMAGE_MACHINE_X64)) {
     Record->Cpu = &CpuX64;
- #ifdef MAU_SUPPORTS_AARCH64_BINS
-  } else if (ImageContext.Machine == EFI_IMAGE_MACHINE_AARCH64) {
-    Record->Cpu = &CpuAArch64;
- #endif /* MAU_SUPPORTS_AARCH64_BINS */
-  } else {
-    Record->Cpu = NULL;
   }
+
+ #endif /* MAU_SUPPORTS_X64_BINS */
+ #ifdef MAU_SUPPORTS_AARCH64_BINS
+  if ((Record->Cpu == NULL) && (ImageContext.Machine == EFI_IMAGE_MACHINE_AARCH64)) {
+    Record->Cpu = &CpuAArch64;
+  }
+
+ #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
   ASSERT (Record->Cpu != NULL);
   Record->ImageBase  = ImageBase;

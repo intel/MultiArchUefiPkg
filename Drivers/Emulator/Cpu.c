@@ -19,7 +19,9 @@
 #define SYSV_X64_ABI_REDZONE    128
 #define CURRENT_FP()  ((UINTN) __builtin_frame_address(0))
 
+#ifdef MAU_SUPPORTS_X64_BINS
 CpuContext  CpuX64;
+#endif /* MAU_SUPPORTS_X64_BINS */
 #ifdef MAU_SUPPORTS_AARCH64_BINS
 CpuContext  CpuAArch64;
 #endif /* MAU_SUPPORTS_AARCH64_BINS */
@@ -218,7 +220,6 @@ CpuNullWriteCb (
   DEBUG_CODE_END ();
 }
 
-STATIC
 VOID
 CpuCleanupEx (
   IN  CpuContext  *Cpu
@@ -242,7 +243,9 @@ CpuCleanup (
   VOID
   )
 {
+ #ifdef MAU_SUPPORTS_X64_BINS
   CpuCleanupEx (&CpuX64);
+ #endif /* MAU_SUPPORTS_X64_BINS */
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   CpuCleanupEx (&CpuAArch64);
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
@@ -333,7 +336,6 @@ CpuStackPop64 (
   return Val;
 }
 
-STATIC
 VOID
 CpuStackPush64 (
   IN  CpuContext  *Cpu,
@@ -482,6 +484,7 @@ CpuAArch64EmuThunkPost (
 
 #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
+#ifdef MAU_SUPPORTS_X64_BINS
 STATIC
 VOID
 CpuX64Dump (
@@ -606,7 +609,8 @@ CpuX64EmuThunkPost (
   }
 }
 
-STATIC
+#endif /* MAU_SUPPORTS_X64_BINS */
+
 EFI_STATUS
 CpuInitEx (
   IN  uc_arch     Arch,
@@ -625,7 +629,9 @@ CpuInitEx (
   size_t   UnicornCodeGenSize;
   uc_mode  UcMode;
 
-  if (Arch == UC_ARCH_X86) {
+  Status = EFI_UNSUPPORTED;
+ #ifdef MAU_SUPPORTS_X64_BINS
+  if ((Status == EFI_UNSUPPORTED) && (Arch == UC_ARCH_X86)) {
     UcMode                 = UC_MODE_64;
     Cpu->EmuMachineType    = EFI_IMAGE_MACHINE_X64;
     Cpu->Name              = "x64";
@@ -636,8 +642,13 @@ CpuInitEx (
     Cpu->EmuThunkPre       = CpuX64EmuThunkPre;
     Cpu->EmuThunkPost      = CpuX64EmuThunkPost;
     Cpu->NativeThunk       = NativeThunkX64;
+    Status                 = EFI_SUCCESS;
+  }
+
+ #endif /* MAU_SUPPORTS_X64_BINS */
+
  #ifdef MAU_SUPPORTS_AARCH64_BINS
-  } else if (Arch == UC_ARCH_ARM64) {
+  if ((Status == EFI_UNSUPPORTED) && (Arch == UC_ARCH_ARM64)) {
     Cpu->EmuMachineType    = EFI_IMAGE_MACHINE_AARCH64;
     UcMode                 = UC_MODE_ARM;
     Cpu->Name              = "AArch64";
@@ -648,9 +659,13 @@ CpuInitEx (
     Cpu->EmuThunkPre       = CpuAArch64EmuThunkPre;
     Cpu->EmuThunkPost      = CpuAArch64EmuThunkPost;
     Cpu->NativeThunk       = NativeThunkAArch64;
+    Status                 = EFI_SUCCESS;
+  }
+
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
-  } else {
-    return EFI_UNSUPPORTED;
+
+  if (EFI_ERROR (Status)) {
+    return Status;
   }
 
   /*
@@ -857,10 +872,13 @@ CpuInit (
     return Status;
   }
 
+ #ifdef MAU_SUPPORTS_X64_BINS
   Status = CpuInitEx (UC_ARCH_X86, &CpuX64);
   if (EFI_ERROR (Status)) {
     return Status;
   }
+
+ #endif /* MAU_SUPPORTS_X64_BINS*/
 
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   Status = CpuInitEx (UC_ARCH_ARM64, &CpuAArch64);
@@ -1576,11 +1594,14 @@ CpuAddrIsCodeGen (
   IN  EFI_PHYSICAL_ADDRESS  Address
   )
 {
+ #ifdef MAU_SUPPORTS_X64_BINS
   if ((Address >= CpuX64.UnicornCodeGenBuf) &&
       (Address < CpuX64.UnicornCodeGenBufEnd))
   {
     return TRUE;
   }
+
+ #endif /* MAU_SUPPORTS_X64_BINS */
 
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   if ((Address >= CpuAArch64.UnicornCodeGenBuf) &&
@@ -1625,15 +1646,19 @@ CpuGetDebugState (
   }
 
  #ifndef MAU_EMU_TIMEOUT_NONE
-  DebugState->ExitPeriodMs       = UC_EMU_EXIT_PERIOD_MS;
+  DebugState->ExitPeriodMs = UC_EMU_EXIT_PERIOD_MS;
+ #ifdef MAU_SUPPORTS_X64_BINS
   DebugState->X64ExitPeriodTicks = CpuX64.ExitPeriodTicks;
   DebugState->X64ExitPeriodTbs   = CpuX64.ExitPeriodTbs;
+ #endif /* MAU_SUPPORTS_X64_BINS */
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   DebugState->AArch64ExitPeriodTicks = CpuAArch64.ExitPeriodTicks;
   DebugState->AArch64ExitPeriodTbs   = CpuAArch64.ExitPeriodTbs;
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
  #endif /* MAU_EMU_TIMEOUT_NONE */
+ #ifdef MAU_SUPPORTS_X64_BINS
   DebugState->X64ContextCount = CpuX64.Contexts;
+ #endif /* MAU_SUPPORTS_X64_BINS */
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   DebugState->AArch64ContextCount = CpuAArch64.Contexts;
  #endif /* MAU_SUPPORTS_AARCH64_BINS */

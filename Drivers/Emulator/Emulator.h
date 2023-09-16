@@ -151,7 +151,9 @@ typedef struct CpuRunContext {
   ImageRecord             *ImageRecord;
 } CpuRunContext;
 
+#ifdef MAU_SUPPORTS_X64_BINS
 extern CpuContext  CpuX64;
+#endif /* MAU_SUPPORTS_X64_BINS */
 #ifdef MAU_SUPPORTS_AARCH64_BINS
 extern CpuContext  CpuAArch64;
 #endif /* MAU_SUPPORTS_AARCH64_BINS */
@@ -160,9 +162,9 @@ extern EFI_CPU_IO2_PROTOCOL       *gCpuIo2;
 extern EFI_LOADED_IMAGE_PROTOCOL  *gDriverImage;
 
 VOID
-EmulatorDump (
-  VOID
-  );
+  EmulatorDump (
+                VOID
+                );
 
 ImageRecord *
 ImageFindByAddress (
@@ -287,11 +289,14 @@ CpuAddrIsCodeGen (
   IN  EFI_PHYSICAL_ADDRESS  Address
   );
 
+#ifdef MAU_SUPPORTS_X64_BINS
 UINT64
 NativeThunkX64 (
   IN  CpuRunContext  *Context,
   IN  UINT64         ProgramCounter
   );
+
+#endif /* MAU_SUPPORTS_X64_BINS */
 
 #ifdef MAU_SUPPORTS_AARCH64_BINS
 UINT64

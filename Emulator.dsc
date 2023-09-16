@@ -43,6 +43,12 @@
   #
   EMU_TIMEOUT_NONE               = NO
   #
+  # If you want to support x64 UEFI boot service drivers
+  # and applications, say YES. Saying NO doesn't make sense
+  # for the AARCH64 build.
+  #
+  SUPPORTS_X64_BINS              = YES
+  #
   # If you want to support AArch64 UEFI boot service drivers
   # and applications, say YES. Not available for the AARCH64
   # build.
@@ -123,6 +129,10 @@
   #
   UefiDriverEntryPoint|MultiArchUefiPkg/Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf
 
+!if $(SUPPORTS_X64_BINS) == YES
+  NULL|unicorn/efi/UnicornX86Lib.inf
+!endif
+
 [LibraryClasses.AARCH64]
   ArmDisassemblerLib|ArmPkg/Library/ArmDisassemblerLib/ArmDisassemblerLib.inf
   DefaultExceptionHandlerLib|ArmPkg/Library/DefaultExceptionHandlerLib/DefaultExceptionHandlerLib.inf
@@ -148,6 +158,9 @@
 !endif
 !if $(EMU_TIMEOUT_NONE) == YES
   *_*_*_CC_FLAGS                       = -DMAU_EMU_TIMEOUT_NONE
+!endif
+!if $(SUPPORTS_X64_BINS) == YES
+  *_*_*_CC_FLAGS                       = -DMAU_SUPPORTS_X64_BINS
 !endif
 !if $(ARCH) != AARCH64
 !if $(SUPPORTS_AARCH64_BINS) == YES

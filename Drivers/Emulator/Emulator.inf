@@ -60,7 +60,6 @@
   PeCoffLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
-  UnicornX86Lib
   UnicornStubLib
   UnicornEngineLib
 

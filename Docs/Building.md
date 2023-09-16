@@ -105,7 +105,7 @@ MultiArchUefiPkg uses a port of Project Unicorn to UEFI which is not yet upstrea
 ### Building With ON_PRIVATE_STACK=YES
 
 If you build with ON_PRIVATE_STACK=YES, EmulatorDxe will use a dedicated
-native stack for handling x64 emulation. This has some runtime overhead and
+native stack for handling emulation. This has some runtime overhead and
 is unneccesary for normal operation.
 
 ### Building With WRAPPED_ENTRY_POINTS=YES
@@ -137,6 +137,13 @@ and doesn't work if you're not lucky - this is why WRAPPED_ENTRY_POINTS was init
 
 A [MMU support patchset from Ventana Microsystems](https://github.com/pttuan/edk2/tree/tphan/riscv_mmu)
 is in review and has been tested to work well with MultiArchUefiPkg.
+
+### X64 Binaries
+
+The SUPPORTS_X64_BINS option is set to YES by default.
+
+Note: it doesn't make sense to set SUPPORTS_X64_BINS=NO on Aarch64
+builds, as that is all the emulator supports on this architecture.
 
 ### AARCH64 Binaries On RISC-V
 
