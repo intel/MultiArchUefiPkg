@@ -151,8 +151,7 @@ A RISC-V build can include AArch64 support when built with the
 SUPPORTS_AARCH64_BINS=YES option.
 
 Note: this will increase the
-binary size nearly 2x to 3MiB until LTO support for RISC-V is
-added to TianoCore EDK2, so this option is off by default.
+binary size nearly 3x to 1.7MiB, so this option is off by default.
 
 ### Building With CHECK_ORPHAN_CONTEXTS=YES
 
