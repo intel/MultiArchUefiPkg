@@ -100,15 +100,15 @@ EfiWrapperCloseEvent (
   EFI_EVENT             Event = (EFI_EVENT)Args[0];
   WRAPPED_EVENT_RECORD  *Record;
   EFI_STATUS            Status;
-  EFI_TPL               Tpl;
+  BOOLEAN               InterruptState;
 
   Record = EfiWrappersFindEvent (Event);
   Status = gBS->CloseEvent (Record->Event);
 
   if (Record != NULL) {
-    Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+    InterruptState = SaveAndDisableInterrupts ();
     RemoveEntryList (&Record->Link);
-    gBS->RestoreTPL (Tpl);
+    SetInterruptState (InterruptState);
     FreePool (Record);
   }
 
@@ -130,7 +130,7 @@ EfiWrapperCreateEventCommon (
   EFI_EVENT             *Event;
   WRAPPED_EVENT_RECORD  *Record;
   EFI_STATUS            Status;
-  EFI_TPL               Tpl;
+  BOOLEAN               InterruptState;
 
   if (OriginalProgramCounter == (UINT64)gBS->CreateEvent) {
     Event = (VOID *)Args[4];
@@ -157,9 +157,9 @@ EfiWrapperCreateEventCommon (
    * Before CreateEvent to avoid races! After CreateEvent succeeds,
    * the event could be signalled (and closed from notification fn).
    */
-  Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  InterruptState = SaveAndDisableInterrupts ();
   InsertTailList (&mEventList, &Record->Link);
-  gBS->RestoreTPL (Tpl);
+  SetInterruptState (InterruptState);
 
   if (OriginalProgramCounter == (UINT64)gBS->CreateEvent) {
     Status = gBS->CreateEvent (

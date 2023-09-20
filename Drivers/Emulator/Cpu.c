@@ -897,8 +897,8 @@ CpuEnterCritical (
   IN  CpuRunContext  *Context
   )
 {
-  Context->Tpl         = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  Context->PrevContext = mTopContext;
+  Context->SavedInterruptState = SaveAndDisableInterrupts ();
+  Context->PrevContext         = mTopContext;
 
   mTopContext = Context;
   Context->Cpu->Contexts++;
@@ -910,7 +910,7 @@ CpuLeaveCritical (
   IN  CpuRunContext  *Context
   )
 {
-  Context->Tpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+  Context->SavedInterruptState = SaveAndDisableInterrupts ();
   ASSERT (mTopContext == Context);
 
   mTopContext = mTopContext->PrevContext;
@@ -999,7 +999,8 @@ CpuRunCtxInternal (
      * execution (events). Disable interrupts while emulating and use a UC_BLOCK_HOOK
      * to periodically bail out to allow and allow events/timers to fire.
      *
-     * Prefer masking interrupts to manipulating TPL due to overhead of the later.
+     * Mask interrupts instead of manipulating the TPL to avoid the overhead
+     * (and having to keep track of emulated TPL).
      */
     DisableInterrupts ();
     {
@@ -1206,8 +1207,8 @@ CpuDetectOrphanContexts (
    * contexts handled by the gBS->Exit wrapper or NativeThunk,
    * these have no useful state, they just need to be cleaned up.
    *
-   * Note: this function must be called before dropping to Context->Tpl,
-   * due to:
+   * Note: this function must be called before dropping to
+   * Context->SavedInterruptState, due to:
    * - LeakCookie initialization. LeakCookie cannot be initialized
    *   earlier, because the context is allocated before switching
    *   to a private stack.
@@ -1291,7 +1292,7 @@ CpuRunCtxOnPrivateStack (
   CpuRunContext  *OrphanContexts = CpuDetectOrphanContexts (Context);
  #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
 
-  gBS->RestoreTPL (Context->Tpl);
+  SetInterruptState (Context->SavedInterruptState);
 
  #ifdef MAU_CHECK_ORPHAN_CONTEXTS
   CpuFreeOrphanContexts (OrphanContexts);
@@ -1371,7 +1372,7 @@ CpuRunCtx (
    * (when Context.PrevUcContext != NULL) or via LongJump (when
    * Context.PrevUcContext == NULL).
    */
-  gBS->RestoreTPL (Context->Tpl);
+  SetInterruptState (Context->SavedInterruptState);
   return Context->Ret;
 }
 
@@ -1417,7 +1418,7 @@ CpuCompressLeakedContexts (
   IN  BOOLEAN        OnImageExit
   )
 {
-  EFI_TPL        Tpl;
+  BOOLEAN        InterruptState;
   CpuRunContext  *Context;
   CpuRunContext  *FromContext;
   CpuRunContext  *ToContext;
@@ -1439,9 +1440,9 @@ CpuCompressLeakedContexts (
    * CurrentContext -> [ live context ]
    */
 
-  Tpl       = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  Context   = FromContext = mTopContext;
-  ToContext = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
+  InterruptState = SaveAndDisableInterrupts ();
+  Context        = FromContext = mTopContext;
+  ToContext      = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
 
   while (Context != ToContext) {
     uc_err  UcErr;
@@ -1463,7 +1464,7 @@ CpuCompressLeakedContexts (
     Context = Context->PrevContext;
   }
 
-  gBS->RestoreTPL (Tpl);
+  SetInterruptState (InterruptState);
 
   while (FromContext != ToContext) {
     Context     = FromContext;
@@ -1545,7 +1546,7 @@ CpuExitImage (
   IN  UINT64  *Args
   )
 {
-  EFI_TPL        Tpl;
+  BOOLEAN        InterruptState;
   CpuRunContext  *Context;
   ImageRecord    *CurrentImageRecord;
   EFI_HANDLE     Handle =  (VOID *)Args[0];
@@ -1558,8 +1559,8 @@ CpuExitImage (
 
   ASSERT (CurrentImageRecord->ImageHandle == Handle);
 
-  Tpl     = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  Context = mTopContext;
+  InterruptState = SaveAndDisableInterrupts ();
+  Context        = mTopContext;
   while (Context != NULL && Context->ImageRecord == NULL) {
     Context = Context->PrevContext;
   }
@@ -1574,7 +1575,7 @@ CpuExitImage (
     Context = NULL;
   }
 
-  gBS->RestoreTPL (Tpl);
+  SetInterruptState (InterruptState);
 
   if (Context == NULL) {
     DEBUG ((DEBUG_ERROR, "Context->ImageRecord != CurrentImageRecord\n"));
@@ -1622,15 +1623,15 @@ CpuGetDebugState (
   OUT EMU_TEST_DEBUG_STATE  *DebugState
   )
 {
-  EFI_TPL        Tpl;
+  BOOLEAN        InterruptState;
   CpuRunContext  *Context;
 
   ASSERT (DebugState != NULL);
 
   ZeroMem (DebugState, sizeof (*DebugState));
 
-  Tpl     = gBS->RaiseTPL (TPL_HIGH_LEVEL);
-  Context = mTopContext;
+  InterruptState = SaveAndDisableInterrupts ();
+  Context        = mTopContext;
 
   DebugState->HostMachineType = HOST_MACHINE_TYPE;
   if (Context != NULL) {
@@ -1662,7 +1663,7 @@ CpuGetDebugState (
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   DebugState->AArch64ContextCount = CpuAArch64.Contexts;
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
-  gBS->RestoreTPL (Tpl);
+  SetInterruptState (InterruptState);
 
   return EFI_SUCCESS;
 }

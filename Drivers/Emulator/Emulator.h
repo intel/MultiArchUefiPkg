@@ -140,7 +140,7 @@ typedef struct CpuRunContext {
  #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
   UINT64                  *Args;
   UINT64                  Ret;
-  EFI_TPL                 Tpl;
+  BOOLEAN                 SavedInterruptState;
 
   uc_context              *PrevUcContext;
   struct CpuRunContext    *PrevContext;
