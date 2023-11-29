@@ -1,0 +1,93 @@
+From 934141d52f1926914be36e2488f099f1a2e2fd47 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Fri, 17 Feb 2023 19:00:07 -0600
+Subject: [PATCH 1/2] OvmfPkg: bundle MultiArchUefiPkg driver
+
+Tested with x64 Radeon GOP (passed through device).
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc | 48 +++++++++++++++++++++++++++++
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf |  5 +++
+ 2 files changed, 53 insertions(+)
+
+diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
+index 34b2037824f1..cd5dbbd581dc 100644
+--- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
++++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
+@@ -50,8 +50,56 @@ [Defines]
+   !error "NETWORK_SNP_ENABLE is IA32/X64/EBC only"
+ !endif
+ 
++  #
++  # Use a dedicated native stack for handling emulation.
++  #
++  MAU_ON_PRIVATE_STACK           = NO
++  #
++  # Use an emulated entry point, instead of relying on
++  # exception-driven thunking of native to emulated code.
++  # On by default in RISC-V builds (via INF file).
++  #
++  MAU_WRAPPED_ENTRY_POINTS       = NO
++  #
++  # Handle unexpected/non-linear control flow by native code,
++  # that can result in a resource leak inside the emulator.
++  # On by default in DEBUG builds (via INF file).
++  #
++  MAU_CHECK_ORPHAN_CONTEXTS      = NO
++  #
++  # For maximum performance, don't periodically bail out
++  # of emulation. This is only useful for situations where
++  # you know the executed code won't do tight loops polling
++  # on some memory location updated by an event.
++  #
++  MAU_EMU_TIMEOUT_NONE           = NO
++  #
++  # If you want to support x64 UEFI boot service drivers
++  # and applications, say YES. Saying NO doesn't make sense
++  # for the AARCH64 build.
++  #
++  MAU_SUPPORTS_X64_BINS          = YES
++  #
++  # If you want to support AArch64 UEFI boot service drivers
++  # and applications, say YES. Not available for the AARCH64
++  # build.
++  #
++  MAU_SUPPORTS_AARCH64_BINS      = NO
++  #
++  # Say YES if you want to ignore all port I/O writes (reads
++  # returning zero), instead of forwarding to EFI_CPU_IO2_PROTOCOL.
++  #
++  # Useful for testing on UEFI DEBUG builds that use the
++  # BaseIoLibIntrinsic (IoLibNoIo.c) implementation.
++  #
++  MAU_EMU_X64_RAZ_WI_PIO         = NO
++  #
++  # Seems to work well even when building on small machines.
++  #
++  UC_LTO_JOBS                    = auto
+ 
+ !include MdePkg/MdeLibs.dsc.inc
++!include MultiArchUefiPkg/MultiArchUefiPkg.dsc.inc
+ 
+ [BuildOptions]
+   GCC:RELEASE_*_*_CC_FLAGS       = -DMDEPKG_NDEBUG
+diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
+index 40d12e0f4c46..3a542a5cb13f 100644
+--- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
++++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
+@@ -220,6 +220,11 @@ [FV.DXEFV]
+ 
+ #INF  MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+ 
++#
++# Emulator for x64 OpRoms, etc.
++#
++INF  MultiArchUefiPkg/Drivers/Emulator/Emulator.inf
++
+ ################################################################################
+ 
+ [FV.FVMAIN_COMPACT]
+-- 
+2.34.1
+

@@ -1,0 +1,29 @@
+## @file
+#
+#  Copyright (c) 2017, Linaro, Ltd. <ard.biesheuvel@linaro.org>
+#  Copyright (c) 2022-2023, Intel Corporation. All rights reserved.<BR>
+#
+#  This library is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 2 of the License, or (at your option) any later version.
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010019
+  BASE_NAME                      = EmulatorDxe
+  FILE_GUID                      = E6727A5E-CBCD-44C8-B37F-78BC3A0C16C8
+  MODULE_TYPE                    = UEFI_DRIVER
+  VERSION_STRING                 = 1.0
+
+[Binaries.common]
+  DXE_DEPEX|EmulatorDxe.depex|*
+
+[Binaries.AARCH64]
+  PE32|../../../Build/MultiArchUefiPkg/DEBUG_GCC5/AARCH64/EmulatorDxe.efi|DEBUG
+  PE32|../../../Build/MultiArchUefiPkg/RELEASE_GCC5/AARCH64/EmulatorDxe.efi|RELEASE
+
+[Binaries.RISCV64]
+  PE32|../../../Build/MultiArchUefiPkg/DEBUG_GCC5/RISCV64/EmulatorDxe.efi|DEBUG
+  PE32|../../../Build/MultiArchUefiPkg/RELEASE_GCC5/RISCV64/EmulatorDxe.efi|RELEASE

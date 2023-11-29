@@ -1,21 +1,29 @@
-From 09718f6b87c7b2ef1e28472f59dab146730477bf Mon Sep 17 00:00:00 2001
+From 1bf45cb2f6784bb2b948e699b77bfb9e906a69b5 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Fri, 17 Feb 2023 19:00:07 -0600
-Subject: [PATCH 1/2] OvmfPkg: bundle MultiArchUefiPkg driver
+Subject: [PATCH 1/2] OvmfPkg: bundle MultiArchUefiPkg driver as a bin
 
 Tested with x64 Radeon GOP (passed through device).
 
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
- OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc | 10 ++++++++++
- OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf |  5 +++++
- 2 files changed, 15 insertions(+)
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc | 6 +++++-
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf | 5 +++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)
 
 diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
-index 28d9af4d79b9..ad015669e308 100644
+index 34b2037824f1..4b29dbe0a2c6 100644
 --- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
 +++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
-@@ -509,3 +509,13 @@ [Components]
+@@ -50,7 +50,6 @@ [Defines]
+   !error "NETWORK_SNP_ENABLE is IA32/X64/EBC only"
+ !endif
+ 
+-
+ !include MdePkg/MdeLibs.dsc.inc
+ 
+ [BuildOptions]
+@@ -504,3 +503,8 @@ [Components]
      <LibraryClasses>
        NULL|OvmfPkg/Fdt/FdtPciPcdProducerLib/FdtPciPcdProducerLib.inf
    }
@@ -23,28 +31,23 @@ index 28d9af4d79b9..ad015669e308 100644
 +  #
 +  # Emulator for x64 OpRoms, etc.
 +  #
-+  MultiArchUefiPkg/Drivers/Emulator/Emulator.inf {
-+    <LibraryClasses>
-+      UnicornEngineLib|unicorn/efi/UnicornEngineLib.inf
-+      UnicornStubLib|unicorn/efi/UnicornStubLib.inf
-+      UnicornX86Lib|unicorn/efi/UnicornX86Lib.inf
-+  }
++  MultiArchUefiPkg/Drivers/EmulatorBin/EmulatorBin.inf
 diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
-index 354c9271d10c..4b1f173b2d92 100644
+index 40d12e0f4c46..70aa6bf36767 100644
 --- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
 +++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf
-@@ -202,6 +202,11 @@ [FV.DXEFV]
+@@ -220,6 +220,11 @@ [FV.DXEFV]
  
  #INF  MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
  
 +#
 +# Emulator for x64 OpRoms, etc.
 +#
-+INF  MultiArchUefiPkg/Drivers/Emulator/Emulator.inf
++INF  MultiArchUefiPkg/Drivers/EmulatorBin/EmulatorBin.inf
 +
  ################################################################################
  
  [FV.FVMAIN_COMPACT]
 -- 
-2.25.1
+2.34.1
 

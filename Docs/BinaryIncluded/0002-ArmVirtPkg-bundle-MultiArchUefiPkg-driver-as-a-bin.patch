@@ -1,0 +1,43 @@
+From 70d0e876c980d80424d64606839de6e71507a051 Mon Sep 17 00:00:00 2001
+From: Andrei Warkentin <andrei.warkentin@intel.com>
+Date: Fri, 17 Feb 2023 19:00:35 -0600
+Subject: [PATCH 2/2] ArmVirtPkg: bundle MultiArchUefiPkg driver as a bin
+
+Similar to RiscVVirt patch.
+
+Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
+---
+ ArmVirtPkg/ArmVirtQemu.dsc           | 5 +++++
+ ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index 1e0225951aef..5543a25594ed 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -585,3 +585,8 @@ [Components.AARCH64]
+     <LibraryClasses>
+       NULL|OvmfPkg/Fdt/FdtPciPcdProducerLib/FdtPciPcdProducerLib.inf
+   }
++
++  #
++  # OpRom emulator.
++  #
++  MultiArchUefiPkg/Drivers/EmulatorBin/EmulatorBin.inf
+\ No newline at end of file
+diff --git a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+index 2894bc853a46..19f51a51495d 100644
+--- a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
++++ b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+@@ -195,3 +195,8 @@ [FV.FvMain]
+   # Ramdisk support
+   #
+   INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
++
++  #
++  # Emulator for x64 OpRoms, etc.
++  #
++  INF MultiArchUefiPkg/Drivers/EmulatorBin/EmulatorBin.inf
+-- 
+2.34.1
+

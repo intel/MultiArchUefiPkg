@@ -629,6 +629,7 @@ CpuInitEx (
   size_t   UnicornCodeGenSize;
   uc_mode  UcMode;
 
+  UcMode = 0;
   Status = EFI_UNSUPPORTED;
  #ifdef MAU_SUPPORTS_X64_BINS
   if ((Status == EFI_UNSUPPORTED) && (Arch == UC_ARCH_X86)) {
