@@ -208,3 +208,12 @@ Finally, you can choose to build with BaseDebugLibNull. By default
 UefiDebugLibConOut is used to get some reasonable debugging output, but
 the extra code generated for DEBUG((...)) macros used for logging does
 have some performance impact on the microbenchmarks.
+
+Note: UefiDebugLibConOut requires a UefiDebugLibConOut DEPEX. On
+(highly unlikely) systems where the emulator driver is used to
+provide the sole console in the system (i.e. there is no serial console),
+UefiDebugLibConOut will not work, _and_ you will have to take out
+gEfiSimpleTextOutProtocolGuid from the [DEPEX clause](../Drivers/Emulator/Emulator.inf)
+or the driver will not load. For binary-included builds, don't forget to update
+`Drivers/EmulatorBin/EmulatorDxe.depex` with the generated file
+after a Quick Start build (`find Build/MultiArchUefiPkg/ | grep depex`).

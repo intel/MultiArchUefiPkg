@@ -70,7 +70,17 @@
   gEdkiiPeCoffImageEmulatorProtocolGuid   ## PRODUCES
 
 [Depex]
-  gEfiCpuArchProtocolGuid AND gEfiCpuIo2ProtocolGuid
+  #
+  # Huh, gEfiSimpleTextOutProtocolGuid is a strange dependency, right?
+  # This is only necessary when EmulatorDxe is built with a ConOut-based
+  # DebugLib, as the emulator caches the SystemTable to protect itself
+  # (thus will never see a ConOut installed subsequently).
+  #
+  # It should be safe to keep even for the emulated-GOP scenario, unless
+  # you really have a system without any console protocols being installed
+  # (no serial, no splitter).
+  #
+  gEfiCpuArchProtocolGuid AND gEfiCpuIo2ProtocolGuid AND gEfiSimpleTextOutProtocolGuid
 
 [BuildOptions]
   RELEASE_*_*_CC_FLAGS = -DNDEBUG
