@@ -119,9 +119,4 @@
 [BuildOptions]
 !if $(ARCH) == RISCV64
   *_*_*_CC_FLAGS                       = -Os
-  #
-  # This can be removed once https://github.com/andreiw/edk2-rv-wip/commit/56871e7dc80c9090a695effcd51d632f7b2ebb20
-  # is merged upstream (LongJumpInternal fix).
-  #
-  *_*_*_CC_FLAGS                       = -fno-omit-frame-pointer
 !endif
