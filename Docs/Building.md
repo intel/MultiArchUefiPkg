@@ -1,5 +1,20 @@
 # Building MultiArchUefiPkg
 
+MultiArchUefiPkg needs to be built using the TianoCore edk2 build
+system, headers and libraries.
+
+Last validated with TianoCore edk2 at hash 68d506e0d15c0c412142be68ed006c65b641560f.
+
+## UEFI Requirements
+
+- EFI_LOADED_IMAGE_PROTOCOL
+- EFI_CPU_ARCH_PROTOCOL
+- EFI_CPU_IO2_PROTOCOL
+- EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL
+- EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL (see [note](#building-without-any-logging))
+- MMU with support for no-execute mappings.
+- AArch64 or RISCV64 UEFI implementation.
+
 ## Tested Compilers
 
 Here's a rough idea of what's supposed to work. File bugs if MultiArchUefiPkg doesn't build for you.
@@ -30,7 +45,7 @@ Here's a rough idea of what's supposed to work. File bugs if MultiArchUefiPkg do
         $ export GCC_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
         $ build -a AARCH64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/MultiArchUefiPkg/RELEASE_GCC/AARCH64/EmulatorDxe.efi
+This will produce `Build/MultiArchUefiPkg/RELEASE_GCC/AARCH64/EmulatorDxe.efi`.
 
 ### For RISCV64
 
@@ -42,7 +57,7 @@ This will produce Build/MultiArchUefiPkg/RELEASE_GCC/AARCH64/EmulatorDxe.efi
         $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
         $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi
+This will produce `Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi/`.
 
 ## Bundled Firmware Builds
 
@@ -52,11 +67,10 @@ There are two mechanisms to bundle the emulator driver with UEFI firmware.
 
 Binary-included builds are recommended to avoid conflicts between build options
 and libraries used by the emulator and firmware builds. For example, as of
-11/2023, ArmVirtPkg did not like getting built with -Os (optimize for size).
+11/2023, RiscVVirt did not like getting built with `-Os` (optimize for size).
 
 In some situations you may choose direct-included builds. For example, to debug some issue using your existing
-serial port-based DebugLib. This may come with complications. See [Emulator.dsc [BuildOptions]](../Emulator.dsc)
-for an example of build options that are avoided with direct-included AArch64 builds due to conflicts.
+serial port-based DebugLib. This may come with complications.
 
 See [Docs/DirectlyIncluded](DirectlyIncluded/) for example
 direct-included platform patches. See [Docs/BinaryIncluded](BinaryIncluded/) for example
@@ -75,7 +89,7 @@ To quickly compile an ArmVirtPkg version that contains the emulator, run:
         $ git submodule update --init
         $ git am MultiArchUefiPkg/Docs/BinaryIncluded/0002-ArmVirtPkg-bundle-MultiArchUefiPkg-driver-as-a-bin.patch
 
-Be sure to comment out "INF OvmfPkg/VirtioNetDxe/VirtioNet.inf" in ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc if you want to test with the x86_64 virtio iPXE OpRom.
+Be sure to comment out `INF OvmfPkg/VirtioNetDxe/VirtioNet.inf` in `ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc` if you want to test with the x86_64 virtio iPXE OpRom.
 
         $ make -C BaseTools
         $ . edksetup.sh
@@ -104,7 +118,7 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
         $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
         $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-Follow further build and run instructions under OvmfPkg/RiscVVirt/README.md. This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
+Follow further build and run instructions under `OvmfPkg/RiscVVirt/README.md` in the Tiano tree. This has been tested with PCIe pass-through and an AMD Radeon with x64 GOP.
 
 ## Further Testing
 
@@ -123,16 +137,16 @@ MultiArchUefiPkg uses a port of Project Unicorn to UEFI which is not yet upstrea
 
 ## Special Builds
 
-### Building With MAU_ON_PRIVATE_STACK=YES
+### Building With `MAU_ON_PRIVATE_STACK=YES`
 
-If you build with MAU_ON_PRIVATE_STACK=YES, EmulatorDxe will use a dedicated
+If you build with `MAU_ON_PRIVATE_STACK=YES`, EmulatorDxe will use a dedicated
 native stack for handling emulation. This has some runtime overhead and
 is unneccesary for normal operation.
 
-### Building With MAU_WRAPPED_ENTRY_POINTS=YES
+### Building With `MAU_WRAPPED_ENTRY_POINTS=YES`
 
 EmulatorDxe relies on MMU functionality to be present in the host UEFI implementation.
-If you build with MAU_WRAPPED_ENTRY_POINTS=YES, EmulatorDxe will enable an additional
+If you build with `MAU_WRAPPED_ENTRY_POINTS=YES`, EmulatorDxe will enable an additional
 mechanism for invoking certain emulated client code from native code. It's a more
 efficient mechanism than relying on no-executable protection and CPU traps, but it
 only works for interfaces that EmulatorDxe is aware of.
@@ -140,73 +154,59 @@ only works for interfaces that EmulatorDxe is aware of.
 #### UEFI Interfaces Supported
 
 | Service | Comments |
-| :-: | ------------ |
+| - | ------------ |
 | EFI Events | Events with callbacks created via CreateEvent and CreateEventEx Boot Services |
 | EMU_TEST_PROTOCOL | Emulated callbacks for the internal EmulatorDxe interface used by EmulatorTest |
 
 #### RISC-V Notes
 
-As of March 21st 2023, RISC-V builds still default to MAU_WRAPPED_ENTRY_POINTS=YES. This is
-still necessary for the upstream TianoCore EDK2 on RISC-V, which does
-not have MMU support and does not allow configuring page-based protection.
-MAU_WARPPED_ENTRY_POINTS=YES allow certain, but not all, 3rd party OpRoms
-and most (but not all) applications to function.
-
-The fallback on RISC-V is the invalid instruction trap handler, which works if you're lucky
-(emulated instruction is misaligned from RISC-V perspective or an invalid instruction)
-and doesn't work if you're not lucky - this is why MAU_WRAPPED_ENTRY_POINTS was initially added!
-
-A [MMU support patchset from Ventana Microsystems](https://github.com/pttuan/edk2/tree/tphan/riscv_mmu)
-is in review and has been tested to work well with MultiArchUefiPkg.
-
 ### X64 Binaries
 
-The MAU_SUPPORTS_X64_BINS option is set to YES by default.
+The `MAU_SUPPORTS_X64_BINS` option is set to `YES` by default.
 
-Note: it doesn't make sense to set MAU_SUPPORTS_X64_BINS=NO on Aarch64
+Note: it doesn't make sense to set `MAU_SUPPORTS_X64_BINS=NO` on Aarch64
 builds, as that is all the emulator supports on this architecture.
 
 ### AARCH64 Binaries On RISC-V
 
 A RISC-V build can include AArch64 support when built with the
-MAU_SUPPORTS_AARCH64_BINS=YES option.
+`MAU_SUPPORTS_AARCH64_BINS=YES` option.
 
-Note: this will increase the
-binary size nearly 3x to 1.7MiB, so this option is off by default.
+Note: this will increase the binary size nearly 3x to 1.7MiB, so this option is off by default.
 
-### Building With MAU_CHECK_ORPHAN_CONTEXTS=YES
+### Building With `MAU_CHECK_ORPHAN_CONTEXTS=YES`
 
-If you build with MAU_CHECK_ORPHAN_CONTEXTS=YES, EmulatorDxe will perform
+If you build with `MAU_CHECK_ORPHAN_CONTEXTS=YES`, EmulatorDxe will perform
 more runtime checks to handle unexpected/non-linear control flow from
 native code, that can result in a resource leak inside the emulator.
 This is enabled by default for DEBUG builds.
 
-### Building With MAU_EMU_TIMEOUT_NONE
+### Building With `MAU_EMU_TIMEOUT_NONE=YES`
 
 Due to the way the Unicorn Engine operates (it is not fully reentrant),
 client code is run in a critical section with timers disabled. To avoid hangs
 due to emulated tight loops polling on some memory location updated by an
 event, the code periodically bails out. If your client binaries are known good,
 i.e.  they don't rely on tight polling loops without using UEFI services, you
-can also try building with MAU_EMU_TIMEOUT_NONE for maximum performance.
+can also try building with `MAU_EMU_TIMEOUT_NONE=YES` for maximum performance.
 
-Note 1: EmulatorTest will _not_ correctly work with MAU_EMU_TIMEOUT_NONE.
+Note 1: EmulatorTest will _not_ correctly work with `MAU_EMU_TIMEOUT_NONE=YES`.
 
-### Building With MAU_EMU_X64_RAZ_WI_PIO=YES
+### Building With `MAU_EMU_X64_RAZ_WI_PIO=YES`
 
 If you run a DEBUG build of a UEFI implementation that uses the
-BaseIoLibIntrinsic (IoLibNoIo.c) implementation instead of a more
+BaseIoLibIntrinsic (`IoLibNoIo.c`) implementation instead of a more
 advanced variant forwarding I/O accesses to PCIe, you may see UEFI
 assertions with emulated x64 drivers that attempt port I/O.
 
-Building with MAU_EMU_X64_RAZ_WI_PIO=YES will ignore all port I/O writes
+Building with `MAU_EMU_X64_RAZ_WI_PIO=YES` will ignore all port I/O writes
 and return zeroes for all port I/O reads.
 
 ### Building Without Any Logging
 
 Finally, you can choose to build with BaseDebugLibNull. By default
 UefiDebugLibConOut is used to get some reasonable debugging output, but
-the extra code generated for DEBUG((...)) macros used for logging does
+the extra code generated for `DEBUG((...))` macros used for logging does
 have some performance impact on the microbenchmarks.
 
 Note: UefiDebugLibConOut requires a UefiDebugLibConOut DEPEX. On
@@ -214,6 +214,10 @@ Note: UefiDebugLibConOut requires a UefiDebugLibConOut DEPEX. On
 provide the sole console in the system (i.e. there is no serial console),
 UefiDebugLibConOut will not work, _and_ you will have to take out
 gEfiSimpleTextOutProtocolGuid from the [DEPEX clause](../Drivers/Emulator/Emulator.inf)
-or the driver will not load. For binary-included builds, don't forget to update
-`Drivers/EmulatorBin/EmulatorDxe.depex` with the generated file
-after a Quick Start build (`find Build/MultiArchUefiPkg/ | grep depex`).
+or the driver will not load.
+
+For binary-included builds, don't forget to update
+`Drivers/EmulatorBin/EmulatorDxe.depex`. You can do this with the file generated as part of a [standalone driver build](#quick-start):
+
+        $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
+        $ cp  `find Build/MultiArchUefiPkg/ | grep depex | sed 1q` MultiArchUefiPkg/Drivers/EmulatorBin/EmulatorDxe.depex

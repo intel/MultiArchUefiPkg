@@ -28,9 +28,15 @@ UEFI Boot Service environment.
 
 ## Updates
 
-- June  2023: Presented at the RISC-V Summit Europe, Barcelona. See the [extended abstract](Docs/RviSummitMarch2023/2023-06-08-Andrei-WARKENTIN-abstract.pdf), [poster](Docs/RviSummitMarch2023/multi_isa_uefi_compat_poster.pdf) and [presentation slides](Docs/RviSummitMarch2023/multi_isa_uefi_compat.pdf).
-- May   2023: Project reported to RISE Board as active priority.
-- March 2023: Released to GitHub
+| When | What |
+| :-: | ------------ |
+| November 2023 | Doc and build system updates. |
+| October 2023 | Presented at the UEFI Fall 2023 Developers Conference and Plugfest. See the [presentation slides](Docs/Uefi2023/multi_isa_fw_compat.pdf). |
+| September 2023 | Move away from TPL manipulation and reduce RISC-V binary size by half. |
+| July 2023 | Support for building with MAU_EMU_RAZ_WI_PIO. |
+| June 2023 | Presented at the RISC-V Summit Europe, Barcelona. See the [extended abstract](Docs/RviSummitMarch2023/2023-06-08-Andrei-WARKENTIN-abstract.pdf), [poster](Docs/RviSummitMarch2023/multi_isa_uefi_compat_poster.pdf) and [presentation slides](Docs/RviSummitMarch2023/multi_isa_uefi_compat.pdf). |
+| May 2023 | Project reported to RISE Board as active priority. |
+| March 2023 | Released to GitHub |
 
 ## Theory Of Operation
 
@@ -74,7 +80,7 @@ To quickly build a RISC-V version:
         $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
         $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
-This will produce Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi
+This will produce `Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi`.
 
 Also see the [document on building](Docs/Building.md).
 
@@ -86,20 +92,24 @@ and UEFI applications that aren't OS loaders.
 
 The details are described by [a separate document](Docs/EmulatedEnvironment.md).
 
-# License
+## Tested Platforms
+
+The emulator is known to work on Qemu `-M virt` for both AArch64 and RISCV64, Ampere Altra, Raspberry Pi 4 and StarFive VisionFive 2 systems.
+
+## License
 
 MultiArchUefiPkg is approved for release under GPLv2 and LGPLv2.1+ for the respective components under those licenses. EmulatorDxe itself is covered by the [LGPL v2.1+](LICENSE), but it is statically linked to the [Unicorn Engine](https://www.unicorn-engine.org/) library, which has a mix of LGPL and GPLv2 code.
 
-# Security Policy
+## Security Policy
 
 Intel is committed to rapidly addressing security vulnerabilities affecting our customers and providing clear guidance on the solution, impact, severity and mitigation. 
 
 ## Reporting A Vulnerability
 Please report any security vulnerabilities in this project utilizing the guidelines [here](https://www.intel.com/content/www/us/en/security-center/vulnerability-handling-guidelines.html).
 
-# Contribute
+## Contribute
 
-This is a [RISE Project](https://riseproject.dev) under the Firmware WG.
+This is a [RISE Project](https://riseproject.dev) under the Firmware WG. See the [project wiki page](https://wiki.riseproject.dev/display/HOME/EDK2_00_01+-+MultiArchUefiPkg).
 
 Contributions are welcome. Please raise issues and pull requests.
 
