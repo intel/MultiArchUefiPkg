@@ -21,7 +21,7 @@
   DXE_DEPEX|EmulatorDxe.depex|*
 
 [Binaries.AARCH64]
-  PE32|../../../Build/MultiArchUefiPkg/DEBUG_GCC/AARCH64/EmulatorDxe.efi
+  PE32|Build/MultiArchUefiPkg/DEBUG_GCC/AARCH64/EmulatorDxe.efi
 
 [Binaries.RISCV64]
-  PE32|../../../Build/MultiArchUefiPkg/DEBUG_GCC/RISCV64/EmulatorDxe.efi
+  PE32|Build/MultiArchUefiPkg/DEBUG_GCC/RISCV64/EmulatorDxe.efi

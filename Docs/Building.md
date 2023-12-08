@@ -74,7 +74,8 @@ serial port-based DebugLib. This may come with complications.
 
 See [Docs/DirectlyIncluded](DirectlyIncluded/) for example
 direct-included platform patches. See [Docs/BinaryIncluded](BinaryIncluded/) for example
-binary-included platform patches.
+binary-included platform patches. Note, for binary-included builds it is paramount to include $WORKSPACE
+as part of your PACKAGES_PATH.
 
 The examples below cover the binary-included case only.
 
@@ -93,6 +94,7 @@ Be sure to comment out `INF OvmfPkg/VirtioNetDxe/VirtioNet.inf` in `ArmVirtPkg/A
 
         $ make -C BaseTools
         $ . edksetup.sh
+        $ export PACKAGES_PATH=$WORKSPACE
         $ export GCC_AARCH64_PREFIX=... (if you are on a non-AArch64 system)
         $ build -a AARCH64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
         $ build -a AARCH64 -t GCC -p ArmVirtPkg/ArmVirtQemu.dsc -b RELEASE
@@ -115,6 +117,7 @@ To quickly compile a RiscVVirt OvmfPkg version that contains the emulator, run:
         $ git am MultiArchUefiPkg/Docs/BinaryIncluded/0001-OvmfPkg-bundle-MultiArchUefiPkg-driver-as-a-bin.patch
         $ make -C BaseTools
         $ . edksetup.sh
+        $ export PACKAGES_PATH=$WORKSPACE
         $ export GCC_RISCV64_PREFIX=... (if you are on a non-RISCV64 system)
         $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
 
