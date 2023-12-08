@@ -3,7 +3,7 @@
 MultiArchUefiPkg needs to be built using the TianoCore edk2 build
 system, headers and libraries.
 
-Last validated with TianoCore edk2 at hash 68d506e0d15c0c412142be68ed006c65b641560f.
+Last validated with TianoCore edk2 at Dec 7, 2023 commit [eccdab6](https://github.com/tianocore/edk2/commit/eccdab611c01aa40b6cefcfbcb4d23e54b4c0ec6).
 
 ## UEFI Requirements
 
