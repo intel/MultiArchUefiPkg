@@ -1,4 +1,4 @@
-From 35108cb45916600b72566186e5e9ab79ec1b21f1 Mon Sep 17 00:00:00 2001
+From 6fcae6b22ec2194ef660b9b94d6abd6050915325 Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Fri, 17 Feb 2023 19:00:35 -0600
 Subject: [PATCH 2/2] ArmVirtPkg: bundle MultiArchUefiPkg driver
@@ -7,15 +7,15 @@ Similar to RiscVVirt patch.
 
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
- ArmVirtPkg/ArmVirtQemu.dsc           | 50 ++++++++++++++++++++++++++++
+ ArmVirtPkg/ArmVirtQemu.dsc           | 60 ++++++++++++++++++++++++++++
  ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc |  5 +++
- 2 files changed, 55 insertions(+)
+ 2 files changed, 65 insertions(+)
 
 diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
-index 1e0225951aef..5607cbcb0035 100644
+index 30e3cfc8b9cc..9e647d7a6ba6 100644
 --- a/ArmVirtPkg/ArmVirtQemu.dsc
 +++ b/ArmVirtPkg/ArmVirtQemu.dsc
-@@ -47,12 +47,62 @@ [Defines]
+@@ -47,12 +47,72 @@ [Defines]
    !error "NETWORK_SNP_ENABLE is IA32/X64/EBC only"
  !endif
  
@@ -24,8 +24,18 @@ index 1e0225951aef..5607cbcb0035 100644
 +  #
 +  MAU_ON_PRIVATE_STACK           = NO
 +  #
++  # Attempt some operation on UEFI implementations without
++  # an enabled MMU, by relying on the illegal instruction
++  # handler. It won't work well and is only supported on RISC-V.
++  # Implies MAU_WRAPPED_ENTRY_POINTS=YES.
++  #
++  # On by default in RISC-V builds (via INF file).
++  #
++  MAU_TRY_WITHOUT_MMU            = NO
++  #
 +  # Use an emulated entry point, instead of relying on
 +  # exception-driven thunking of native to emulated code.
++  #
 +  # On by default in RISC-V builds (via INF file).
 +  #
 +  MAU_WRAPPED_ENTRY_POINTS       = NO
@@ -79,10 +89,10 @@ index 1e0225951aef..5607cbcb0035 100644
    ArmLib|ArmPkg/Library/ArmLib/ArmBaseLib.inf
    ArmMmuLib|ArmPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
 diff --git a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
-index 2894bc853a46..57d61a5f491c 100644
+index 9b3e37d5c998..71295ee1f15d 100644
 --- a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
 +++ b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
-@@ -195,3 +195,8 @@ [FV.FvMain]
+@@ -196,3 +196,8 @@ [FV.FvMain]
    # Ramdisk support
    #
    INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf

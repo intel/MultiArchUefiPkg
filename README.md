@@ -102,7 +102,7 @@ MultiArchUefiPkg is approved for release under GPLv2 and LGPLv2.1+ for the respe
 
 ## Security Policy
 
-Intel is committed to rapidly addressing security vulnerabilities affecting our customers and providing clear guidance on the solution, impact, severity and mitigation. 
+Intel is committed to rapidly addressing security vulnerabilities affecting our customers and providing clear guidance on the solution, impact, severity and mitigation.
 
 ## Reporting A Vulnerability
 Please report any security vulnerabilities in this project utilizing the guidelines [here](https://www.intel.com/content/www/us/en/security-center/vulnerability-handling-guidelines.html).

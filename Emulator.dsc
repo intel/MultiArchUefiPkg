@@ -24,8 +24,18 @@
   #
   MAU_ON_PRIVATE_STACK           = NO
   #
+  # Attempt some operation on UEFI implementations without
+  # an enabled MMU, by relying on the illegal instruction
+  # handler. It won't work well and is only supported on RISC-V.
+  # Implies MAU_WRAPPED_ENTRY_POINTS=YES.
+  #
+  # On by default in RISC-V builds (via INF file).
+  #
+  MAU_TRY_WITHOUT_MMU            = NO
+  #
   # Use an emulated entry point, instead of relying on
   # exception-driven thunking of native to emulated code.
+  #
   # On by default in RISC-V builds (via INF file).
   #
   MAU_WRAPPED_ENTRY_POINTS       = NO

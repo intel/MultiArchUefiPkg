@@ -1,4 +1,4 @@
-From 934141d52f1926914be36e2488f099f1a2e2fd47 Mon Sep 17 00:00:00 2001
+From de947d999e7609044d6d0665aa0db7099ced697b Mon Sep 17 00:00:00 2001
 From: Andrei Warkentin <andrei.warkentin@intel.com>
 Date: Fri, 17 Feb 2023 19:00:07 -0600
 Subject: [PATCH 1/2] OvmfPkg: bundle MultiArchUefiPkg driver
@@ -7,15 +7,15 @@ Tested with x64 Radeon GOP (passed through device).
 
 Signed-off-by: Andrei Warkentin <andrei.warkentin@intel.com>
 ---
- OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc | 48 +++++++++++++++++++++++++++++
+ OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc | 58 +++++++++++++++++++++++++++++
  OvmfPkg/RiscVVirt/RiscVVirtQemu.fdf |  5 +++
- 2 files changed, 53 insertions(+)
+ 2 files changed, 63 insertions(+)
 
 diff --git a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
-index 34b2037824f1..cd5dbbd581dc 100644
+index f8b9479345d7..024badebf250 100644
 --- a/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
 +++ b/OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
-@@ -50,8 +50,56 @@ [Defines]
+@@ -50,8 +50,66 @@ [Defines]
    !error "NETWORK_SNP_ENABLE is IA32/X64/EBC only"
  !endif
  
@@ -24,8 +24,18 @@ index 34b2037824f1..cd5dbbd581dc 100644
 +  #
 +  MAU_ON_PRIVATE_STACK           = NO
 +  #
++  # Attempt some operation on UEFI implementations without
++  # an enabled MMU, by relying on the illegal instruction
++  # handler. It won't work well and is only supported on RISC-V.
++  # Implies MAU_WRAPPED_ENTRY_POINTS=YES.
++  #
++  # On by default in RISC-V builds (via INF file).
++  #
++  MAU_TRY_WITHOUT_MMU            = NO
++  #
 +  # Use an emulated entry point, instead of relying on
 +  # exception-driven thunking of native to emulated code.
++  #
 +  # On by default in RISC-V builds (via INF file).
 +  #
 +  MAU_WRAPPED_ENTRY_POINTS       = NO

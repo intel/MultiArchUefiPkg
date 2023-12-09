@@ -146,13 +146,26 @@ If you build with `MAU_ON_PRIVATE_STACK=YES`, EmulatorDxe will use a dedicated
 native stack for handling emulation. This has some runtime overhead and
 is unneccesary for normal operation.
 
+### Building with `MAU_TRY_WITHOUT_MMU=YES`
+
+EmulatorDxe relies on MMU functionality to be present in the host UEFI implementation,
+as page-based protection is crucial for seamless thunking from native to emulated code.
+`MAU_TRY_WITHOUT_MMU=YES` enables a fallback path via the invalid instruction trap
+handler. This works only if the emulated instruction is misaligned from RISC-V perspective
+or is an invalid instruction. Needless to say, this is pretty flaky, so this build option
+_also_ forces `MAU_WRAPPED_ENTRY_POINTS=YES`, which is necessary to allow certain, but
+not all, 3rd party OpRoms and most (but not all) applications to function.
+
+Consider this a non-production grade workaround. Fix your firmware to use the MMU instead.
+
 ### Building With `MAU_WRAPPED_ENTRY_POINTS=YES`
 
-EmulatorDxe relies on MMU functionality to be present in the host UEFI implementation.
 If you build with `MAU_WRAPPED_ENTRY_POINTS=YES`, EmulatorDxe will enable an additional
 mechanism for invoking certain emulated client code from native code. It's a more
 efficient mechanism than relying on no-executable protection and CPU traps, but it
 only works for interfaces that EmulatorDxe is aware of.
+
+Note: this is always forced on if you enable `MAU_TRY_WITHOUT_MMU=YES`.
 
 #### UEFI Interfaces Supported
 
@@ -162,6 +175,10 @@ only works for interfaces that EmulatorDxe is aware of.
 | EMU_TEST_PROTOCOL | Emulated callbacks for the internal EmulatorDxe interface used by EmulatorTest |
 
 #### RISC-V Notes
+
+As of December 9th 2023, RISC-V builds still default to `MAU_TRY_WITHOUT_MMU=YES`
+and `MAU_WRAPPED_ENTRY_POINTS=YES`. This is still necessary as not all
+TianoCore EDK2 platforms enable the upstreamed MMU support.
 
 ### X64 Binaries
 

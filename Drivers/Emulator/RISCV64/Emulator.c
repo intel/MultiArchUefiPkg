@@ -132,6 +132,27 @@ RecoverPcFromCall (
   return EFI_NOT_FOUND;
 }
 
+STATIC
+inline
+BOOLEAN
+SupportedException (
+  IN     EFI_EXCEPTION_TYPE  ExceptionType
+  )
+{
+  if (ExceptionType == EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT) {
+    return TRUE;
+  }
+
+ #ifdef MAU_TRY_WITHOUT_MMU
+  if (ExceptionType == EXCEPT_RISCV_ILLEGAL_INST) {
+    return TRUE;
+  }
+
+ #endif /* MAU_TRY_WITHOUT_MMU */
+
+  return FALSE;
+}
+
 VOID
 EFIAPI
 EmulatorSyncExceptionCallback (
@@ -145,9 +166,7 @@ EmulatorSyncExceptionCallback (
   RiscV64Context = SystemContext.SystemContextRiscV64;
   Record         = ImageFindByAddress (RiscV64Context->SEPC);
 
-  if ((ExceptionType == EXCEPT_RISCV_INST_ACCESS_PAGE_FAULT) ||
-      (ExceptionType == EXCEPT_RISCV_ILLEGAL_INST))
-  {
+  if (SupportedException (ExceptionType)) {
     if (Record != NULL) {
       EFI_STATUS  Status;
 
@@ -169,25 +188,37 @@ EmulatorSyncExceptionCallback (
         RiscV64Context->SEPC = (UINT64)EmulatorThunk;
         return;
       }
+
+      /*
+       * On errors, RecoverPcFromCall already logged.
+       */
+      Record = NULL;
     }
   }
 
   /*
-   * We can't handle these exception. Try to produce some meaningful
-   * diagnostics regarding the X64 code this maps onto.
+   * We can't handle this exception. Try to produce some meaningful
+   * diagnostics regarding the emulated code this maps onto.
    */
 
   if (Record != NULL) {
     /*
-     * This can happen if CpuDxe doesn't configure MMU, so we only
-     * rely on illegal instruction trapping instead of execute protection.
-     * If the invoked emulated code actually looks like a valid RISC-V
-     * instruction,and the instruction does an invalid operation, we get
-     * here.
+     * This can happen if CpuDxe doesn't configure MMU, so there is no
+     * execute protection on the emulated code ranges.
+     *
+     * Two ways of getting here:
+     *
+     * 1) Invoked instruction didn't look like a valid RISC-V instruction.
+     *    This is a recoverable situation, but the driver was not built
+          with MAU_TRY_WITHOUT_MMU, so SupportedException returned FALSE.
+     *
+     * 2) If the invoked emulated code actually looked like a valid RISC-V
+     *    instruction, and the instruction performed an invalid operation.
      */
     DEBUG ((
       DEBUG_ERROR,
-      "Exception occured due to executing %a as RISC-V code\n",
+      "Exception occured due to executing %a as RISC-V code.\n"
+      "Running on a UEFI build without a required working MMU.\n",
       Record->Cpu->Name
       ));
   } else if (CpuAddrIsCodeGen (RiscV64Context->SEPC)) {

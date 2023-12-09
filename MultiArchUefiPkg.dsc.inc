@@ -49,6 +49,10 @@
 !if $(MAU_ON_PRIVATE_STACK) == YES
   *_*_*_CC_FLAGS                       = -DMAU_ON_PRIVATE_STACK
 !endif
+!if $(MAU_TRY_WITHOUT_MMU) == YES
+  *_*_*_CC_FLAGS                       = -DMAU_TRY_WITHOUT_MMU
+  *_*_*_CC_FLAGS                       = -DMAU_WRAPPED_ENTRY_POINTS
+!endif
 !if $(MAU_WRAPPED_ENTRY_POINTS) == YES
   *_*_*_CC_FLAGS                       = -DMAU_WRAPPED_ENTRY_POINTS
 !endif
