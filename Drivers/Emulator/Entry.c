@@ -75,9 +75,7 @@ DriverEntry (
                   NULL,
                   (VOID **)&gCpuIo2
                   );
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((DEBUG_WARN, "EFI_CPU_IO2_PROTOCOL is missing\n"));
-  }
+  ASSERT (Status == EFI_SUCCESS);
 
  #endif /* MAU_EMU_X64_RAZ_WI_PIO */
 
