@@ -70,7 +70,7 @@ and libraries used by the emulator and firmware builds. For example, as of
 11/2023, RiscVVirt did not like getting built with `-Os` (optimize for size).
 
 In some situations you may choose direct-included builds. For example, to debug some issue using your existing
-serial port-based DebugLib. This may come with complications.
+serial port-based DebugLib. This may come with complications, include significantly larger binary size.
 
 See [Docs/DirectlyIncluded](DirectlyIncluded/) for example
 direct-included platform patches. See [Docs/BinaryIncluded](BinaryIncluded/) for example

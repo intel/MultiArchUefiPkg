@@ -58,7 +58,7 @@ Seamless thunking from native code to emulated code relies on MMU
 support in the UEFI firmware, specifically the ability to mark a
 range non-executable.
 
-MultiArchUefiPkg won't work with any UEFI implementations, but only
+MultiArchUefiPkg won't work with just any UEFI implementations, but only
 with implementations that provide the EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL
 interface, which is the magic that enables loading foreign ISA binaries.
 Today this means you must use TianoCore EDK2 or a derived implementation.
