@@ -218,11 +218,13 @@ UefiDebugLibConOut is used to get some reasonable debugging output, but
 the extra code generated for `DEBUG((...))` macros used for logging does
 have some performance impact on the microbenchmarks.
 
-Note: UefiDebugLibConOut requires a `gEfiSimpleTextOutProtocolGuid` DEPEX. On
-(highly unlikely) systems where the emulator driver is used to
-provide the sole console in the system (i.e. there is no serial console),
-UefiDebugLibConOut will not work, _and_ you will have to take out
-`gEfiSimpleTextOutProtocolGuid` from the [DEPEX clause](../Drivers/Emulator/Emulator.inf)
+Note: UefiDebugLibConOut requires a `gEfiSimpleTextOutProtocolGuid` DEPEX,
+as the emulator caches the SystemTable to protect itself. This dependency
+is tracked as part of the [CachedSTDriverEntryPoint library](../Library/CachedSTDriverEntryPoint).
+On (highly unlikely) systems where the emulator driver is used to provide the
+sole console in the system (i.e. there is no serial, no splitter), UefiDebugLibConOut
+will not work, _and_ you will have to take out `gEfiSimpleTextOutProtocolGuid` from
+the [DEPEX clause](../Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf)
 or the driver will not load.
 
 For binary-included builds, don't forget to update
