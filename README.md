@@ -82,7 +82,7 @@ To quickly build a RISC-V version:
 
 This will produce `Build/MultiArchUefiPkg/RELEASE_GCC/RISCV64/EmulatorDxe.efi`.
 
-Also see the [document on building](Docs/Building.md).
+Also see the documents on [building](Docs/Building.md) and [running](Docs/Running.md).
 
 ## Modeled Environment
 

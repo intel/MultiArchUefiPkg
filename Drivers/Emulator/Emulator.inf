@@ -16,19 +16,22 @@
   FILE_GUID                      = E6727A5E-CBCD-44C8-B37F-78BC3A0C16C8
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
-  ENTRY_POINT                    = EmulatorDxeEntryPoint
+  ENTRY_POINT                    = DriverEntry
 
 #
 #  VALID_ARCHITECTURES           = AARCH64 RISCV64
 #
 
 [Sources]
+  ComponentName.c
+  Cpu.c
+  DriverBinding.c
+  EfiWrappers.c
   Emulator.c
+  Entry.c
   Image.c
   Native.c
-  Cpu.c
   TestProtocol.c
-  EfiWrappers.c
 
 [Sources.RISCV64]
   RISCV64/Emulator.c
@@ -62,12 +65,14 @@
   UefiDriverEntryPoint
   UnicornStubLib
   UnicornEngineLib
+  UefiLib
 
 [Protocols]
   gEfiLoadedImageProtocolGuid             ## CONSUMES
   gEfiCpuArchProtocolGuid                 ## CONSUMES
   gEfiCpuIo2ProtocolGuid                  ## CONSUMES
   gEdkiiPeCoffImageEmulatorProtocolGuid   ## PRODUCES
+
 
 [Depex]
   #

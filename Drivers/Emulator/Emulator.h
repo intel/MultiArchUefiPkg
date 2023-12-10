@@ -155,16 +155,14 @@ typedef struct CpuRunContext {
 extern CpuContext  CpuX64;
 #endif /* MAU_SUPPORTS_X64_BINS */
 #ifdef MAU_SUPPORTS_AARCH64_BINS
-extern CpuContext  CpuAArch64;
+extern  CpuContext  CpuAArch64;
 #endif /* MAU_SUPPORTS_AARCH64_BINS */
-extern EFI_CPU_ARCH_PROTOCOL      *gCpu;
-extern EFI_CPU_IO2_PROTOCOL       *gCpuIo2;
-extern EFI_LOADED_IMAGE_PROTOCOL  *gDriverImage;
-
-VOID
-  EmulatorDump (
-                VOID
-                );
+extern EFI_CPU_ARCH_PROTOCOL         *gCpu;
+extern EFI_CPU_IO2_PROTOCOL          *gCpuIo2;
+extern EFI_LOADED_IMAGE_PROTOCOL     *gDriverImage;
+extern EFI_DRIVER_BINDING_PROTOCOL   gDriverBinding;
+extern EFI_COMPONENT_NAME_PROTOCOL   gComponentName;
+extern EFI_COMPONENT_NAME2_PROTOCOL  gComponentName2;
 
 ImageRecord *
 ImageFindByAddress (
@@ -222,6 +220,21 @@ CpuCleanup (
 
 EFI_STATUS
 CpuInit (
+  VOID
+  );
+
+EFI_STATUS
+EmulatorStart (
+  IN  EFI_HANDLE  ControllerHandle
+  );
+
+EFI_STATUS
+EmulatorStop (
+  IN  EFI_HANDLE  ControllerHandle
+  );
+
+VOID
+EmulatorDump (
   VOID
   );
 

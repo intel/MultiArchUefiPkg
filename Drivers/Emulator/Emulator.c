@@ -12,10 +12,6 @@
 
 #include "Emulator.h"
 
-EFI_CPU_ARCH_PROTOCOL      *gCpu;
-EFI_CPU_IO2_PROTOCOL       *gCpuIo2;
-EFI_LOADED_IMAGE_PROTOCOL  *gDriverImage;
-
 BOOLEAN
 EmulatorIsNativeCall (
   IN  UINT64  ProgramCounter
@@ -78,10 +74,16 @@ EmulatorDump (
 }
 
 EFI_STATUS
-EFIAPI
-EmulatorDxeEntryPoint (
-  IN  EFI_HANDLE        ImageHandle,
-  IN  EFI_SYSTEM_TABLE  *SystemTable
+EmulatorStop (
+  IN  EFI_HANDLE  ControllerHandle
+  )
+{
+  return EFI_UNSUPPORTED;
+}
+
+EFI_STATUS
+EmulatorStart (
+  IN  EFI_HANDLE  ControllerHandle
   )
 {
   EFI_STATUS  Status;
@@ -94,35 +96,7 @@ EmulatorDxeEntryPoint (
   EFI_HANDLE  EmuHandleAArch64 = NULL;
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
-  Status = gBS->HandleProtocol (
-                  ImageHandle,
-                  &gEfiLoadedImageProtocolGuid,
-                  (VOID **)&gDriverImage
-                  );
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "Can't get driver LoadedImage: %r\n", Status));
-    return Status;
-  }
-
   EfiWrappersInit ();
-
-  Status = gBS->LocateProtocol (&gEfiCpuArchProtocolGuid, NULL, (VOID **)&gCpu);
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((DEBUG_ERROR, "EFI_CPU_ARCH_PROTOCOL is missing\n"));
-    return Status;
-  }
-
- #ifndef MAU_EMU_X64_RAZ_WI_PIO
-  Status = gBS->LocateProtocol (
-                  &gEfiCpuIo2ProtocolGuid,
-                  NULL,
-                  (VOID **)&gCpuIo2
-                  );
-  if (Status != EFI_SUCCESS) {
-    DEBUG ((DEBUG_WARN, "EFI_CPU_IO2_PROTOCOL is missing\n"));
-  }
-
- #endif /* MAU_EMU_X64_RAZ_WI_PIO */
 
   Status = CpuInit ();
   if (EFI_ERROR (Status)) {
@@ -164,7 +138,7 @@ EmulatorDxeEntryPoint (
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
  #ifndef NDEBUG
-  Status = TestProtocolInit (ImageHandle);
+  Status = TestProtocolInit (ControllerHandle);
  #endif
 
  #if defined (MAU_SUPPORTS_AARCH64_BINS) || \
