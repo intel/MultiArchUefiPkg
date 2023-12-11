@@ -19,6 +19,21 @@
   SUPPORTED_ARCHITECTURES        = AARCH64|RISCV64
   BUILD_TARGETS                  = DEBUG|RELEASE|NOOPT
   SKUID_IDENTIFIER               = DEFAULT
+
+  #
+  # How do you want to log?
+  # - SERIAL: use EFI_SERIAL_IO_PROTOCOL. This is the most versatile
+  #           choice, which works equally well for direct-included
+  #	      firmware builds and for side-loading the driver, but
+  #	      it assumes the presence of a single UART.
+  # - CONOUT: use Console Output device from EFI_SYSTEM_TABLE. Only
+  #           useful for side-loading, not for direct-included
+  #           firmware builds.
+  # - SBI:    use SBI console services. Only for RISC-V.
+  # - NONE:   use nothing. Logging is for wimps - optimize for size
+  #           and performance!
+  #
+  MAU_STANDALONE_LOGGING         = SERIAL
   #
   # Use a dedicated native stack for handling emulation.
   #
@@ -119,12 +134,23 @@
 !endif
 
 [LibraryClasses.common]
+!if $(MAU_STANDALONE_LOGGING) == SERIAL
+  DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
+  SerialPortLib|MultiArchUefiPkg/Library/BaseSerialPortLibSerialIoProtocol/BaseSerialPortLibSerialIoProtocol.inf
+!endif
+!if $(MAU_STANDALONE_LOGGING) == CONOUT
+  SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
   DebugLib|MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf
-  #
-  # For absolute performance, build with BaseDebugLibNull at the
-  # expense of no error messages from anything.
-  #
-  # DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+!endif
+!if $(MAU_STANDALONE_LOGGING) == SBI
+  DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
+  SerialPortLib|MdePkg/Library/BaseSerialPortLibRiscVSbiLib/BaseSerialPortLibRiscVSbiLibRam.inf
+  RiscVSbiLib|MdePkg/Library/BaseRiscVSbiLib/BaseRiscVSbiLib.inf
+!endif
+!if $(MAU_STANDALONE_LOGGING) == NONE
+  SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
+  DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+!endif
 
 [BuildOptions]
 !if $(ARCH) == RISCV64

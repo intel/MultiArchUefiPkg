@@ -1,0 +1,38 @@
+## @file
+#  Serial Port Library backed by EFI_SERIAL_IO_PROTOCOL.
+#
+#  Meant for DXE environments
+#
+#  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = BaseSerialPortLibSerialIoProtocol
+  MODULE_UNI_FILE                = BaseSerialPortLibSerialIoProtocol.uni
+  FILE_GUID                      = 872af743-ab56-45b4-a065-602567f4abcd
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SerialPortLib | DXE_DRIVER UEFI_DRIVER UEFI_APPLICATION
+
+
+#
+#  VALID_ARCHITECTURES           = X64 AARCH64 RISCV64
+#
+
+[Sources]
+  BaseSerialPortLibSerialIoProtocol.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+
+[Protocols]
+  gEfiSerialIoProtocolGuid
+
+[Depex]
+  gEfiSerialIoProtocolGuid

@@ -1,0 +1,16 @@
+// /** @file
+// Serial Port Library backed by EFI_SERIAL_IO_PROTOCOL.
+//
+// Serial Port Library backed by EFI_SERIAL_IO_PROTOCOL.
+//
+// Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Serial Port Library backed by EFI_SERIAL_IO_PROTOCOL"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Serial Port Library backed by EFI_SERIAL_IO_PROTOCOL."
+

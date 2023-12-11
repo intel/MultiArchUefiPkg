@@ -11,7 +11,7 @@ Last validated with TianoCore edk2 at Dec 7, 2023 commit [eccdab6](https://githu
 - EFI_CPU_ARCH_PROTOCOL
 - EFI_CPU_IO2_PROTOCOL
 - EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL
-- EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL (see [note](#building-without-any-logging))
+- EFI_SERIAL_IO_PROTOCOL (see [note](#mau-standalone-logging-choices))
 - MMU with support for no-execute mappings.
 - AArch64 or RISCV64 UEFI implementation.
 
@@ -211,24 +211,19 @@ assertions with emulated x64 drivers that attempt port I/O.
 Building with `MAU_EMU_X64_RAZ_WI_PIO=YES` will ignore all port I/O writes
 and return zeroes for all port I/O reads.
 
-### Building Without Any Logging
+### `MAU_STANDALONE_LOGGING` choices.
 
-Finally, you can choose to build with BaseDebugLibNull. By default
-UefiDebugLibConOut is used to get some reasonable debugging output, but
-the extra code generated for `DEBUG((...))` macros used for logging does
-have some performance impact on the microbenchmarks.
+You can choose different logging options for standalone builds via
+the `MAU_STANDALONE_LOGGING` option in Emulator.dsc.
+ * `SERIAL`: use EFI_SERIAL_IO_PROTOCOL. This is the most versatile choice, which works equally well for direct-included firmware builds and for side-loading the driver, but it assumes the presence of a single UART.
+ * `CONOUT`: use Console Output device from EFI_SYSTEM_TABLE. Only useful for side-loading, not for direct-included firmware builds.
+ * `SBI`:    use SBI console services. Only for RISC-V. 
+ * `NONE`:   use nothing. Logging is for wimps - optimize for size and performance!
 
-Note: UefiDebugLibConOut requires a `gEfiSimpleTextOutProtocolGuid` DEPEX,
-as the emulator caches the SystemTable to protect itself. This dependency
-is tracked as part of the [CachedSTDriverEntryPoint library](../Library/CachedSTDriverEntryPoint).
-On (highly unlikely) systems where the emulator driver is used to provide the
-sole console in the system (i.e. there is no serial, no splitter), UefiDebugLibConOut
-will not work, _and_ you will have to take out `gEfiSimpleTextOutProtocolGuid` from
-the [DEPEX clause](../Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf)
-or the driver will not load.
-
-For binary-included builds, don't forget to update
-`Drivers/EmulatorBin/EmulatorDxe.depex`. You can do this with the file generated as part of a [standalone driver build](#quick-start):
+The default choice is `SERIAL`. If you change this and intend on a
+binary-included build, don't forget to regenerate
+`Drivers/EmulatorBin/EmulatorDxe.depex`. You can do this with the file
+generated as part of a [standalone driver build](#quick-start):
 
         $ build -a RISCV64 -t GCC -p MultiArchUefiPkg/Emulator.dsc -b RELEASE
         $ cp  `find Build/MultiArchUefiPkg/ | grep depex | sed 1q` MultiArchUefiPkg/Drivers/EmulatorBin/EmulatorDxe.depex
