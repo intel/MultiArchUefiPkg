@@ -11,7 +11,7 @@ Last validated with TianoCore edk2 at Dec 7, 2023 commit [eccdab6](https://githu
 - EFI_CPU_ARCH_PROTOCOL
 - EFI_CPU_IO2_PROTOCOL
 - EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL
-- EFI_SERIAL_IO_PROTOCOL (see [note](#mau-standalone-logging-choices))
+- EFI_SERIAL_IO_PROTOCOL (see [note](#mau_standalone_logging-choices))
 - MMU with support for no-execute mappings.
 - AArch64 or RISCV64 UEFI implementation.
 

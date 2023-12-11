@@ -1,6 +1,8 @@
 # Running MultiArchUefiPkg
 
-## How do I load the driver if it's not part of my firmware?
+## How do I load a standalone built driver?
+
+That is, what if EmulatorDxe.efi is not part of my firmware?
 
 Put EmulatorDxe.efi on removable media and use the `load` Shell command. E.g.:
 
@@ -10,7 +12,7 @@ Put EmulatorDxe.efi on removable media and use the `load` Shell command. E.g.:
 This should let you run non-native applications and load other drivers.
 
 Note: this will *not* magically get a PCIe OpRom image loaded. See
-[LoadOpRom.efi](#loadoprom-efi) for information on how to get n device
+[LoadOpRom.efi](#loadopromefi) for information on how to get a device
 OpRom driver working after manually loading the emulator.
 
 ## How do I know the emulator driver is present?
@@ -48,7 +50,7 @@ Not today.
 
 ## Testing
 
-There's a couple test applications. To build these:
+There are a couple test applications. To build these:
 
         $ export GCC_X64_PREFIX=... (if you are on a non-X64 system)
         $ build -a X64 -t GCC -p MultiArchUefiPkg/EmulatorApps.dsc
@@ -57,13 +59,16 @@ There's a couple test applications. To build these:
 
 ### EmulatorTest.efi
 
-When run against a DEBUG build of EmulatorDxe, will run further sanity tests. The application can be run in a native environment for overhead comparison purposes (e.g. a RISCV64 EmulatorTest vs an AARCH64 EmulatorTest in a RISCV64 environment).
+Performs some regression and performance testing. Regression testing
+relies on a DEBUG build of EmulatorDxe. The application can be run in
+a native environment for overhead comparison purposes (e.g. a RISCV64
+EmulatorTest vs an AARCH64 EmulatorTest in a RISCV64 environment).
 
 ### LoadOpRom.efi
 
 A generic tool to load a PCI(e) OpRom driver. Particularly useful when
-loading EmulatorDxe.efi from UEFI Shell (i.e. when not bundling the driver
-in a firmware build).
+loading standalone EmulatorDxe.efi builds from UEFI Shell. That is,
+when not bundling the emulator driver in a firmware build.
 
 LoadOpRom.efi is UEFI application meant to run from the Shell. It takes
 the Segment, Bus, Device and Function number of the PCI(e) function to
