@@ -30,7 +30,7 @@ UEFI Boot Service environment.
 
 | When | What |
 | :-: | ------------ |
-| December 2023 | More docs, conversion to UEFI DM, MAU_TRY_WITHOUT_MMU as an explicit build option (still enabled by default for RISC-V). |
+| December 2023 | More docs, conversion to UEFI DM, MAU_TRY_WITHOUT_MMU as an explicit build option (still enabled by default for RISC-V). LoadOpRom.efi tool. |
 | November 2023 | Doc and build system updates. |
 | October 2023 | Presented at the UEFI Fall 2023 Developers Conference and Plugfest. See the [presentation slides](Docs/Uefi2023/multi_isa_fw_compat.pdf). |
 | September 2023 | Move away from TPL manipulation and reduce RISC-V binary size by half. |

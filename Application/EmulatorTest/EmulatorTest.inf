@@ -18,7 +18,7 @@
   ENTRY_POINT                    = EmulatorTestEntryPoint
 
 #
-#  VALID_ARCHITECTURES           = X64 AARCH64
+#  VALID_ARCHITECTURES           = X64 AARCH64 RISCV64
 #
 
 [Sources]
