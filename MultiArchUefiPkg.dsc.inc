@@ -19,13 +19,6 @@
   PeCoffExtraActionLib|MdePkg/Library/BasePeCoffExtraActionLibNull/BasePeCoffExtraActionLibNull.inf
   PeCoffGetEntryPointLib|MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf
   PeCoffLib|MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
-  #
-  # The emulator cannot depend on emulated code.
-  #
-  # The emulator needs to protect itself from emulated apps/drivers that modify boot/runtime
-  # services the emulator uses. A great example of this is the Shell replacing ST->ConOut.
-  #
-  UefiDriverEntryPoint|MultiArchUefiPkg/Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf
 
 !if $(MAU_SUPPORTS_X64_BINS) == YES
   NULL|unicorn/efi/UnicornX86Lib.inf
@@ -74,4 +67,14 @@
 !endif
 
 [Components]
-  MultiArchUefiPkg/Drivers/Emulator/Emulator.inf
+  MultiArchUefiPkg/Drivers/Emulator/Emulator.inf {
+    <LibraryClasses>
+      #
+      # The emulator cannot depend on emulated code.
+      #
+      # The emulator needs to protect itself from emulated apps/drivers that modify boot/runtime
+      # services the emulator uses. A great example of this is the Shell replacing ST->ConOut
+      # (when building Emulator.dsc with MAU_STANDALONE_LOGGING = CONOUT).
+      #
+      UefiDriverEntryPoint|MultiArchUefiPkg/Library/CachedSTDriverEntryPoint/UefiDriverEntryPoint.inf
+  }
