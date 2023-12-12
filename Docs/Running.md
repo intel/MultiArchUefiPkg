@@ -108,3 +108,11 @@ Here's an example session booting up a video card driver:
         Loading driver at 0x000F8840000 EntryPoint=0x000F88421A0
         ...
         FS0:\> connect -r
+
+...at this point you _may_ have to adjust your Console Output device:
+* Go to Setup screen.
+* Go to Boot Maintenance Manager.
+* Go to Console Output Device Select.
+* Put a checkbox next to the PCIe device(s) showing up.
+* Save and exit back out to UEFI Shell.
+* Run `connect -r` again.
