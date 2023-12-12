@@ -28,14 +28,13 @@ RecoverPcFromCall (
 {
   UINT32  Insn;
   UINT64  Ra = RiscV64Context->X1;
-
   /*
    * SEPC always clears 0 and 1 as per IALIGN. Thus SEPC is always less
    * than PC.
    *
    * To recover PC, we look at the X1 (aka RA) register. We know
    * there was a branch to the PC value, but it could have been either
-   * a compressed or a regular jalr, so we look at RA - 2 and RA - 4,
+   * a compressed or a regular jalr, so we look at RA - 4 and RA - 2,
    * decode the instruction and reconstruct the PC value.
    *
    * Of course, the reconstructed PC value should match SEPC.
@@ -46,89 +45,102 @@ RecoverPcFromCall (
    *   instruction and it's been executed, randomly corrupting something
    *   (but at least not crashing).
    */
-
-  Insn = *(UINT16 *)(Ra - 2);
-  if (((Insn & 0x3) == 2) &&         // op == C2
-      ((Insn & 0xf000) == 0x9000) && // funct4 == c.jalr
-      ((Insn & 0xf80) != 0) &&       // rs1
-      ((Insn & 0x7c) == 0))          // rs2
-  {
-    UINTN  Rs = (Insn >> 7) & 0x1F;
-    *ProgramCounter = (&RiscV64Context->X0)[Rs];
-
+  Insn = *(UINT32 *)(Ra - 4);
+  if ((Insn & 0x3) == 0x3) {
     /*
-     * SEPC can be 1 bit away from PC.
+     * 32-bit instruction.
      */
-    if ((*ProgramCounter & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) {
-      DEBUG ((
-        DEBUG_ERROR,
-        "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 2 = 0x%lx\n",
-        ImageRecord->Cpu->Name,
-        *ProgramCounter,
-        RiscV64Context->SEPC,
-        Insn,
-        Ra - 2
-        ));
-      return EFI_NOT_FOUND;
+    if (((Insn & 0x7f) == 0x67) &&  // opcode == jalr
+        ((Insn & 0xf80) == 0x80) && // rd == x1
+        ((Insn & 0x3000) == 0))     // func3
+    {
+      struct {
+        signed int    x : 12;
+      } imm12;
+      UINTN  Rs = (Insn >> 15) & 0x1F;
+
+      imm12.x         = Insn >> 20;
+      *ProgramCounter = (&RiscV64Context->X0)[Rs] + imm12.x;
+
+      /*
+       * If the C extension is not implemented, SEPC can be 2 bits away from PC.
+       * Otherwise it is 1 bit away from PC, as 32-bit instructions can be
+       * aligned at 16-bit boundary as well.
+       */
+      if (((*ProgramCounter & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) &&
+          ((*ProgramCounter & INSN_ADDR_MASK) != RiscV64Context->SEPC))
+      {
+        DEBUG ((
+          DEBUG_ERROR,
+          "%a PC 0x%lx but SEPC 0x%lx, opcode 0x%04x @ 0x%lx-4\n",
+          ImageRecord->Cpu->Name,
+          *ProgramCounter,
+          RiscV64Context->SEPC,
+          Insn,
+          Ra
+          ));
+        return EFI_NOT_FOUND;
+      }
+
+      return EFI_SUCCESS;
     }
 
-    return EFI_SUCCESS;
-  }
-
-  if (Ra % 4) {
-    /*
-     * It was definitely an (unknown) compressed instruction.
-     */
     DEBUG ((
       DEBUG_ERROR,
-      "Unknown %a PC: unknown compressed instruction 0x%x at RA - 2 = 0x%lx\n",
+      "Unknown %a PC: bad opcode 0x%04x @ 0x%lx-4\n",
       ImageRecord->Cpu->Name,
       Insn,
-      Ra - 2
+      Ra - 4
+      ));
+
+    return EFI_NOT_FOUND;
+  }
+
+  Insn = *(UINT16 *)(Ra - 2);
+  if ((Insn  & 0x3) != 0x3) {
+    if (((Insn & 0x3) == 2) &&         // op == C2
+        ((Insn & 0xf000) == 0x9000) && // funct4 == c.jalr
+        ((Insn & 0xf80) != 0) &&       // rs1
+        ((Insn & 0x7c) == 0))          // rs2
+    {
+      UINTN  Rs = (Insn >> 7) & 0x1F;
+      *ProgramCounter = (&RiscV64Context->X0)[Rs];
+
+      /*
+       * SEPC can be 1 bit away from PC.
+       */
+      if ((*ProgramCounter & INSN_C_ADDR_MASK) != RiscV64Context->SEPC) {
+        DEBUG ((
+          DEBUG_ERROR,
+          "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, opcode 0x%02x @ 0x%lx-2\n",
+          ImageRecord->Cpu->Name,
+          *ProgramCounter,
+          RiscV64Context->SEPC,
+          Insn,
+          Ra
+          ));
+        return EFI_NOT_FOUND;
+      }
+
+      return EFI_SUCCESS;
+    }
+
+    DEBUG ((
+      DEBUG_ERROR,
+      "Unknown %a PC: bad opcode 0x%02x at 0x%lx-2\n",
+      ImageRecord->Cpu->Name,
+      Insn,
+      Ra
       ));
     return EFI_NOT_FOUND;
   }
 
-  Insn = *(UINT32 *)(Ra - 4);
-  if (((Insn & 0x7f) == 0x67) &&  // opcode == jalr
-      ((Insn & 0xf80) == 0x80) && // rd == x1
-      ((Insn & 0x3000) == 0))     // func3
-  {
-    struct {
-      signed int    x : 12;
-    } imm12;
-    UINTN  Rs = (Insn >> 15) & 0x1F;
-
-    imm12.x         = Insn >> 20;
-    *ProgramCounter = (&RiscV64Context->X0)[Rs] + imm12.x;
-
-    /*
-     * SEPC can be 2 bits away from PC.
-     */
-    if ((*ProgramCounter & INSN_ADDR_MASK) != RiscV64Context->SEPC) {
-      DEBUG ((
-        DEBUG_ERROR,
-        "Unexpected %a PC: PC 0x%lx but SEPC 0x%lx, Insn 0x%x @ RA - 4 = 0x%lx\n",
-        ImageRecord->Cpu->Name,
-        *ProgramCounter,
-        RiscV64Context->SEPC,
-        Insn,
-        Ra - 4
-        ));
-      return EFI_NOT_FOUND;
-    }
-
-    return EFI_SUCCESS;
-  }
-
   DEBUG ((
     DEBUG_ERROR,
-    "Unknown %a PC: unknown instruction 0x%x @ RA - 4 = 0x%lx\n",
+    "Unknown %a PC: could not find branch before RA 0x%lx\n",
     ImageRecord->Cpu->Name,
-    Insn,
-    Ra - 4
+    Ra
     ));
-
   return EFI_NOT_FOUND;
 }
 
