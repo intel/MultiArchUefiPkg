@@ -77,7 +77,7 @@ typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuContext {
   UINT16        EmuMachineType;
-  const char    *Name;
+  const CHAR8   *Name;
   int           StackReg;
   int           ProgramCounterReg;
   int           ReturnValueReg;

@@ -117,8 +117,8 @@ DoTestProtocolTests (
   )
 {
   UINT64  Ret;
-  char    *hostType = "unknown";
-  char    *myType   = "unknown";
+  CHAR8   *hostType = "unknown";
+  CHAR8   *myType   = "unknown";
 
   switch (mBeginDebugState.HostMachineType) {
     case EFI_IMAGE_MACHINE_AARCH64:
