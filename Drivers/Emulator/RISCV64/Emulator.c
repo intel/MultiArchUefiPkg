@@ -28,6 +28,7 @@ RecoverPcFromCall (
 {
   UINT32  Insn;
   UINT64  Ra = RiscV64Context->X1;
+
   /*
    * SEPC always clears 0 and 1 as per IALIGN. Thus SEPC is always less
    * than PC.

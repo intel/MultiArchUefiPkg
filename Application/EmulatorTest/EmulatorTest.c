@@ -15,7 +15,7 @@
 #include <Library/DebugLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiApplicationEntryPoint.h>
-#include "TestProtocol.h"
+#include <Protocol/EmuTestProtocol.h>
 
 #define NO_INLINE  __attribute__((noinline))
 #pragma GCC diagnostic ignored "-Wunused-variable"

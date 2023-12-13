@@ -27,8 +27,7 @@
 #include <Protocol/DebugSupport.h>
 #include <Protocol/PeCoffImageEmulator.h>
 #include <Protocol/LoadedImage.h>
-
-#include "TestProtocol.h"
+#include <Protocol/EmuTestProtocol.h>
 
 /*
  * Maximum # of arguments thunked between native and emulated code.
@@ -76,12 +75,12 @@ typedef struct uc_context  uc_context;
 typedef struct CpuRunContext CpuRunContext;
 
 typedef struct CpuContext {
-  UINT16        EmuMachineType;
-  const CHAR8   *Name;
-  int           StackReg;
-  int           ProgramCounterReg;
-  int           ReturnValueReg;
-  int           Contexts;
+  UINT16         EmuMachineType;
+  const CHAR8    *Name;
+  int            StackReg;
+  int            ProgramCounterReg;
+  int            ReturnValueReg;
+  int            Contexts;
   VOID                 (*Dump)(
     struct CpuContext *
     );

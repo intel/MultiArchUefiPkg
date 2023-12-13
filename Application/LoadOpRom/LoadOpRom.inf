@@ -24,17 +24,15 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
-  ShellPkg/ShellPkg.dec
   MultiArchUefiPkg/MultiArchUefiPkg.dec
 
 [LibraryClasses]
   UefiLib
+  MauUtilsLib
   UefiApplicationEntryPoint
   UefiBootServicesTableLib
 
 [Protocols]
-  gEfiShellInterfaceGuid
-  gEfiShellParametersProtocolGuid
   gEfiPciIoProtocolGuid
   gEfiDecompressProtocolGuid
 

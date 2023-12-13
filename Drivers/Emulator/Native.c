@@ -12,7 +12,6 @@
 
 #include <unicorn.h>
 #include "Emulator.h"
-#include "TestProtocol.h"
 
 typedef union {
   UINT64 (*NativeFn)(

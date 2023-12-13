@@ -10,7 +10,6 @@
 **/
 
 #include "Emulator.h"
-#include "TestProtocol.h"
 
 #ifndef NDEBUG
 

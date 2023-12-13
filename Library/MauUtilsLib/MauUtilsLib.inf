@@ -1,0 +1,37 @@
+## @file
+#
+#  Copyright (c) 2023, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = MauUtilsLib
+  FILE_GUID                      = ddbbbbb1-bb25-11df-8e4e-0002d5d5d51c
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = MauUtilsLib
+
+[Sources]
+  Utils.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  ShellPkg/ShellPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  MultiArchUefiPkg/MultiArchUefiPkg.dec
+
+[LibraryClasses]
+  UefiLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+
+[Guids]
+
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiShellInterfaceGuid
+  gEfiShellParametersProtocolGuid
