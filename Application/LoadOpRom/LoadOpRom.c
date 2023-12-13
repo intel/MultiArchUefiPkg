@@ -31,6 +31,8 @@
 #endif
 
 STATIC EFI_HANDLE  mImageHandle;
+STATIC BOOLEAN     mOnlyList;
+STATIC BOOLEAN     mNoConnect;
 
 STATIC
 EFI_STATUS
@@ -38,8 +40,88 @@ Usage (
   IN CHAR16  *Name
   )
 {
-  Print (L"Usage: %s seg bus dev func\n", Name);
+  Print (L"Usage: %s [-l] [-n] [seg bus dev func]\n", Name);
   return EFI_INVALID_PARAMETER;
+}
+
+typedef struct GET_OPT_CONTEXT {
+  CHAR16    Opt;
+  CHAR16    *OptArg;
+  UINTN     OptIndex;
+} GET_OPT_CONTEXT;
+
+#define INIT_GET_OPT_CONTEXT(ContextPointer)  do {\
+    (ContextPointer)->Opt = L'\0';               \
+    (ContextPointer)->OptArg = NULL;             \
+    (ContextPointer)->OptIndex = 1;              \
+  } while (0)
+
+STATIC
+EFI_STATUS
+GetOpt (
+  IN UINTN                Argc,
+  IN CHAR16               **Argv,
+  IN CHAR16               *OptionsWithArgs,
+  IN OUT GET_OPT_CONTEXT  *Context
+  )
+{
+  UINTN  Index;
+  UINTN  SkipCount;
+
+  if ((Context->OptIndex >= Argc) ||
+      (*Argv[Context->OptIndex] != L'-'))
+  {
+    return EFI_END_OF_MEDIA;
+  }
+
+  if (*(Argv[Context->OptIndex] + 1) == L'\0') {
+    /*
+     * A lone dash is used to signify end of options list.
+     *
+     * Like above, but we want to skip the dash.
+     */
+    Context->OptIndex++;
+    return EFI_END_OF_MEDIA;
+  }
+
+  SkipCount    = 1;
+  Context->Opt = *(Argv[Context->OptIndex] + 1);
+
+  if (OptionsWithArgs != NULL) {
+    UINTN  ArgsLen = StrLen (OptionsWithArgs);
+
+    for (Index = 0; Index < ArgsLen; Index++) {
+      if (OptionsWithArgs[Index] == Context->Opt) {
+        if (*(Argv[Context->OptIndex] + 2) != L'\0') {
+          /*
+           * Argument to the option may immediately follow
+           * the option (not separated by space).
+           */
+          Context->OptArg = Argv[Context->OptIndex] + 2;
+        } else if ((Context->OptIndex + 1 < Argc) &&
+                   (*(Argv[Context->OptIndex + 1]) != L'-'))
+        {
+          /*
+           * If argument is separated from option by space, it
+           * cannot look like an option (i.e. begin with a dash).
+           */
+          Context->OptArg = Argv[Context->OptIndex + 1];
+          SkipCount++;
+        } else {
+          /*
+           * No argument. Maybe it was optional? Up to the caller
+           * to decide.
+           */
+          Context->OptArg = NULL;
+        }
+
+        break;
+      }
+    }
+  }
+
+  Context->OptIndex += SkipCount;
+  return EFI_SUCCESS;
 }
 
 STATIC
@@ -94,6 +176,7 @@ GetShellArgcArgv (
 STATIC
 VOID
 LoadImage (
+  IN EFI_HANDLE                ControllerHandle,
   IN EFI_DEVICE_PATH_PROTOCOL  *PciPath,
   IN VOID                      *RomHeader
   )
@@ -211,13 +294,22 @@ LoadImage (
   if (EFI_ERROR (Status)) {
     Print (L"StartImage failed: %r\n", Status);
     gBS->UnloadImage (ImageHandle);
+  } else {
+    if (mNoConnect) {
+      Print (L"Skipping connect as requested...\n");
+    } else {
+      EFI_HANDLE  Drivers[2] = { ImageHandle, NULL };
+      Print (L"Recursive connect...\n");
+      Status = gBS->ConnectController (ControllerHandle, Drivers, NULL, TRUE);
+      if (EFI_ERROR (Status)) {
+        Print (L"ConnectController: %r\n", Status);
+      }
+    }
   }
 
 done:
-  if (EFI_ERROR (Status)) {
-    if (EfiRomHeader->CompressionType != 0) {
-      FreePool (Image);
-    }
+  if (EfiRomHeader->CompressionType != 0) {
+    FreePool (Image);
   }
 
   if (DevicePath != NULL) {
@@ -255,7 +347,13 @@ ParseImage (
 
   Supported = FALSE;
   if (Pcir->CodeType != PCI_CODE_TYPE_EFI_IMAGE) {
-    Print (L"+0x%08x: UNSUPPORTED %s image (0x%x bytes)\n", RomOffset, Type, Length);
+    Print (
+      L"+0x%08x: UNSUPPORTED %s (0x%x) image (0x%x bytes)\n",
+      RomOffset,
+      Type,
+      Pcir->CodeType,
+      Length
+      );
   } else {
     EfiRomHeader       = (VOID *)RomHeader;
     InitializationSize = EfiRomHeader->InitializationSize * 512;
@@ -312,6 +410,7 @@ ParseImage (
 STATIC
 VOID
 ParseImages (
+  IN EFI_HANDLE                ControllerHandle,
   IN EFI_DEVICE_PATH_PROTOCOL  *PciPath,
   IN VOID                      *RomImage,
   IN UINT64                    RomSize
@@ -361,8 +460,10 @@ ParseImages (
     }
 
     if (ParseImage (RomImage, RomHeader, ImageLength * 512, RomPcir)) {
-      LoadImage (PciPath, RomHeader);
-      return;
+      if (!mOnlyList) {
+        LoadImage (ControllerHandle, PciPath, RomHeader);
+        return;
+      }
     }
 
     Indicator = RomPcir->Indicator;
@@ -375,18 +476,30 @@ ParseImages (
 STATIC
 EFI_STATUS
 AnalyzeROM (
+  IN UINTN                     Seg,
+  IN UINTN                     Bus,
+  IN UINTN                     Dev,
+  IN UINTN                     Func,
+  IN EFI_HANDLE                ControllerHandle,
   IN EFI_PCI_IO_PROTOCOL       *PciIo,
   IN EFI_DEVICE_PATH_PROTOCOL  *PciPath
   )
 {
   if (PciIo->RomSize == 0) {
-    Print (L"No ROM\n");
+    Print (L"%04x:%02x:%02x:%02x: No ROM\n", Seg, Bus, Dev, Func);
     return EFI_SUCCESS;
   }
 
-  Print (L"ROM 0x%08x bytes\n", PciIo->RomSize);
-  Print (L"--------------------\n");
-  ParseImages (PciPath, PciIo->RomImage, PciIo->RomSize);
+  Print (
+    L"%04x:%02x:%02x:%02x: ROM 0x%08x bytes\n",
+    Seg,
+    Bus,
+    Dev,
+    Func,
+    PciIo->RomSize
+    );
+  Print (L"-----------------------------------\n");
+  ParseImages (ControllerHandle, PciPath, PciIo->RomImage, PciIo->RomSize);
   return EFI_SUCCESS;
 }
 
@@ -409,6 +522,8 @@ EntryPoint (
   EFI_HANDLE                *PciHandles;
   EFI_PCI_IO_PROTOCOL       *PciIo;
   EFI_DEVICE_PATH_PROTOCOL  *PciPath;
+  GET_OPT_CONTEXT           GetOptContext;
+  BOOLEAN                   AllDevs;
 
   mImageHandle = ImageHandle;
   Status       = GetShellArgcArgv (ImageHandle, &Argc, &Argv);
@@ -420,14 +535,44 @@ EntryPoint (
     return EFI_ABORTED;
   }
 
-  if (Argc < 5) {
-    return Usage (Argv[0]);
+  INIT_GET_OPT_CONTEXT (&GetOptContext);
+  while ((Status = GetOpt (
+                     Argc,
+                     Argv,
+                     L"",
+                     &GetOptContext
+                     )) == EFI_SUCCESS)
+  {
+    switch (GetOptContext.Opt) {
+      case L'l':
+        mOnlyList = TRUE;
+        break;
+      case L'n':
+        mNoConnect = TRUE;
+        break;
+      default:
+        Print (L"Unknown option '%c'\n", GetOptContext.Opt);
+        return Usage (Argv[0]);
+    }
   }
 
-  WantSeg  = StrHexToUintn (Argv[1]);
-  WantBus  = StrHexToUintn (Argv[2]);
-  WantDev  = StrHexToUintn (Argv[3]);
-  WantFunc = StrHexToUintn (Argv[4]);
+  switch (Argc - GetOptContext.OptIndex) {
+    case 0:
+      WantSeg  = (UINTN)-1;
+      WantBus  = (UINTN)-1;
+      WantDev  = (UINTN)-1;
+      WantFunc = (UINTN)-1;
+      AllDevs  = TRUE;
+      break;
+    case 4:
+      WantSeg  = StrHexToUintn (Argv[GetOptContext.OptIndex + 0]);
+      WantBus  = StrHexToUintn (Argv[GetOptContext.OptIndex + 1]);
+      WantDev  = StrHexToUintn (Argv[GetOptContext.OptIndex + 2]);
+      WantFunc = StrHexToUintn (Argv[GetOptContext.OptIndex + 3]);
+      break;
+    default:
+      return Usage (Argv[0]);
+  }
 
   PciCount   = 0;
   PciHandles = NULL;
@@ -456,7 +601,7 @@ EntryPoint (
                     );
 
     if (Status != EFI_SUCCESS) {
-      Print (L"Coudn't get EFI_PCI_IO_PROTOCOL: %r\n", Status);
+      Print (L"Couldn't get EFI_PCI_IO_PROTOCOL: %r\n", Status);
       continue;
     }
 
@@ -466,7 +611,7 @@ EntryPoint (
                     (VOID *)&PciPath
                     );
     if (Status != EFI_SUCCESS) {
-      Print (L"Coudn't get EFI_DEVICE_PATH_PROTOCOL: %r\n", Status);
+      Print (L"Couldn't get EFI_DEVICE_PATH_PROTOCOL: %r\n", Status);
       continue;
     }
 
@@ -476,28 +621,41 @@ EntryPoint (
       continue;
     }
 
-    if ((WantSeg != Seg) ||
-        (WantBus != Bus) ||
-        (WantDev != Dev) ||
-        (WantFunc != Func))
-    {
-      continue;
+    if (!AllDevs) {
+      if ((WantSeg != Seg) ||
+          (WantBus != Bus) ||
+          (WantDev != Dev) ||
+          (WantFunc != Func))
+      {
+        continue;
+      }
     }
 
-    break;
+    Status = AnalyzeROM (
+               Seg,
+               Bus,
+               Dev,
+               Func,
+               PciHandles[PciIndex],
+               PciIo,
+               PciPath
+               );
+    if (!AllDevs) {
+      break;
+    }
   }
 
-  if (PciIndex == PciCount) {
-    Print (
-      L"SBDF 0x%02x%02x%02x%02x not found\n",
-      WantSeg,
-      WantBus,
-      WantDev,
-      WantFunc
-      );
-    Status = EFI_NOT_FOUND;
-  } else {
-    Status = AnalyzeROM (PciIo, PciPath);
+  if (!AllDevs) {
+    if (PciIndex == PciCount) {
+      Print (
+        L"SBDF 0x%02x%02x%02x%02x not found\n",
+        WantSeg,
+        WantBus,
+        WantDev,
+        WantFunc
+        );
+      Status = EFI_NOT_FOUND;
+    }
   }
 
   gBS->FreePool (PciHandles);

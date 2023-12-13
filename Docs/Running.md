@@ -78,6 +78,23 @@ The application only supports loading drivers of the same CPU architecture
 as itself. This is a useful property, as OpRoms can contain many images,
 e.g. an X64 and an AArch64 image.
 
+#### Usage
+
+        Shell> LoadOpRom.efi [-l] [-n] [seg bus dev func]
+
+When run without a segment/bus/device/function tuple and extra
+options, the tool will load compatible OpRom images for _all_
+PCI(e) devices in the system. If you specify a particular SBDF,
+the tool will process the OpRom for that SBDF alone.
+
+By default, the tool will recursively connect the loaded image
+(which it assumes to be a driver) to the controller where the
+OpRom came from. This is usually what you'd want, anyway.
+
+Options:
+* `-l`: just list all ROM images, don't load anything.
+* `-n`: when loading a driver, don't connect the driver to the controller.
+
 Here's an example session booting up a video card driver:
 
         FS0:\> pci
@@ -106,8 +123,7 @@ Here's an example session booting up a video card driver:
         +0x00009000:    Compressed: yes
         ...
         Loading driver at 0x000F8840000 EntryPoint=0x000F88421A0
-        ...
-        FS0:\> connect -r
+        Recursive connect...
 
 ...at this point you _may_ have to adjust your Console Output device:
 * Go to Setup screen.
