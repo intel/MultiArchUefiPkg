@@ -83,3 +83,13 @@
 [Components]
   MultiArchUefiPkg/Application/EmulatorTest/EmulatorTest.inf
   MultiArchUefiPkg/Application/LoadOpRom/LoadOpRom.inf
+  MultiArchUefiPkg/Application/SetCon/SetCon.inf {
+    <LibraryClasses>
+      HandleParsingLib|ShellPkg/Library/UefiHandleParsingLib/UefiHandleParsingLib.inf
+      FileHandleLib|MdePkg/Library/UefiFileHandleLib/UefiFileHandleLib.inf
+      HiiLib|MdeModulePkg/Library/UefiHiiLib/UefiHiiLib.inf
+      SortLib|MdeModulePkg/Library/UefiSortLib/UefiSortLib.inf
+      PeCoffGetEntryPointLib|MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf
+      UefiHiiServicesLib|MdeModulePkg/Library/UefiHiiServicesLib/UefiHiiServicesLib.inf
+  }
+

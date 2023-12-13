@@ -50,7 +50,7 @@ Not today.
 
 ## Testing
 
-There are a couple test applications. To build these:
+There are a few test applications. To build these:
 
         $ export GCC_X64_PREFIX=... (if you are on a non-X64 system)
         $ build -a X64 -t GCC -p MultiArchUefiPkg/EmulatorApps.dsc
@@ -63,6 +63,50 @@ Performs some regression and performance testing. Regression testing
 relies on a DEBUG build of EmulatorDxe. The application can be run in
 a native environment for overhead comparison purposes (e.g. a RISCV64
 EmulatorTest vs an AARCH64 EmulatorTest in a RISCV64 environment).
+
+### SetCon.efi
+
+SetCon manipulates the console variables: `ConIn`, `ConOut`, `ErrOut`
+and `ConInDev`, `ConOutDev`, `ErrOutDev`.
+
+Particularly useful when loading graphics drivers using [LoadOpRom.efi](#loadopromefi).
+
+#### Usage
+
+        Shell> SetCon.efi [-A] [-i handle-index] [-h handle] [-p path] [-a] VariableName
+
+Options:
+* `-a`: append the new path to the existing set of device paths, instead of replacing.
+* `-A`: automatically build console variables from currently available devices.
+* `-i`: takes a handle index as produced by the UEFI Shell `dh` tool.
+* `-h`: takes an actual EFI_HANDLE value.
+* `-p`: takes a textual path representation.
+
+Use it to see the current devices encoded:
+
+        Shell> SetCon.efi ConOut
+        ConOut:
+           VenHw(D3987D4B-971A-435F-8CAF-4967EB627241)/Uart(38400,8,N,1)/VenMsg(DFA66065-B419-11D3-9A2D-0090273FC14D)
+           PciRoot(0x0)/Pci(0x2,0x0)/AcpiAdr(0x80010100)
+
+Use it to set variables:
+
+        Shell> SetCon.efi -i AA ConIn
+        Shell> SetCon.efi -h 1ABCDEF01 ErrOutDev
+        Shell> SetConf.efi -a -p PciRoot(0x0)/Pci(0x2,0x0)/AcpiAdr(0x80010100) ConOut
+
+Note: no validation is done on the device path. Yes, you can set `ConOut` to your disk drive, lol. No, it won't work or do anything.
+
+Use it to automatically build console variables from available devices. This
+is especially interesting in combination with LoadOpRom.efi. The example
+below loads and starts OpRoms for all available devices, sets `ConOut`
+to include the new video device, and forces UEFI to refresh active consoles
+by disconnecting and reconnecting all drivers to devices.
+
+        FS0:> load EmulatorDxe.efi
+        FS0:> LoadOpRom.efi
+        FS0:> SetCon -A ConOut
+        FS0:> reconnect -r
 
 ### LoadOpRom.efi
 
@@ -125,10 +169,12 @@ Here's an example session booting up a video card driver:
         Loading driver at 0x000F8840000 EntryPoint=0x000F88421A0
         Recursive connect...
 
-...at this point you _may_ have to adjust your Console Output device:
+...at this point you _may_ have to adjust your Console Output device. You can do this manually:
 * Go to Setup screen.
 * Go to Boot Maintenance Manager.
 * Go to Console Output Device Select.
 * Put a checkbox next to the PCIe device(s) showing up.
 * Save and exit back out to UEFI Shell.
 * Run `connect -r` again.
+
+You can also do this using the [SetCon.efi](#setconefi) tool.
