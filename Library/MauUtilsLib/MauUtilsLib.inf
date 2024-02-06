@@ -32,6 +32,5 @@
 [Guids]
 
 [Protocols]
-  gEfiSimpleFileSystemProtocolGuid
   gEfiShellInterfaceGuid
   gEfiShellParametersProtocolGuid
