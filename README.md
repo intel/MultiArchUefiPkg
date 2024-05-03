@@ -30,6 +30,7 @@ UEFI Boot Service environment.
 
 | When | What |
 | :-: | ------------ |
+| May 2024 | Deal with reported issue for a Micron NVMe OpRom, which uses `rdrand` instruction and scribbles to low RAM on success. |
 | December 2023 | More docs, conversion to UEFI DM, MAU_TRY_WITHOUT_MMU as an explicit build option (still enabled by default for RISC-V). LoadOpRom.efi tool. MAU_STANDALONE_LOGGING choices (and EFI_SERIAL_IO_PROTOCOL-backed implementation). SetCon tool. |
 | November 2023 | Doc and build system updates. |
 | October 2023 | Presented at the UEFI Fall 2023 Developers Conference and Plugfest. See the [presentation slides](Docs/Uefi2023/multi_isa_fw_compat.pdf). |

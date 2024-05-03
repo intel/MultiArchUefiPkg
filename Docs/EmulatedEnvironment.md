@@ -24,18 +24,27 @@ Use of SetJump and LongJump is discouraged, as this may incur a slow
 leak for the lifetime of the client application / driver. Tracked in
 https://github.com/intel/MultiArchUefiPkg/issues/13.
 
-Reliance on architecture-specific functionality is discouraged, including but
-not limited to:
-- access to model ID registers (e.g. cpuid)
-- raw access to the local timer / TSC instead of using UEFI services
-- interrupt flag manipulation (e.g. cli/hlt) - these have no effect on the
-  host or emulated environment.
-
 Some client code may not be entirely 64-bit clean, making assumptions
 about stack being located below 4GiB or allocated memory being below
 4GiB (without explicitly requesting such mmemory). Such code will
 quickly malfunction on systems where there no or little memory below
 the 4GiB line. See https://github.com/intel/MultiArchUefiPkg/issues/16.
+
+## Modeled Architecture
+
+Reliance on architecture-specific functionality is discouraged, including but not limited to:
+- access to model ID registers (e.g. cpuid on x86-64)
+- raw access to the local timer / TSC instead of using UEFI services
+- interrupt flag manipulation (e.g. cli/hlt on x86-64) - these have no effect on the host or emulated environment.
+
+### x86-64/x64/AMD64
+
+TBD: Not exhaustive. See https://github.com/intel/unicorn-for-efi/blob/main/qemu/target/i386/unicorn.c#L68.
+- The 'rdrand' instruction is modeled, but always fails.
+
+### AArch64
+
+TBD.
 
 ## Supported Boot Services (BS)
 
