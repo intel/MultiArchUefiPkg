@@ -15,26 +15,14 @@
 !include unicorn/efi/UnicornPkg.dsc.inc
 
 [LibraryClasses.common]
-  PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
-  PeCoffExtraActionLib|MdePkg/Library/BasePeCoffExtraActionLibNull/BasePeCoffExtraActionLibNull.inf
-  PeCoffGetEntryPointLib|MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf
-  PeCoffLib|MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
-
 !if $(MAU_SUPPORTS_X64_BINS) == YES
   NULL|unicorn/efi/UnicornX86Lib.inf
 !endif
-
-[LibraryClasses.AARCH64]
-  ArmDisassemblerLib|ArmPkg/Library/ArmDisassemblerLib/ArmDisassemblerLib.inf
-  DefaultExceptionHandlerLib|ArmPkg/Library/DefaultExceptionHandlerLib/DefaultExceptionHandlerLib.inf
-  NULL|ArmPkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
 
 [LibraryClasses.RISCV64]
 !if $(MAU_SUPPORTS_AARCH64_BINS) == YES
   NULL|unicorn/efi/UnicornArm64Lib.inf
 !endif
-  SynchronizationLib|MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf
-  CpuExceptionHandlerLib|UefiCpuPkg/Library/BaseRiscV64CpuExceptionHandlerLib/BaseRiscV64CpuExceptionHandlerLib.inf
 
 [BuildOptions]
   *_*_*_CC_FLAGS                       = -DDISABLE_NEW_DEPRECATED_INTERFACES
