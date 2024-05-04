@@ -33,9 +33,9 @@ the 4GiB line. See https://github.com/intel/MultiArchUefiPkg/issues/16.
 ## Modeled Architecture
 
 Reliance on architecture-specific functionality is discouraged, including but not limited to:
-- access to model ID registers (e.g. cpuid on x86-64)
-- raw access to the local timer / TSC instead of using UEFI services
-- interrupt flag manipulation (e.g. cli/hlt on x86-64) - these have no effect on the host or emulated environment.
+- Access to model ID registers (e.g. cpuid on x86-64).
+- Raw access to the local timer / TSC instead of using UEFI services.
+- Interrupt flag manipulation (e.g. cli/hlt on x86-64) - these have no effect on the host or emulated environment.
 
 ### x86-64/x64/AMD64
 
