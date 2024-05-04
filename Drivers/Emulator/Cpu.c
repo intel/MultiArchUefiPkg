@@ -1522,8 +1522,6 @@ CpuRunImage (
      * Image just returned.
      */
     CpuFreeContext (Context);
-
-    EfiWrappersDump();
     return Status;
   }
 
