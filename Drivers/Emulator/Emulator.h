@@ -139,7 +139,6 @@ typedef struct CpuRunContext {
  #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
   UINT64                  *Args;
   UINT64                  Ret;
-  BOOLEAN                 SavedInterruptState;
 
   uc_context              *PrevUcContext;
   struct CpuRunContext    *PrevContext;
@@ -342,6 +341,16 @@ ArchCleanup (
   VOID
   );
 
+EFI_STATUS
+EfiHooksInit (
+  VOID
+  );
+
+VOID
+EfiHooksCleanup (
+  VOID
+  );
+
 VOID
 EfiWrappersInit (
   VOID
@@ -356,3 +365,37 @@ VOID
 EfiWrappersDump (
   VOID
   );
+
+STATIC
+inline
+VOID
+CriticalBegin (
+  VOID
+  )
+{
+  BOOLEAN  InterruptState;
+  extern BOOLEAN  gApparentInterruptState;
+  extern UINTN  gIgnoreInterruptManipulation;
+
+  InterruptState = SaveAndDisableInterrupts ();
+  if (++gIgnoreInterruptManipulation > 0) {
+    gApparentInterruptState = InterruptState;
+  }
+}
+
+STATIC
+inline
+VOID
+CriticalEnd (
+  VOID
+  )
+{
+  extern BOOLEAN  gApparentInterruptState;
+  extern UINTN  gIgnoreInterruptManipulation;
+
+  ASSERT (gIgnoreInterruptManipulation != 0);
+
+  if (--gIgnoreInterruptManipulation == 0) {
+    SetInterruptState (gApparentInterruptState);
+  }
+}
