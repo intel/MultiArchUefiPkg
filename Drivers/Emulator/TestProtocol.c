@@ -249,7 +249,9 @@ STATIC EMU_TEST_PROTOCOL  mEmuTestProtocol = {
   TestCbArgs,
   CpuGetDebugState,
   TestSj,
-  TestLj
+  TestLj,
+  GetPerformanceCounterProperties,
+  GetPerformanceCounter
 };
 
 STATIC EFI_GUID  mEmuTestProtocolGuid = EMU_TEST_PROTOCOL_GUID;
