@@ -9,8 +9,16 @@
 
 **/
 
-#include <unicorn.h>
 #include "Emulator.h"
+
+/*
+ * EfiWrappers modify the UEFI environment presented to non-native
+ * (emulated) code. Attempts to execute certain native functions
+ * get redirected through custom implementations or denied.
+ *
+ * This is different from EfiHooks, in that EfiHooks affect
+ * the UEFI environment presented to *all* code (including ourselves).
+ */
 
 #ifdef MAU_WRAPPED_ENTRY_POINTS
 STATIC LIST_ENTRY  mEventList;
@@ -100,15 +108,14 @@ EfiWrapperCloseEvent (
   EFI_EVENT             Event = (EFI_EVENT)Args[0];
   WRAPPED_EVENT_RECORD  *Record;
   EFI_STATUS            Status;
-  BOOLEAN               InterruptState;
 
   Record = EfiWrappersFindEvent (Event);
   Status = gBS->CloseEvent (Record->Event);
 
   if (Record != NULL) {
-    InterruptState = SaveAndDisableInterrupts ();
+    CriticalBegin ();
     RemoveEntryList (&Record->Link);
-    SetInterruptState (InterruptState);
+    CriticalEnd ();
     FreePool (Record);
   }
 
@@ -130,7 +137,6 @@ EfiWrapperCreateEventCommon (
   EFI_EVENT             *Event;
   WRAPPED_EVENT_RECORD  *Record;
   EFI_STATUS            Status;
-  BOOLEAN               InterruptState;
 
   if (OriginalProgramCounter == (UINT64)gBS->CreateEvent) {
     Event = (VOID *)Args[4];
@@ -157,9 +163,9 @@ EfiWrapperCreateEventCommon (
    * Before CreateEvent to avoid races! After CreateEvent succeeds,
    * the event could be signalled (and closed from notification fn).
    */
-  InterruptState = SaveAndDisableInterrupts ();
+  CriticalBegin ();
   InsertTailList (&mEventList, &Record->Link);
-  SetInterruptState (InterruptState);
+  CriticalEnd ();
 
   if (OriginalProgramCounter == (UINT64)gBS->CreateEvent) {
     Status = gBS->CreateEvent (
@@ -214,9 +220,6 @@ EfiWrappersOverride (
       ));
     return (UINT64)&NativeUnsupported;
   } else if ((ProgramCounter == (UINTN)gCpu->RegisterInterruptHandler) ||
-             (ProgramCounter == (UINTN)gCpu->GetInterruptState) ||
-             (ProgramCounter == (UINTN)gCpu->EnableInterrupt) ||
-             (ProgramCounter == (UINTN)gCpu->DisableInterrupt) ||
              (ProgramCounter == (UINTN)gCpu->Init))
   {
     /*

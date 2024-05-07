@@ -96,6 +96,11 @@ EmulatorStart (
   EFI_HANDLE  EmuHandleAArch64 = NULL;
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
 
+  Status = EfiHooksInit ();
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
   EfiWrappersInit ();
 
   Status = CpuInit ();
@@ -106,6 +111,7 @@ EmulatorStart (
   Status = ArchInit ();
   if (EFI_ERROR (Status)) {
     CpuCleanup ();
+    EfiHooksCleanup ();
     return Status;
   }
 
@@ -170,6 +176,7 @@ done:
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
     ArchCleanup ();
     CpuCleanup ();
+    EfiHooksCleanup ();
   }
 
   return Status;
