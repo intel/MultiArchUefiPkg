@@ -34,6 +34,12 @@
  */
 #define MAX_ARGS  16
 
+/*
+ * Maximum # of nested CpuRunContexts supported. This is
+ * not really a reasonable amount and can probably be smaller.
+ */
+#define MAX_CPU_RUN_CONTEXTS  32
+
 #ifdef MDE_CPU_AARCH64
 #define NATIVE_INSN_ALIGNMENT  4
 #elif defined (MDE_CPU_RISCV64)
@@ -53,6 +59,9 @@
 #endif
 
 #define UNUSED  __attribute__((unused))
+
+#define ROUND_UP(x, n)    (((x) + n - 1) & ~(n - 1))
+#define ROUND_DOWN(x, n)  ((x) & ~(n - 1))
 
 #define REG_READ(CpuContext, x)  ({                             \
       UINT64 Reg;                                               \
@@ -74,13 +83,39 @@ typedef struct uc_context  uc_context;
 
 typedef struct CpuRunContext CpuRunContext;
 
+typedef struct {
+  UINT64        Signature;
+  LIST_ENTRY    Link;
+} ObjectHeader;
+
+typedef struct {
+  UINTN     ObjectSize;
+  UINTN     ObjectAlignment;
+  UINTN     ObjectCount;
+  VOID      *CbContext;
+  UINT64    Signature;
+  EFI_STATUS EFIAPI (*OnCreate)(ObjectHeader *Object, VOID *CbContext);
+  EFI_STATUS EFIAPI (*OnAlloc)(ObjectHeader *Object, VOID *CbContext);
+  VOID EFIAPI (*OnFree)(ObjectHeader *Object, VOID *CbContext);
+  VOID EFIAPI (*OnDestroy)(ObjectHeader *Object, VOID *CbContext);
+} ObjectAllocConfig;
+
+typedef struct {
+  VOID                 *Arena;
+  UINTN                ArenaSize;
+  LIST_ENTRY           List;
+  ObjectAllocConfig    Config;
+} ObjectAllocContext;
+
 typedef struct CpuContext {
-  UINT16         EmuMachineType;
-  const CHAR8    *Name;
-  int            StackReg;
-  int            ProgramCounterReg;
-  int            ReturnValueReg;
-  int            Contexts;
+  UINT16                EmuMachineType;
+  const CHAR8           *Name;
+  int                   StackReg;
+  int                   ProgramCounterReg;
+  int                   ReturnValueReg;
+  int                   Contexts;
+  ObjectAllocContext    *RunContextAlloc;
+
   VOID                 (*Dump)(
     struct CpuContext *
     );
@@ -132,17 +167,25 @@ typedef struct {
 } ImageRecord;
 
 typedef struct CpuRunContext {
+  /*
+   * These fields are managed by ObjectAlloc and callbacks.
+   */
+  ObjectHeader            Header;
+  uc_context              *PrevUcContext;
   CpuContext              *Cpu;
+  /*
+   * ---> Everthing below gets scrubbed on allocation <---.
+   */
   EFI_VIRTUAL_ADDRESS     ProgramCounter;
- #ifdef MAU_CHECK_ORPHAN_CONTEXTS
+#ifdef MAU_CHECK_ORPHAN_CONTEXTS
   UINT64                  LeakCookie;
- #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
+#endif /* MAU_CHECK_ORPHAN_CONTEXTS */
   UINT64                  *Args;
   UINT64                  Ret;
 
-  uc_context              *PrevUcContext;
+#define CRC_HAVE_SAVED_UC_CONTEXT  BIT0
+  UINT64                  Flags;
   struct CpuRunContext    *PrevContext;
-
   /*
    * Only set when we're invoking the entry point of an image.
    */
@@ -366,6 +409,29 @@ EfiWrappersDump (
   VOID
   );
 
+EFI_STATUS
+ObjectAllocCreate (
+  IN  ObjectAllocConfig   *Config,
+  OUT ObjectAllocContext  **Context
+  );
+
+VOID
+ObjectAllocDestroy (
+  IN  ObjectAllocContext  *Context
+  );
+
+EFI_STATUS
+ObjectAlloc (
+  IN  ObjectAllocContext  *Context,
+  OUT ObjectHeader        **ObjectReturned
+  );
+
+VOID
+ObjectFree (
+  IN  ObjectAllocContext  *Context,
+  IN  ObjectHeader        *Object
+  );
+
 STATIC
 inline
 VOID
@@ -373,9 +439,9 @@ CriticalBegin (
   VOID
   )
 {
-  BOOLEAN  InterruptState;
+  BOOLEAN         InterruptState;
   extern BOOLEAN  gApparentInterruptState;
-  extern UINTN  gIgnoreInterruptManipulation;
+  extern UINTN    gIgnoreInterruptManipulation;
 
   InterruptState = SaveAndDisableInterrupts ();
   if (++gIgnoreInterruptManipulation > 0) {
@@ -391,11 +457,23 @@ CriticalEnd (
   )
 {
   extern BOOLEAN  gApparentInterruptState;
-  extern UINTN  gIgnoreInterruptManipulation;
+  extern UINTN    gIgnoreInterruptManipulation;
 
   ASSERT (gIgnoreInterruptManipulation != 0);
 
   if (--gIgnoreInterruptManipulation == 0) {
     SetInterruptState (gApparentInterruptState);
   }
+}
+
+STATIC
+inline
+BOOLEAN
+IsDriverImagePointer (
+  IN  VOID  *Pointer
+  )
+{
+  return ((UINTN)Pointer >= (UINTN)gDriverImage->ImageBase) &&
+         ((UINTN)Pointer <= ((UINTN)gDriverImage->ImageBase +
+                             gDriverImage->ImageSize - 1));
 }

@@ -241,10 +241,7 @@ EmulatorSyncExceptionCallback (
      * TBD: can we lookup/decode the TB info?
      */
     DEBUG ((DEBUG_ERROR, "Exception occurred in TBs\n"));
-  } else if ((RiscV64Context->SEPC >= (UINT64)gDriverImage->ImageBase) &&
-             (RiscV64Context->SEPC <= ((UINT64)gDriverImage->ImageBase +
-                                       gDriverImage->ImageSize - 1)))
-  {
+  } else if (IsDriverImagePointer ((VOID *)RiscV64Context->SEPC)) {
     DEBUG ((
       DEBUG_ERROR,
       "Exception occured at driver PC +0x%lx, RA +0x%lx\n",

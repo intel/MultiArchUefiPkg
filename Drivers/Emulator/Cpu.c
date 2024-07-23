@@ -230,6 +230,10 @@ CpuCleanupEx (
   ASSERT (Cpu != NULL);
   ASSERT (Cpu->UE != NULL);
 
+  if (Cpu->RunContextAlloc != NULL) {
+    ObjectAllocDestroy (Cpu->RunContextAlloc);
+  }
+
   UcErr = uc_close (Cpu->UE);
   ASSERT (UcErr == UC_ERR_OK);
 
@@ -611,16 +615,75 @@ CpuX64EmuThunkPost (
 
 #endif /* MAU_SUPPORTS_X64_BINS */
 
+STATIC
+EFI_STATUS
+EFIAPI
+CpuRunContextOnCreate (
+  IN  ObjectHeader  *Object,
+  IN  VOID          *CbContext
+  )
+{
+  uc_err         UcErr;
+  CpuRunContext  *Context;
+  CpuContext     *Cpu;
+
+  Cpu     = CbContext;
+  Context = (VOID *)Object;
+
+  Context->Cpu = Cpu;
+  UcErr        = uc_context_alloc (Cpu->UE, &Context->PrevUcContext);
+  if (UcErr != UC_ERR_OK) {
+    DEBUG ((DEBUG_ERROR, "%a: could not allocate UC context: %a\n", __func__, uc_strerror (UcErr)));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  return EFI_SUCCESS;
+}
+
+STATIC
+VOID
+EFIAPI
+CpuRunContextOnDestroy (
+  IN  ObjectHeader  *Object,
+  IN  VOID          *CbContext
+  )
+{
+  uc_err         UcErr;
+  CpuRunContext  *Context;
+
+  Context = (VOID *)Object;
+  UcErr   = uc_context_free (Context->PrevUcContext);
+  ASSERT (UcErr == UC_ERR_OK);
+}
+
+STATIC
+EFI_STATUS
+EFIAPI
+CpuRunContextOnAlloc (
+  IN  ObjectHeader  *Object,
+  IN  VOID          *CbContext
+  )
+{
+  CpuRunContext  *Context;
+
+  Context = (VOID *)Object;
+  gBS->SetMem (&(Context->ProgramCounter), sizeof (*Context) - OFFSET_OF (CpuRunContext, ProgramCounter), 0);
+
+  ASSERT (Context->PrevUcContext != NULL);
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 CpuInitEx (
   IN  uc_arch     Arch,
   OUT CpuContext  *Cpu
   )
 {
-  uc_err      UcErr;
-  EFI_STATUS  Status;
-  uc_hook     IoReadHook;
-  uc_hook     IoWriteHook;
+  uc_err             UcErr;
+  EFI_STATUS         Status;
+  uc_hook            IoReadHook;
+  uc_hook            IoWriteHook;
+  ObjectAllocConfig  AllocConfig;
 
  #ifndef MAU_EMU_TIMEOUT_NONE
   uc_hook  TimeoutHook;
@@ -691,6 +754,25 @@ CpuInitEx (
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_open failed: %a\n", uc_strerror (UcErr)));
     return EFI_UNSUPPORTED;
+  }
+
+  AllocConfig.ObjectSize      = sizeof (CpuRunContext);
+  AllocConfig.ObjectAlignment = sizeof (VOID *);
+  AllocConfig.ObjectCount     = MAX_CPU_RUN_CONTEXTS;
+  AllocConfig.CbContext       = Cpu;
+  AllocConfig.Signature       = Cpu->EmuMachineType;
+
+  /*
+   * OnCreate callback requires Cpu->UE to be initialized already.
+   */
+  AllocConfig.OnCreate  = CpuRunContextOnCreate;
+  AllocConfig.OnDestroy = CpuRunContextOnDestroy;
+  AllocConfig.OnAlloc   = CpuRunContextOnAlloc;
+  AllocConfig.OnFree    = NULL;
+  Status                = ObjectAllocCreate (&AllocConfig, &Cpu->RunContextAlloc);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: ObjectAllocCreate: %r\n", __func__, Status));
+    return Status;
   }
 
   /*
@@ -1089,13 +1171,13 @@ CpuUnregisterCodeRange (
   IN  UINT64                ImageSize
   )
 {
-  uc_err   UcErr;
+  uc_err  UcErr;
 
   /*
    * uc_mem_protect is not safe to call while we are in JIT (uc_emu_start).
    */
   CriticalBegin ();
-  UcErr          = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
+  UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -1115,13 +1197,13 @@ CpuRegisterCodeRange (
   IN  UINT64                ImageSize
   )
 {
-  uc_err   UcErr;
+  uc_err  UcErr;
 
   /*
    * uc_mem_protect is not safe to call while we are in JIT (uc_emu_start).
    */
   CriticalBegin ();
-  UcErr          = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_ALL);
+  UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_ALL);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -1132,23 +1214,19 @@ CpuRegisterCodeRange (
 STATIC
 CpuRunContext *
 CpuAllocContext (
-  VOID
+  IN  CpuContext  *Cpu
   )
 {
-  EFI_STATUS     Status;
-  CpuRunContext  *Context;
+  EFI_STATUS    Status;
+  ObjectHeader  *Object;
 
-  Status = gBS->AllocatePool (
-                  EfiBootServicesData,
-                  sizeof (*Context),
-                  (VOID **)&Context
-                  );
+  Status = ObjectAlloc (Cpu->RunContextAlloc, &Object);
   if (EFI_ERROR (Status)) {
     return NULL;
   }
 
-  gBS->SetMem (Context, sizeof (*Context), 0);
-  return Context;
+  ASSERT (Object != NULL);
+  return (VOID *)Object;
 }
 
 STATIC
@@ -1157,13 +1235,16 @@ CpuFreeContext (
   IN  CpuRunContext  *Context
   )
 {
-  if (Context->PrevUcContext != NULL) {
-    uc_err  UcErr;
-    UcErr = uc_context_free (Context->PrevUcContext);
-    ASSERT (UcErr == UC_ERR_OK);
-  }
+  ASSERT (Context != NULL);
+  ASSERT (Context->Cpu != NULL);
+  ASSERT (Context->Cpu->RunContextAlloc != NULL);
 
-  gBS->FreePool (Context);
+  /*
+   * Should not be leaking some unapplied state.
+   */
+  ASSERT (Context->Flags == 0);
+
+  ObjectFree (Context->Cpu->RunContextAlloc, (VOID *)Context);
 }
 
 #ifdef MAU_CHECK_ORPHAN_CONTEXTS
@@ -1312,15 +1393,9 @@ CpuRunCtxOnPrivateStack (
  #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
 
   if (Cpu->Contexts > 1) {
-    UcErr = uc_context_alloc (Cpu->UE, &Context->PrevUcContext);
-    if (UcErr != UC_ERR_OK) {
-      DEBUG ((DEBUG_ERROR, "could not allocate UC context: %a\n", uc_strerror (UcErr)));
-      Context->Ret = EFI_OUT_OF_RESOURCES;
-      goto out;
-    }
-
     UcErr = uc_context_save (Cpu->UE, Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
+    Context->Flags |= CRC_HAVE_SAVED_UC_CONTEXT;
 
     /*
      * EFIAPI (MS x64 ABI) has no concept of a red zone, however code built outside of Tiano
@@ -1334,12 +1409,11 @@ CpuRunCtxOnPrivateStack (
 
   Context->Ret = CpuRunCtxInternal (Context);
 
-  if (Context->PrevUcContext != NULL) {
+  if ((Context->Flags & CRC_HAVE_SAVED_UC_CONTEXT) != 0) {
     UcErr = uc_context_restore (Cpu->UE, Context->PrevUcContext);
     ASSERT (UcErr == UC_ERR_OK);
+    Context->Flags ^= CRC_HAVE_SAVED_UC_CONTEXT;
   }
-
-out:
 
   /*
    * Critical section ends when code no longer modifies emulated state,
@@ -1348,7 +1422,7 @@ out:
   CpuLeaveCritical (Context);
 
  #ifdef MAU_ON_PRIVATE_STACK
-  if (Context->PrevUcContext == NULL) {
+  if ((Context->Flags & CRC_HAVE_SAVED_UC_CONTEXT) == 0) {
     LongJump (&mOriginalStack, -1);
   }
 
@@ -1382,8 +1456,8 @@ CpuRunCtx (
 
   /*
    * Come back here from CpuRunCtxOnPrivateStack, directly
-   * (when Context.PrevUcContext != NULL) or via LongJump (when
-   * Context.PrevUcContext == NULL).
+   * or via LongJmp (when no more contexts exist and we are running on
+   * private stack).
    */
   CriticalEnd ();
   return Context->Ret;
@@ -1401,13 +1475,12 @@ CpuRunFunc (
 
   ASSERT (Cpu != NULL);
 
-  Context = CpuAllocContext ();
+  Context = CpuAllocContext (Cpu);
   if (Context == NULL) {
     DEBUG ((DEBUG_ERROR, "Could not allocate CpuRunContext\n"));
     return EFI_OUT_OF_RESOURCES;
   }
 
-  Context->Cpu            = Cpu;
   Context->ProgramCounter = ProgramCounter;
   Context->Args           = Args;
 
@@ -1453,8 +1526,8 @@ CpuCompressLeakedContexts (
    */
 
   CriticalBegin ();
-  Context        = FromContext = mTopContext;
-  ToContext      = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
+  Context   = FromContext = mTopContext;
+  ToContext = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
 
   while (Context != ToContext) {
     uc_err  UcErr;
@@ -1466,13 +1539,13 @@ CpuCompressLeakedContexts (
      */
     CpuContext  *Cpu = Context->Cpu;
 
-    Cpu->Contexts--;
-    ASSERT (Cpu->Contexts >= 0);
-
-    if (Context->PrevUcContext != NULL) {
-      UcErr = uc_context_restore (Cpu->UE, Context->PrevUcContext);
+    if ((Context->Flags & CRC_HAVE_SAVED_UC_CONTEXT) != 0) {
+      UcErr           = uc_context_restore (Cpu->UE, Context->PrevUcContext);
+      Context->Flags ^= CRC_HAVE_SAVED_UC_CONTEXT;
     }
 
+    Cpu->Contexts--;
+    ASSERT (Cpu->Contexts >= 0);
     Context = Context->PrevContext;
   }
 
@@ -1499,12 +1572,6 @@ CpuRunImage (
   EFI_LOADED_IMAGE_PROTOCOL  *LoadedImage;
   UINT64                     Args[MAX_ARGS] = { (UINT64)ImageHandle, (UINT64)SystemTable };
 
-  Context = CpuAllocContext ();
-  if (Context == NULL) {
-    DEBUG ((DEBUG_ERROR, "Could not allocate CpuRunContext\n"));
-    return EFI_OUT_OF_RESOURCES;
-  }
-
   Status = gBS->HandleProtocol (
                   ImageHandle,
                   &gEfiLoadedImageProtocolGuid,
@@ -1519,7 +1586,13 @@ CpuRunImage (
   ASSERT (Record != NULL);
   ASSERT (Record->Cpu != NULL);
 
-  Context->Cpu        = Record->Cpu;
+  Context = CpuAllocContext (Record->Cpu);
+  DEBUG ((DEBUG_ERROR, "Ctx %p vs %p\n", Context->Cpu, Record->Cpu));
+  if (Context == NULL) {
+    DEBUG ((DEBUG_ERROR, "Could not allocate CpuRunContext\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
   Record->ImageHandle = ImageHandle;
 
   Context->ImageRecord    = Record;
@@ -1540,6 +1613,7 @@ CpuRunImage (
    * Image exited via gBS->Exit.
    */
   CpuCompressLeakedContexts (Context, TRUE);
+
   Status = gBS->Exit (
                   Record->ImageHandle,
                   Record->ImageExitStatus,
@@ -1571,7 +1645,7 @@ CpuExitImage (
   ASSERT (CurrentImageRecord->ImageHandle == Handle);
 
   CriticalBegin ();
-  Context        = mTopContext;
+  Context = mTopContext;
   while (Context != NULL && Context->ImageRecord == NULL) {
     Context = Context->PrevContext;
   }
@@ -1641,7 +1715,7 @@ CpuGetDebugState (
   ZeroMem (DebugState, sizeof (*DebugState));
 
   CriticalBegin ();
-  Context        = mTopContext;
+  Context = mTopContext;
 
   DebugState->HostMachineType = HOST_MACHINE_TYPE;
   if (Context != NULL) {

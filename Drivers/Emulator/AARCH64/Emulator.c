@@ -57,10 +57,7 @@ EmulatorSyncExceptionCallback (
     DEBUG ((DEBUG_ERROR, "Exception occurred in TBs\n"));
   }
 
-  if ((AArch64Context->ELR >= (UINT64)gDriverImage->ImageBase) &&
-      (AArch64Context->ELR <= ((UINT64)gDriverImage->ImageBase +
-                               gDriverImage->ImageSize - 1)))
-  {
+  if (IsDriverImagePointer ((VOID *)AArch64Context->ELR)) {
     DEBUG ((
       DEBUG_ERROR,
       "Exception occured at driver PC +0x%lx, LR +0x%lx\n",
