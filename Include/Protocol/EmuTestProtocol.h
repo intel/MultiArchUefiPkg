@@ -44,4 +44,7 @@ typedef struct {
   EFI_STATUS EFIAPI (*TestGetDebugState)(EMU_TEST_DEBUG_STATE *DebugState);
   UINT64     EFIAPI (*TestSj)(VOID EFIAPI (*Cb)(VOID *Buffer));
   VOID       EFIAPI (*TestLj)(VOID *Buffer);
+  UINT64     EFIAPI (*GetPerformanceCounterProperties)(UINT64  *StartValue,
+                                                       UINT64  *EndValue);
+  UINT64     EFIAPI (*GetPerformanceCounter)(VOID);
 } EMU_TEST_PROTOCOL;

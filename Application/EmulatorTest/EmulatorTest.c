@@ -112,6 +112,62 @@ TestCbLj (
 
 STATIC
 VOID
+TestTplAndCb (
+  IN  EMU_TEST_PROTOCOL  *Test
+  )
+{
+  UINTN    Ticks;
+  UINTN    Stop;
+  UINTN    Last;
+  UINTN    Max;
+  EFI_TPL  OldTpl;
+
+  /*
+   * This test validates interaction between emulated calls, raising
+   * TPL, etc.
+   */
+
+  Ticks = DivU64x32 (
+            MultU64x64 (
+              2000, /* 2000 ms */
+              Test->GetPerformanceCounterProperties (NULL, NULL)
+              ),
+            1000u
+            );
+
+  Max  = 0;
+  Last = Test->GetPerformanceCounter ();
+  Stop = Last + Ticks;
+  while (1) {
+    OldTpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+
+    /*
+     * Test Cb will perform an emulated call and should not crash due
+     * to operations that might be invalid with a high TPL.
+     */
+    if (Test->TestCbArgs (TestCbArgs) != EFI_SUCCESS) {
+      LogResult ("TestTplAndCb", FALSE);
+      break;
+    }
+
+    Ticks = Test->GetPerformanceCounter ();
+    gBS->RestoreTPL (OldTpl);
+    if ((Ticks - Last) > Max) {
+      Max = Ticks - Last;
+    }
+
+    Last = Ticks;
+    if (Ticks >= Stop) {
+      LogResult ("TestTplAndCb", TRUE);
+      break;
+    }
+  }
+
+  DEBUG ((DEBUG_ERROR, "TestTplAndCb max between GetPerformanceCounter calls: 0x%x\n", Max));
+}
+
+STATIC
+VOID
 DoTestProtocolTests (
   IN  EMU_TEST_PROTOCOL  *Test
   )
@@ -178,6 +234,9 @@ DoTestProtocolTests (
 
   Ret = Test->TestSj (TestCbLj);
   LogResult ("TestSj/TestLj passing", Ret == EFI_SUCCESS);
+
+  TestTplAndCb (Test);
+  LogResult ("TestTplAndCb", TRUE);
 }
 
 STATIC

@@ -33,6 +33,7 @@
   Image.c
   Native.c
   TestProtocol.c
+  ObjectAlloc.c
 
 [Sources.RISCV64]
   RISCV64/Emulator.c
