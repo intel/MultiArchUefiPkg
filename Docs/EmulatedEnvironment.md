@@ -103,7 +103,7 @@ Note: empty comment field below indicates full support.
 ## Supported Runtime Services (RT)
 
 Boot Service drivers and UEFI applications may make use of RT services
-as well. The EFI_RUNTIMET_SERVICES table is passed verbatim, and reports
+as well. The EFI_RUNTIME_SERVICES table is passed verbatim, and reports
 the host UEFI Specification revision and host-specific function pointer
 addresses, even for functionality that is filtered/adjusted/disabled.
 
@@ -135,9 +135,9 @@ Note: empty comment field below indicates full support.
 | Service | Comments |
 | :-: | ------------ |
 | FlushDataCache |
-| EnableInterrupt | Returns EFI_UNSUPPORTED |
-| DisableInterrupt | Returns EFI_UNSUPPORTED |
-| GetInterruptState | Returns EFI_UNSUPPORTED |
+| EnableInterrupt | |
+| DisableInterrupt | |
+| GetInterruptState | |
 | Init | Returns EFI_UNSUPPORTED |
 | GetTimerValue | |
 | SetMemoryAttributes | See [notes on memory attributes](#-notes-on-memory-attributes) |

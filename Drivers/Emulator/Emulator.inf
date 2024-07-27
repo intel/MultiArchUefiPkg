@@ -26,6 +26,7 @@
   ComponentName.c
   Cpu.c
   DriverBinding.c
+  EfiHooks.c
   EfiWrappers.c
   Emulator.c
   Entry.c

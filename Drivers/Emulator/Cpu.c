@@ -898,8 +898,8 @@ CpuEnterCritical (
   IN  CpuRunContext  *Context
   )
 {
-  Context->SavedInterruptState = SaveAndDisableInterrupts ();
-  Context->PrevContext         = mTopContext;
+  CriticalBegin ();
+  Context->PrevContext = mTopContext;
 
   mTopContext = Context;
   Context->Cpu->Contexts++;
@@ -911,7 +911,7 @@ CpuLeaveCritical (
   IN  CpuRunContext  *Context
   )
 {
-  Context->SavedInterruptState = SaveAndDisableInterrupts ();
+  CriticalBegin ();
   ASSERT (mTopContext == Context);
 
   mTopContext = mTopContext->PrevContext;
@@ -1003,7 +1003,7 @@ CpuRunCtxInternal (
      * Mask interrupts instead of manipulating the TPL to avoid the overhead
      * (and having to keep track of emulated TPL).
      */
-    DisableInterrupts ();
+    CriticalBegin ();
     {
  #ifndef MAU_EMU_TIMEOUT_NONE
       UINT64  TimeoutAbsTicks;
@@ -1011,6 +1011,7 @@ CpuRunCtxInternal (
  #endif /* MAU_EMU_TIMEOUT_NONE */
 
       UcErr = uc_emu_start (Cpu->UE, ProgramCounter, 0, 0, 0);
+      ASSERT (!GetInterruptState ());
 
  #ifndef MAU_EMU_TIMEOUT_NONE
       if (Cpu->StoppedOnTimeout) {
@@ -1030,7 +1031,7 @@ CpuRunCtxInternal (
 
  #endif /* MAU_EMU_TIMEOUT_NONE */
     }
-    EnableInterrupts ();
+    CriticalEnd ();
 
     ProgramCounter = REG_READ (Cpu, Cpu->ProgramCounterReg);
 
@@ -1088,9 +1089,13 @@ CpuUnregisterCodeRange (
   IN  UINT64                ImageSize
   )
 {
-  uc_err  UcErr;
+  uc_err   UcErr;
 
-  UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
+  /*
+   * uc_mem_protect is not safe to call while we are in JIT (uc_emu_start).
+   */
+  CriticalBegin ();
+  UcErr          = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_READ | UC_PROT_WRITE);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
@@ -1100,6 +1105,7 @@ CpuUnregisterCodeRange (
    * stale TBs can lead to "strange" crashes.
    */
   uc_ctl_remove_cache (Cpu->UE, ImageBase, ImageBase + ImageSize);
+  CriticalEnd ();
 }
 
 VOID
@@ -1109,12 +1115,18 @@ CpuRegisterCodeRange (
   IN  UINT64                ImageSize
   )
 {
-  uc_err  UcErr;
+  uc_err   UcErr;
 
-  UcErr = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_ALL);
+  /*
+   * uc_mem_protect is not safe to call while we are in JIT (uc_emu_start).
+   */
+  CriticalBegin ();
+  UcErr          = uc_mem_protect (Cpu->UE, ImageBase, ImageSize, UC_PROT_ALL);
   if (UcErr != UC_ERR_OK) {
     DEBUG ((DEBUG_ERROR, "uc_mem_protect failed: %a\n", uc_strerror (UcErr)));
   }
+
+  CriticalEnd ();
 }
 
 STATIC
@@ -1208,8 +1220,8 @@ CpuDetectOrphanContexts (
    * contexts handled by the gBS->Exit wrapper or NativeThunk,
    * these have no useful state, they just need to be cleaned up.
    *
-   * Note: this function must be called before dropping to
-   * Context->SavedInterruptState, due to:
+   * Note: this function must be called before dropping out of
+   * critical section, due to:
    * - LeakCookie initialization. LeakCookie cannot be initialized
    *   earlier, because the context is allocated before switching
    *   to a private stack.
@@ -1293,7 +1305,7 @@ CpuRunCtxOnPrivateStack (
   CpuRunContext  *OrphanContexts = CpuDetectOrphanContexts (Context);
  #endif /* MAU_CHECK_ORPHAN_CONTEXTS */
 
-  SetInterruptState (Context->SavedInterruptState);
+  CriticalEnd ();
 
  #ifdef MAU_CHECK_ORPHAN_CONTEXTS
   CpuFreeOrphanContexts (OrphanContexts);
@@ -1373,7 +1385,7 @@ CpuRunCtx (
    * (when Context.PrevUcContext != NULL) or via LongJump (when
    * Context.PrevUcContext == NULL).
    */
-  SetInterruptState (Context->SavedInterruptState);
+  CriticalEnd ();
   return Context->Ret;
 }
 
@@ -1419,7 +1431,6 @@ CpuCompressLeakedContexts (
   IN  BOOLEAN        OnImageExit
   )
 {
-  BOOLEAN        InterruptState;
   CpuRunContext  *Context;
   CpuRunContext  *FromContext;
   CpuRunContext  *ToContext;
@@ -1441,7 +1452,7 @@ CpuCompressLeakedContexts (
    * CurrentContext -> [ live context ]
    */
 
-  InterruptState = SaveAndDisableInterrupts ();
+  CriticalBegin ();
   Context        = FromContext = mTopContext;
   ToContext      = mTopContext = OnImageExit ? CurrentContext->PrevContext : CurrentContext;
 
@@ -1465,7 +1476,7 @@ CpuCompressLeakedContexts (
     Context = Context->PrevContext;
   }
 
-  SetInterruptState (InterruptState);
+  CriticalEnd ();
 
   while (FromContext != ToContext) {
     Context     = FromContext;
@@ -1547,7 +1558,6 @@ CpuExitImage (
   IN  UINT64  *Args
   )
 {
-  BOOLEAN        InterruptState;
   CpuRunContext  *Context;
   ImageRecord    *CurrentImageRecord;
   EFI_HANDLE     Handle =  (VOID *)Args[0];
@@ -1560,7 +1570,7 @@ CpuExitImage (
 
   ASSERT (CurrentImageRecord->ImageHandle == Handle);
 
-  InterruptState = SaveAndDisableInterrupts ();
+  CriticalBegin ();
   Context        = mTopContext;
   while (Context != NULL && Context->ImageRecord == NULL) {
     Context = Context->PrevContext;
@@ -1576,7 +1586,7 @@ CpuExitImage (
     Context = NULL;
   }
 
-  SetInterruptState (InterruptState);
+  CriticalEnd ();
 
   if (Context == NULL) {
     DEBUG ((DEBUG_ERROR, "Context->ImageRecord != CurrentImageRecord\n"));
@@ -1624,14 +1634,13 @@ CpuGetDebugState (
   OUT EMU_TEST_DEBUG_STATE  *DebugState
   )
 {
-  BOOLEAN        InterruptState;
   CpuRunContext  *Context;
 
   ASSERT (DebugState != NULL);
 
   ZeroMem (DebugState, sizeof (*DebugState));
 
-  InterruptState = SaveAndDisableInterrupts ();
+  CriticalBegin ();
   Context        = mTopContext;
 
   DebugState->HostMachineType = HOST_MACHINE_TYPE;
@@ -1664,7 +1673,7 @@ CpuGetDebugState (
  #ifdef MAU_SUPPORTS_AARCH64_BINS
   DebugState->AArch64ContextCount = CpuAArch64.Contexts;
  #endif /* MAU_SUPPORTS_AARCH64_BINS */
-  SetInterruptState (InterruptState);
+  CriticalEnd ();
 
   return EFI_SUCCESS;
 }
