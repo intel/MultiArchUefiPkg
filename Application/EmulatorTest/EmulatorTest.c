@@ -183,6 +183,9 @@ DoTestProtocolTests (
     case EFI_IMAGE_MACHINE_RISCV64:
       hostType = "RiscV64";
       break;
+    case EFI_IMAGE_MACHINE_LOONGARCH64:
+      hostType = "LoongArch64";
+      break;
     case EFI_IMAGE_MACHINE_X64:
       hostType = "X64";
       break;
@@ -196,6 +199,9 @@ DoTestProtocolTests (
       break;
     case EFI_IMAGE_MACHINE_RISCV64:
       myType = "RiscV64";
+      break;
+    case EFI_IMAGE_MACHINE_LOONGARCH64:
+      myType = "LoongArch64";
       break;
     case EFI_IMAGE_MACHINE_X64:
       myType = "X64";
