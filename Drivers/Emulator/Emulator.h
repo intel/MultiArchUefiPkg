@@ -48,12 +48,16 @@
  * Built with compressed instructions, possibly.
  */
 #define NATIVE_INSN_ALIGNMENT  2
+#elif defined (MDE_CPU_LOONGARCH64)
+#define NATIVE_INSN_ALIGNMENT  4
 #endif
 
 #ifdef MDE_CPU_AARCH64
 #define HOST_MACHINE_TYPE  EFI_IMAGE_MACHINE_AARCH64
 #elif defined (MDE_CPU_RISCV64)
 #define HOST_MACHINE_TYPE  EFI_IMAGE_MACHINE_RISCV64
+#elif defined (MDE_CPU_LOONGARCH64)
+#define HOST_MACHINE_TYPE  EFI_IMAGE_MACHINE_LOONGARCH64
 #else
   #error
 #endif

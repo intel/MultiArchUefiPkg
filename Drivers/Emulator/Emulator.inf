@@ -43,6 +43,10 @@
   AARCH64/Emulator.c
   AARCH64/EmulatorThunk.S
 
+[Sources.LOONGARCH64]
+  LOONGARCH64/Emulator.c
+  LOONGARCH64/EmulatorThunk.S
+
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
@@ -52,7 +56,7 @@
 [Packages.AARCH64]
   ArmPkg/ArmPkg.dec
 
-[LibraryClasses.RISCV64]
+[LibraryClasses.RISCV64, LibraryClasses.LOONGARCH64]
   CpuExceptionHandlerLib
 
 [LibraryClasses.AARCH64]
