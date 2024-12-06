@@ -1540,7 +1540,8 @@ CpuCompressLeakedContexts (
     CpuContext  *Cpu = Context->Cpu;
 
     if ((Context->Flags & CRC_HAVE_SAVED_UC_CONTEXT) != 0) {
-      UcErr           = uc_context_restore (Cpu->UE, Context->PrevUcContext);
+      UcErr = uc_context_restore (Cpu->UE, Context->PrevUcContext);
+      ASSERT (UcErr == UC_ERR_OK);
       Context->Flags ^= CRC_HAVE_SAVED_UC_CONTEXT;
     }
 
