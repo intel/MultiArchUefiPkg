@@ -155,9 +155,9 @@
   DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
   #
   # Since software stack checking may be heuristically enabled by the compiler
-  # include BaseStackCheckLib unconditionally.
+  # include StackCheckLib unconditionally.
   #
-  NULL|MdePkg/Library/BaseStackCheckLib/BaseStackCheckLib.inf
+  NULL|MdePkg/Library/StackCheckLibNull/StackCheckLibNull.inf
   #
   # Misc.
   #
